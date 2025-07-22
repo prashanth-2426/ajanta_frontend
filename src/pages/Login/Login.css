@@ -1,0 +1,40 @@
+.login-right-section {
+  /*background-image: url("/bg-login.png"); /* Replace with actual image path */
+  background-size: cover;
+  background-position: center;
+  height: 100%;
+  position: relative;
+}
+
+.login-overlay {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  backdrop-filter: brightness(0.7);
+}
+
+.login-tags {
+  color: white;
+  font-size: 1.5rem;
+  text-align: center;
+  animation: fadeInUp 1.5s ease;
+}
+
+.login-tags p {
+  margin: 0.4rem 0;
+  font-weight: bold;
+  letter-spacing: 2px;
+}
+
+@keyframes fadeInUp {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
