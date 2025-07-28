@@ -323,6 +323,8 @@ const PackageDimensionsForm = ({
               <label>L</label>
               <InputNumber
                 value={pkg.length}
+                mode="decimal"
+                minFractionDigits={2}
                 onValueChange={(e) => handleChange(index, "length", e.value)}
                 className="w-full"
               />
@@ -331,6 +333,8 @@ const PackageDimensionsForm = ({
               <label>B</label>
               <InputNumber
                 value={pkg.breadth}
+                mode="decimal"
+                minFractionDigits={2}
                 onValueChange={(e) => handleChange(index, "breadth", e.value)}
                 className="w-full"
               />
@@ -339,6 +343,8 @@ const PackageDimensionsForm = ({
               <label>H</label>
               <InputNumber
                 value={pkg.height}
+                mode="decimal"
+                minFractionDigits={2}
                 onValueChange={(e) => handleChange(index, "height", e.value)}
                 className="w-full"
               />
@@ -361,6 +367,8 @@ const PackageDimensionsForm = ({
               <div className="p-inputgroup w-full">
                 <InputNumber
                   value={pkg.gross_weight}
+                  mode="decimal"
+                  minFractionDigits={2}
                   onValueChange={(e) =>
                     handleChange(index, "gross_weight", e.value)
                   }

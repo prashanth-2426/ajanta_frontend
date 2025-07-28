@@ -63,6 +63,22 @@ const materials = [
   { label: "Others", value: "others" },
 ];
 
+const countryCurrencyMap = {
+  India: "INR",
+  USA: "USD",
+  Germany: "EUR",
+  UK: "GBP",
+  Japan: "JPY",
+};
+
+const currencyOptions = [
+  { label: "INR - Indian Rupee ₹", value: "INR" },
+  { label: "USD - US Dollar $", value: "USD" },
+  { label: "EUR - Euro €", value: "EUR" },
+  { label: "GBP - British Pound £", value: "GBP" },
+  { label: "JPY - Japanese Yen ¥", value: "JPY" },
+];
+
 const modeOptions = [
   {
     label: "Ocean FCL - Shipping Container",
@@ -289,7 +305,6 @@ const factoryOptions = [
   { label: "Dahej", value: "Dahej" },
   { label: "CWH", value: "CWH" },
   { label: "Pithampur", value: "Pithampur" },
-  { label: "Others", value: "Others" },
 ];
 
 const commodityOptions = [
@@ -371,11 +386,11 @@ const unitOptions = [
   { label: "KM", value: "KM" },
 ];
 
-const currencyOptions = [
-  { label: "USD", value: "USD" },
-  { label: "INR", value: "INR" },
-  { label: "EUR", value: "EUR" },
-];
+// const currencyOptions = [
+//   { label: "USD", value: "USD" },
+//   { label: "INR", value: "INR" },
+//   { label: "EUR", value: "EUR" },
+// ];
 
 const CreateRfq = () => {
   const usert = useSelector((state) => state.auth.user);
@@ -392,6 +407,9 @@ const CreateRfq = () => {
   const queryParams = new URLSearchParams(location.search);
   const source = queryParams.get("source");
   console.log("source value", source);
+
+  //const [customFactory, setCustomFactory] = useState("");
+  const [customClearance, setCustomClearance] = useState("");
 
   const vendorsdonwloaded = useSelector((state) => state.vendors.data);
   console.log("vendorsdonwloaded data", vendorsdonwloaded);
@@ -617,6 +635,15 @@ const CreateRfq = () => {
   const selectedIndustry = useWatch({ control, name: "industry" });
 
   const subIndustriesOptions = defaultSubIndustries[selectedIndustry] || [];
+
+  const selectedCountry = useWatch({ control, name: "country" });
+
+  useEffect(() => {
+    const currency = countryCurrencyMap[selectedCountry];
+    if (currency) {
+      setValue("currency", currency); // auto-set currency
+    }
+  }, [selectedCountry, setValue]);
 
   useEffect(() => {
     if (openDate) {
@@ -1167,7 +1194,7 @@ const CreateRfq = () => {
                 />
               </div>
 
-              <div className="col-12 md:col-3">
+              {/* <div className="col-12 md:col-3">
                 <label>Country</label>
                 <Controller
                   control={control}
@@ -1205,6 +1232,48 @@ const CreateRfq = () => {
                     )}
                   />
                 </div>
+              )} */}
+
+              <div className="col-12 md:col-3">
+                <label>Country</label>
+                <Controller
+                  control={control}
+                  name="country"
+                  disabled={isReadOnly}
+                  render={({ field }) => (
+                    <Dropdown
+                      {...field}
+                      options={Object.keys(countryCurrencyMap).map(
+                        (country) => ({
+                          label: country,
+                          value: country,
+                        })
+                      )}
+                      placeholder="Select Country"
+                      className="w-full"
+                    />
+                  )}
+                />
+              </div>
+
+              {source && selectedCountry && (
+                <div className="col-12 md:col-3">
+                  <label htmlFor="currency">Bid Currency</label>
+                  <Controller
+                    name="currency"
+                    control={control}
+                    render={({ field }) => (
+                      <Dropdown
+                        {...field}
+                        id="currency"
+                        options={currencyOptions}
+                        className="w-full"
+                        placeholder="Select Currency"
+                        disabled={true} // Make read-only
+                      />
+                    )}
+                  />
+                </div>
               )}
 
               <div className="col-12 md:col-3">
@@ -1213,7 +1282,13 @@ const CreateRfq = () => {
                   control={control}
                   name="open_date_time"
                   render={({ field }) => (
-                    <Calendar {...field} className="w-full" showTime showIcon />
+                    <Calendar
+                      {...field}
+                      className="w-full"
+                      showTime
+                      showIcon
+                      dateFormat="dd/mm/yy"
+                    />
                   )}
                 />
               </div>
@@ -1223,7 +1298,13 @@ const CreateRfq = () => {
                   control={control}
                   name="close_date_time"
                   render={({ field }) => (
-                    <Calendar {...field} className="w-full" showTime showIcon />
+                    <Calendar
+                      {...field}
+                      className="w-full"
+                      showTime
+                      showIcon
+                      dateFormat="dd/mm/yy"
+                    />
                   )}
                 />
               </div>
@@ -1400,7 +1481,14 @@ const CreateRfq = () => {
           >
             <div className="col-12 md:col-12">
               <label>Description</label>
-              <InputText {...register("description")} className="w-full" />
+              {/* <InputText {...register("description")} className="w-full" /> */}
+              <InputTextarea
+                id="description"
+                {...register("description")}
+                rows={4}
+                placeholder=""
+                className="w-full"
+              />
             </div>
           </fieldset>
 
@@ -1678,9 +1766,28 @@ const CreateRfq = () => {
                   </div>
                   <div className="field col-12 md:col-4">
                     <label>Stuffing Location</label>
-                    <InputText
+                    {/* <InputText
                       {...register("stuffing_location")}
                       className="w-full"
+                    /> */}
+                    <Controller
+                      name="stuffing_location"
+                      control={control}
+                      render={({ field }) => (
+                        <MultiSelect
+                          {...field}
+                          options={[
+                            { label: "Mumbai", value: "Mumbai" },
+                            { label: "Chennai", value: "Chennai" },
+                            { label: "Delhi", value: "Delhi" },
+                            { label: "Kolkata", value: "Kolkata" },
+                            { label: "Hyderabad", value: "Hyderabad" },
+                          ]}
+                          placeholder="Select Stuffing Locations"
+                          display="chip"
+                          className="w-full"
+                        />
+                      )}
                     />
                   </div>
 
@@ -1796,7 +1903,7 @@ const CreateRfq = () => {
                       />
                     </div>
 
-                    <div className="field col-12 md:col-2">
+                    {/* <div className="field col-12 md:col-2">
                       <label>Factory Location</label>
                       <Controller
                         control={control}
@@ -1844,6 +1951,61 @@ const CreateRfq = () => {
                       <InputText
                         {...register("customs_clearance_location")}
                         className="w-full"
+                      />
+                    </div> */}
+
+                    <div className="field col-12 md:col-3">
+                      <label>Factory Location(s)</label>
+                      <Controller
+                        control={control}
+                        name="factoryLocation"
+                        render={({ field }) => (
+                          <>
+                            <MultiSelect
+                              {...field}
+                              options={factoryOptions}
+                              placeholder="Select Factory Locations"
+                              display="chip"
+                              className="w-full mb-2"
+                              onChange={(e) => {
+                                field.onChange(e.value);
+                                if (!e.value?.includes("Others")) {
+                                  setCustomFactory("");
+                                }
+                              }}
+                            />
+                          </>
+                        )}
+                      />
+                    </div>
+
+                    <div className="field col-12 md:col-3">
+                      <label>Customs Clearance Location(s)</label>
+                      <Controller
+                        control={control}
+                        name="customs_clearance_location"
+                        render={({ field }) => (
+                          <>
+                            <MultiSelect
+                              {...field}
+                              options={[
+                                { label: "Mumbai", value: "Mumbai" },
+                                { label: "Chennai", value: "Chennai" },
+                                { label: "Delhi", value: "Delhi" },
+                                { label: "Kolkata", value: "Kolkata" },
+                              ]}
+                              placeholder="Select Customs Locations"
+                              display="chip"
+                              className="w-full mb-2"
+                              onChange={(e) => {
+                                field.onChange(e.value);
+                                if (!e.value?.includes("Others")) {
+                                  setCustomClearance("");
+                                }
+                              }}
+                            />
+                          </>
+                        )}
                       />
                     </div>
 
@@ -1939,7 +2101,14 @@ const CreateRfq = () => {
 
                     <div className="field col-12">
                       <label>Notes</label>
-                      <InputText {...register("notes")} className="w-full" />
+                      {/* <InputText {...register("notes")} className="w-full" /> */}
+                      <InputTextarea
+                        id="notes"
+                        {...register("notes")}
+                        rows={4}
+                        placeholder=""
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}

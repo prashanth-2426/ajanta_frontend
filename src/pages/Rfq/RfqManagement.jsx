@@ -1960,7 +1960,7 @@ const RfqManagement = () => {
                               )
                             }
                             showIcon
-                            dateFormat="yy-mm-dd"
+                            dateFormat="dd/mm/yy"
                             className="w-full"
                           />
                         </div>
@@ -1981,7 +1981,7 @@ const RfqManagement = () => {
                               )
                             }
                             showIcon
-                            dateFormat="yy-mm-dd"
+                            dateFormat="dd/mm/yy"
                             className="w-full"
                           />
                         </div>
@@ -2004,7 +2004,7 @@ const RfqManagement = () => {
                               )
                             }
                             showIcon
-                            dateFormat="yy-mm-dd"
+                            dateFormat="dd/mm/yy"
                             className="w-full"
                           />
                         </div>
@@ -2027,7 +2027,7 @@ const RfqManagement = () => {
                               )
                             }
                             showIcon
-                            dateFormat="yy-mm-dd"
+                            dateFormat="dd/mm/yy"
                             className="w-full"
                           />
                         </div>

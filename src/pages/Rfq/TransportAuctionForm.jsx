@@ -231,6 +231,7 @@ const TransportAuctionForm = ({
                 onChange={(e) => updateField(index, "dateTime", e.value)}
                 showIcon
                 showTime
+                dateFormat="dd/mm/yy"
                 className="w-full"
               />
             </div>
