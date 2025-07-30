@@ -1776,6 +1776,13 @@ const CreateRfq = () => {
                       render={({ field }) => (
                         <MultiSelect
                           {...field}
+                          value={
+                            Array.isArray(field.value)
+                              ? field.value
+                              : field.value
+                              ? [field.value]
+                              : []
+                          }
                           options={[
                             { label: "Mumbai", value: "Mumbai" },
                             { label: "Chennai", value: "Chennai" },
@@ -1963,6 +1970,13 @@ const CreateRfq = () => {
                           <>
                             <MultiSelect
                               {...field}
+                              value={
+                                Array.isArray(field.value)
+                                  ? field.value
+                                  : field.value
+                                  ? [field.value]
+                                  : []
+                              }
                               options={factoryOptions}
                               placeholder="Select Factory Locations"
                               display="chip"
@@ -1988,6 +2002,13 @@ const CreateRfq = () => {
                           <>
                             <MultiSelect
                               {...field}
+                              value={
+                                Array.isArray(field.value)
+                                  ? field.value
+                                  : field.value
+                                  ? [field.value]
+                                  : []
+                              }
                               options={[
                                 { label: "Mumbai", value: "Mumbai" },
                                 { label: "Chennai", value: "Chennai" },
