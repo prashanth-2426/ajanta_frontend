@@ -4,6 +4,7 @@ import { InputNumber } from "primereact/inputnumber";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
+import { getData } from "../../utils/requests";
 import * as XLSX from "xlsx";
 
 const unitOptions = [
@@ -33,6 +34,7 @@ const volumetricFactor = 6000;
 
 const PackageDimensionsForm = ({
   mode,
+  country,
   onPackagesChange,
   existingPackages = {},
 }) => {
@@ -43,6 +45,7 @@ const PackageDimensionsForm = ({
   const isReadOnly = role === "vendor";
   const [value_of_shipment, setValueOfShipment] = useState(0);
   const [shipment_currency, setShipmentCurrency] = useState("INR");
+  const [previousAuctions, setPreviousAuctions] = useState([]);
   const [packages, setPackages] = useState(() =>
     existingPackages.packages?.length
       ? existingPackages.packages
@@ -150,7 +153,8 @@ const PackageDimensionsForm = ({
       .reduce((sum, pkg) => {
         const qty = parseFloat(pkg.number) || 0;
         const weight = parseFloat(pkg.gross_weight) || 0;
-        return sum + qty * weight;
+        //return sum + qty * weight;
+        return sum + weight;
       }, 0)
       .toFixed(2);
   };
@@ -246,6 +250,25 @@ const PackageDimensionsForm = ({
       if (field === "shipment_currency") setShipmentCurrency(value);
     }
   };
+
+  useEffect(() => {
+    if (country && totalGrossWeight && parseFloat(totalGrossWeight) !== 0) {
+      console.log("selected totalGrossWeight value:", totalGrossWeight);
+      console.log("selected country value is", country);
+      const fetchPreviousAuctions = async () => {
+        try {
+          const data = await getData(
+            `quotesummary/previous-auctions/${country}/${totalGrossWeight}`
+          );
+          console.log("Previous Auctions Data:", data);
+          setPreviousAuctions(data);
+        } catch (error) {
+          console.error("Failed to fetch previous auctions data", error);
+        }
+      };
+      fetchPreviousAuctions();
+    }
+  }, [country, totalGrossWeight]);
 
   return (
     <div className="p-2">
@@ -430,7 +453,7 @@ const PackageDimensionsForm = ({
         <div className="grid mt-4">
           <div className="col-12 md:col-3">
             <label>Total Gross Weight</label>
-            <InputNumber value={totalGrossWeight} readOnly className="w-full" />
+            <InputNumber value={totalGrossWeight} className="w-full" />
           </div>
 
           {/* {mode === "air" && ( */}
@@ -484,6 +507,62 @@ const PackageDimensionsForm = ({
           </div>
         </div>
       </Card>
+      {previousAuctions.length > 0 && (
+        <Card title="Previous Auctions (Similar Weight)" className="p-3">
+          <div className="flex flex-wrap gap-3">
+            {previousAuctions.map((auction, index) => (
+              <div
+                key={index}
+                className="p-3 border-round shadow-2 surface-card"
+                style={{ width: "300px" }}
+              >
+                <p>
+                  <strong>RFQ:</strong> {auction.rfq_number}
+                </p>
+                <p>
+                  <strong>Weight:</strong> {auction.totalGrossWeight} kg
+                </p>
+                {auction.vendors?.map((vendor, vIndex) =>
+                  vendor.package_quotes?.map((pkg, i) =>
+                    pkg.quotes?.map((quote, j) => (
+                      <div
+                        key={`${vIndex}-${i}-${j}`}
+                        className="p-2 border-top-1 border-300 mt-2"
+                      >
+                        <p>
+                          <strong>Airline:</strong> {quote.airline_name}
+                        </p>
+                        <p>
+                          <strong>Last Shipment Per Kg:</strong>{" "}
+                          {quote.freight_per_kg}
+                        </p>
+                        <p>
+                          <strong>Last Shipment DDP Amount:</strong>{" "}
+                          {quote.dap_ddp_charges}
+                        </p>
+                        <p>
+                          <strong>Total Chargeable Weight:</strong>{" "}
+                          {quote.chargeable_weight}
+                        </p>
+                        <p>
+                          <strong>Last Shipment Freight Amt (in FC):</strong>{" "}
+                          {quote.chargeable_weight}
+                        </p>
+                        <p>
+                          <strong>
+                            Last Shipment Haulage Destination Amt (in FC):
+                          </strong>{" "}
+                          {quote.chargeable_weight}
+                        </p>
+                      </div>
+                    ))
+                  )
+                )}
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

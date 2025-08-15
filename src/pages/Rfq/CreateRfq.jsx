@@ -63,20 +63,361 @@ const materials = [
   { label: "Others", value: "others" },
 ];
 
+// const countryCurrencyMap = {
+//   India: "INR",
+//   USA: "USD",
+//   Germany: "EUR",
+//   UK: "GBP",
+//   Japan: "JPY",
+// };
+
 const countryCurrencyMap = {
-  India: "INR",
-  USA: "USD",
+  Afghanistan: "AFN",
+  Albania: "ALL",
+  Algeria: "DZD",
+  Andorra: "EUR",
+  Angola: "AOA",
+  Argentina: "ARS",
+  Armenia: "AMD",
+  Aruba: "AWG",
+  Australia: "AUD",
+  Austria: "EUR",
+  Azerbaijan: "AZN",
+  Bahamas: "BSD",
+  Bahrain: "BHD",
+  Bangladesh: "BDT",
+  Barbados: "BBD",
+  Belarus: "BYN",
+  Belgium: "EUR",
+  Belize: "BZD",
+  Benin: "XOF",
+  Bermuda: "BMD",
+  Bhutan: "BTN",
+  Bolivia: "BOB",
+  "Bosnia and Herzegovina": "BAM",
+  Botswana: "BWP",
+  Brazil: "BRL",
+  Brunei: "BND",
+  Bulgaria: "BGN",
+  "Burkina Faso": "XOF",
+  Burundi: "BIF",
+  "Cabo Verde": "CVE",
+  Cambodia: "KHR",
+  Cameroon: "XAF",
+  Canada: "CAD",
+  "Central African Republic": "XAF",
+  Chile: "CLP",
+  China: "CNY",
+  Colombia: "COP",
+  "Costa Rica": "CRC",
+  Croatia: "HRK",
+  Cuba: "CUP",
+  Curaçao: "ANG",
+  Cyprus: "EUR",
+  Czechia: "CZK",
+  Denmark: "DKK",
+  Djibouti: "DJF",
+  Dominica: "XCD",
+  "Dominican Republic": "DOP",
+  Ecuador: "USD",
+  Egypt: "EGP",
+  "El Salvador": "USD",
+  Estonia: "EUR",
+  Eswatini: "SZL",
+  Ethiopia: "ETB",
+  "Euro (e.g. Germany, France, etc.)": "EUR",
+  Fiji: "FJD",
+  Gabon: "XAF",
+  Gambia: "GMD",
+  Georgia: "GEL",
   Germany: "EUR",
-  UK: "GBP",
+  Ghana: "GHS",
+  Greece: "EUR",
+  Grenada: "XCD",
+  Guatemala: "GTQ",
+  Guinea: "GNF",
+  "Guinea-Bissau": "XOF",
+  Guyana: "GYD",
+  Haiti: "HTG",
+  Honduras: "HNL",
+  "Hong Kong": "HKD",
+  Hungary: "HUF",
+  Iceland: "ISK",
+  India: "INR",
+  Indonesia: "IDR",
+  Iran: "IRR",
+  Iraq: "IQD",
+  Ireland: "EUR",
+  Israel: "ILS",
+  Italy: "EUR",
+  Jamaica: "JMD",
   Japan: "JPY",
+  Jordan: "JOD",
+  Kazakhstan: "KZT",
+  Kenya: "KES",
+  Kuwait: "KWD",
+  Kyrgyzstan: "KGS",
+  Laos: "LAK",
+  Lebanon: "LBP",
+  Lesotho: "LSL",
+  Liberia: "LRD",
+  Libya: "LYD",
+  Liechtenstein: "CHF",
+  Lithuania: "EUR",
+  Luxembourg: "EUR",
+  Macao: "MOP",
+  Madagascar: "MGA",
+  Malawi: "MWK",
+  Malaysia: "MYR",
+  Maldives: "MVR",
+  Mali: "XOF",
+  Malta: "EUR",
+  Mauritania: "MRU",
+  Mauritius: "MUR",
+  Mexico: "MXN",
+  Moldova: "MDL",
+  Monaco: "EUR",
+  Mongolia: "MNT",
+  Montenegro: "EUR",
+  Morocco: "MAD",
+  Mozambique: "MZN",
+  Myanmar: "MMK",
+  Namibia: "NAD",
+  Nepal: "NPR",
+  Netherlands: "EUR",
+  "New Zealand": "NZD",
+  Nicaragua: "NIO",
+  Niger: "XOF",
+  Nigeria: "NGN",
+  "North Korea": "KPW",
+  "North Macedon**ia**": "MKD",
+  Norway: "NOK",
+  Oman: "OMR",
+  Pakistan: "PKR",
+  Panama: "PAB",
+  Paraguay: "PYG",
+  Peru: "PEN",
+  Philippines: "PHP",
+  Poland: "PLN",
+  Portugal: "EUR",
+  Qatar: "QAR",
+  Romania: "RON",
+  Russia: "RUB",
+  Rwanda: "RWF",
+  "Saudi Arabia": "SAR",
+  Senegal: "XOF",
+  Serbia: "RSD",
+  Seychelles: "SCR",
+  "Sierra Leone": "SLL",
+  Singapore: "SGD",
+  Slovakia: "EUR",
+  Slovenia: "EUR",
+  "Solomon Islands": "SBD",
+  Somalia: "SOS",
+  "South Africa": "ZAR",
+  "South Korea": "KRW",
+  "South Sudan": "SSP",
+  Spain: "EUR",
+  "Sri Lanka": "LKR",
+  Sudan: "SDG",
+  Suriname: "SRD",
+  Sweden: "SEK",
+  Switzerland: "CHF",
+  Syria: "SYP",
+  Taiwan: "TWD",
+  Tajikistan: "TJS",
+  Tanzania: "TZS",
+  Thailand: "THB",
+  Togo: "XOF",
+  Tonga: "TOP",
+  "Trinidad and Tobago": "TTD",
+  Tunisia: "TND",
+  Turkey: "TRY",
+  Turkmenistan: "TMT",
+  Uganda: "UGX",
+  Ukraine: "UAH",
+  "United Arab Emirates": "AED",
+  "United Kingdom": "GBP",
+  "United States": "USD",
+  Uruguay: "UYU",
+  Uzbekistan: "UZS",
+  Vanuatu: "VUV",
+  Venezuela: "VES",
+  Vietnam: "VND",
+  Yemen: "YER",
+  Zambia: "ZMW",
+  Zimbabwe: "ZWL",
 };
 
+// const currencyOptions = [
+//   { label: "INR - Indian Rupee ₹", value: "INR" },
+//   { label: "USD - US Dollar $", value: "USD" },
+//   { label: "EUR - Euro €", value: "EUR" },
+//   { label: "GBP - British Pound £", value: "GBP" },
+//   { label: "JPY - Japanese Yen ¥", value: "JPY" },
+// ];
+
 const currencyOptions = [
-  { label: "INR - Indian Rupee ₹", value: "INR" },
-  { label: "USD - US Dollar $", value: "USD" },
+  { label: "AED - United Arab Emirates Dirham د.إ", value: "AED" },
+  { label: "AFN - Afghan Afghani ؋", value: "AFN" },
+  { label: "ALL - Albanian Lek L", value: "ALL" },
+  { label: "AMD - Armenian Dram ֏", value: "AMD" },
+  { label: "ANG - Netherlands Antillean Guilder ƒ", value: "ANG" },
+  { label: "AOA - Angolan Kwanza Kz", value: "AOA" },
+  { label: "ARS - Argentine Peso $", value: "ARS" },
+  { label: "AUD - Australian Dollar $", value: "AUD" },
+  { label: "AWG - Aruban Florin ƒ", value: "AWG" },
+  { label: "AZN - Azerbaijani Manat ₼", value: "AZN" },
+  { label: "BAM - Bosnia and Herzegovina Convertible Mark KM", value: "BAM" },
+  { label: "BBD - Barbadian Dollar $", value: "BBD" },
+  { label: "BDT - Bangladeshi Taka ৳", value: "BDT" },
+  { label: "BGN - Bulgarian Lev лв", value: "BGN" },
+  { label: "BHD - Bahraini Dinar .د.ب", value: "BHD" },
+  { label: "BIF - Burundian Franc ₣", value: "BIF" },
+  { label: "BMD - Bermudian Dollar $", value: "BMD" },
+  { label: "BND - Brunei Dollar $", value: "BND" },
+  { label: "BOB - Bolivian Boliviano Bs.", value: "BOB" },
+  { label: "BRL - Brazilian Real R$", value: "BRL" },
+  { label: "BSD - Bahamian Dollar $", value: "BSD" },
+  { label: "BTN - Bhutanese Ngultrum Nu.", value: "BTN" },
+  { label: "BWP - Botswana Pula P", value: "BWP" },
+  { label: "BYN - Belarusian Ruble Br", value: "BYN" },
+  { label: "BZD - Belize Dollar $", value: "BZD" },
+  { label: "CAD - Canadian Dollar $", value: "CAD" },
+  { label: "CDF - Congolese Franc ₣", value: "CDF" },
+  { label: "CHF - Swiss Franc CHF", value: "CHF" },
+  { label: "CLP - Chilean Peso $", value: "CLP" },
+  { label: "CNY - Chinese Yuan ¥", value: "CNY" },
+  { label: "COP - Colombian Peso $", value: "COP" },
+  { label: "CRC - Costa Rican Colón ₡", value: "CRC" },
+  { label: "CUP - Cuban Peso ₱", value: "CUP" },
+  { label: "CVE - Cape Verdean Escudo $", value: "CVE" },
+  { label: "CZK - Czech Koruna Kč", value: "CZK" },
+  { label: "DJF - Djiboutian Franc ₣", value: "DJF" },
+  { label: "DKK - Danish Krone kr", value: "DKK" },
+  { label: "DOP - Dominican Peso $", value: "DOP" },
+  { label: "DZD - Algerian Dinar دج", value: "DZD" },
+  { label: "EGP - Egyptian Pound £", value: "EGP" },
+  { label: "ERN - Eritrean Nakfa Nfk", value: "ERN" },
+  { label: "ETB - Ethiopian Birr Br", value: "ETB" },
   { label: "EUR - Euro €", value: "EUR" },
-  { label: "GBP - British Pound £", value: "GBP" },
+  { label: "FJD - Fijian Dollar $", value: "FJD" },
+  { label: "FKP - Falkland Islands Pound £", value: "FKP" },
+  { label: "FOK - Faroese Króna kr", value: "FOK" },
+  { label: "GBP - British Pound Sterling £", value: "GBP" },
+  { label: "GEL - Georgian Lari ₾", value: "GEL" },
+  { label: "GGP - Guernsey Pound £", value: "GGP" },
+  { label: "GHS - Ghanaian Cedi ₵", value: "GHS" },
+  { label: "GIP - Gibraltar Pound £", value: "GIP" },
+  { label: "GMD - Gambian Dalasi D", value: "GMD" },
+  { label: "GNF - Guinean Franc ₣", value: "GNF" },
+  { label: "GTQ - Guatemalan Quetzal Q", value: "GTQ" },
+  { label: "GYD - Guyanese Dollar $", value: "GYD" },
+  { label: "HKD - Hong Kong Dollar $", value: "HKD" },
+  { label: "HNL - Honduran Lempira L", value: "HNL" },
+  { label: "HRK - Croatian Kuna kn", value: "HRK" },
+  { label: "HTG - Haitian Gourde G", value: "HTG" },
+  { label: "HUF - Hungarian Forint Ft", value: "HUF" },
+  { label: "IDR - Indonesian Rupiah Rp", value: "IDR" },
+  { label: "ILS - Israeli New Shekel ₪", value: "ILS" },
+  { label: "IMP - Isle of Man Pound £", value: "IMP" },
+  { label: "INR - Indian Rupee ₹", value: "INR" },
+  { label: "IQD - Iraqi Dinar ع.د", value: "IQD" },
+  { label: "IRR - Iranian Rial ﷼", value: "IRR" },
+  { label: "ISK - Icelandic Króna kr", value: "ISK" },
+  { label: "JEP - Jersey Pound £", value: "JEP" },
+  { label: "JMD - Jamaican Dollar $", value: "JMD" },
+  { label: "JOD - Jordanian Dinar د.ا", value: "JOD" },
   { label: "JPY - Japanese Yen ¥", value: "JPY" },
+  { label: "KES - Kenyan Shilling Sh", value: "KES" },
+  { label: "KGS - Kyrgyzstani Som ⃀", value: "KGS" },
+  { label: "KHR - Cambodian Riel ៛", value: "KHR" },
+  { label: "KID - Kiribati Dollar $", value: "KID" },
+  { label: "KMF - Comorian Franc ₣", value: "KMF" },
+  { label: "KRW - South Korean Won ₩", value: "KRW" },
+  { label: "KWD - Kuwaiti Dinar د.ك", value: "KWD" },
+  { label: "KYD - Cayman Islands Dollar $", value: "KYD" },
+  { label: "KZT - Kazakhstani Tenge ₸", value: "KZT" },
+  { label: "LAK - Lao Kip ₭", value: "LAK" },
+  { label: "LBP - Lebanese Pound ل.ل", value: "LBP" },
+  { label: "LKR - Sri Lankan Rupee Rs", value: "LKR" },
+  { label: "LRD - Liberian Dollar $", value: "LRD" },
+  { label: "LSL - Lesotho Loti L", value: "LSL" },
+  { label: "LYD - Libyan Dinar ل.د", value: "LYD" },
+  { label: "MAD - Moroccan Dirham د.م.", value: "MAD" },
+  { label: "MDL - Moldovan Leu L", value: "MDL" },
+  { label: "MGA - Malagasy Ariary Ar", value: "MGA" },
+  { label: "MKD - Macedonian Denar ден", value: "MKD" },
+  { label: "MMK - Burmese Kyat Ks", value: "MMK" },
+  { label: "MNT - Mongolian Tögrög ₮", value: "MNT" },
+  { label: "MOP - Macanese Pataca P", value: "MOP" },
+  { label: "MRU - Mauritanian Ouguiya UM", value: "MRU" },
+  { label: "MUR - Mauritian Rupee ₨", value: "MUR" },
+  { label: "MVR - Maldivian Rufiyaa .ރ", value: "MVR" },
+  { label: "MWK - Malawian Kwacha MK", value: "MWK" },
+  { label: "MXN - Mexican Peso $", value: "MXN" },
+  { label: "MYR - Malaysian Ringgit RM", value: "MYR" },
+  { label: "MZN - Mozambican Metical MT", value: "MZN" },
+  { label: "NAD - Namibian Dollar $", value: "NAD" },
+  { label: "NGN - Nigerian Naira ₦", value: "NGN" },
+  { label: "NIO - Nicaraguan Córdoba C$", value: "NIO" },
+  { label: "NOK - Norwegian Krone kr", value: "NOK" },
+  { label: "NPR - Nepalese Rupee ₨", value: "NPR" },
+  { label: "NZD - New Zealand Dollar $", value: "NZD" },
+  { label: "OMR - Omani Rial ﷼", value: "OMR" },
+  { label: "PAB - Panamanian Balboa B/.", value: "PAB" },
+  { label: "PEN - Peruvian Sol S/", value: "PEN" },
+  { label: "PGK - Papua New Guinean Kina K", value: "PGK" },
+  { label: "PHP - Philippine Peso ₱", value: "PHP" },
+  { label: "PKR - Pakistani Rupee ₨", value: "PKR" },
+  { label: "PLN - Polish Złoty zł", value: "PLN" },
+  { label: "PYG - Paraguayan Guaraní ₲", value: "PYG" },
+  { label: "QAR - Qatari Riyal ﷼", value: "QAR" },
+  { label: "RON - Romanian Leu lei", value: "RON" },
+  { label: "RSD - Serbian Dinar din", value: "RSD" },
+  { label: "RUB - Russian Ruble ₽", value: "RUB" },
+  { label: "RWF - Rwandan Franc ₣", value: "RWF" },
+  { label: "SAR - Saudi Riyal ﷼", value: "SAR" },
+  { label: "SBD - Solomon Islands Dollar $", value: "SBD" },
+  { label: "SCR - Seychellois Rupee ₨", value: "SCR" },
+  { label: "SDG - Sudanese Pound ج.س.", value: "SDG" },
+  { label: "SEK - Swedish Krona kr", value: "SEK" },
+  { label: "SGD - Singapore Dollar $", value: "SGD" },
+  { label: "SHP - Saint Helena Pound £", value: "SHP" },
+  { label: "SLL - Sierra Leonean Leone Le", value: "SLL" },
+  { label: "SOS - Somali Shilling Sh", value: "SOS" },
+  { label: "SRD - Surinamese Dollar $", value: "SRD" },
+  { label: "SSP - South Sudanese Pound £", value: "SSP" },
+  { label: "STN - São Tomé and Príncipe Dobra Db", value: "STN" },
+  { label: "SYP - Syrian Pound £", value: "SYP" },
+  { label: "SZL - Swazi Lilangeni E", value: "SZL" },
+  { label: "THB - Thai Baht ฿", value: "THB" },
+  { label: "TJS - Tajikistani Somoni ЅМ", value: "TJS" },
+  { label: "TMT - Turkmenistani Manat m", value: "TMT" },
+  { label: "TND - Tunisian Dinar د.ت", value: "TND" },
+  { label: "TOP - Tongan Paʻanga T$", value: "TOP" },
+  { label: "TRY - Turkish Lira ₺", value: "TRY" },
+  { label: "TTD - Trinidad and Tobago Dollar $", value: "TTD" },
+  { label: "TVD - Tuvaluan Dollar $", value: "TVD" },
+  { label: "TWD - New Taiwan Dollar $", value: "TWD" },
+  { label: "TZS - Tanzanian Shilling Sh", value: "TZS" },
+  { label: "UAH - Ukrainian Hryvnia ₴", value: "UAH" },
+  { label: "UGX - Ugandan Shilling Sh", value: "UGX" },
+  { label: "USD - United States Dollar $", value: "USD" },
+  { label: "UYU - Uruguayan Peso $U", value: "UYU" },
+  { label: "UZS - Uzbekistani Soʻm so'm", value: "UZS" },
+  { label: "VES - Venezuelan Bolívar Bs.S", value: "VES" },
+  { label: "VND - Vietnamese Đồng ₫", value: "VND" },
+  { label: "VUV - Vanuatu Vatu VT", value: "VUV" },
+  { label: "WST - Samoan Tālā T", value: "WST" },
+  { label: "XAF - Central African CFA Franc ₣", value: "XAF" },
+  { label: "XCD - East Caribbean Dollar $", value: "XCD" },
+  { label: "XOF - West African CFA Franc ₣", value: "XOF" },
+  { label: "XPF - CFP Franc ₣", value: "XPF" },
+  { label: "YER - Yemeni Rial ﷼", value: "YER" },
+  { label: "ZAR - South African Rand R", value: "ZAR" },
+  { label: "ZMW - Zambian Kwacha ZK", value: "ZMW" },
+  { label: "ZWL - Zimbabwean Dollar $", value: "ZWL" },
 ];
 
 const modeOptions = [
@@ -443,6 +784,8 @@ const CreateRfq = () => {
   const [formType, setFormType] = useState("draft");
   const [auctionType, setAuctionType] = useState("");
   const [rfqStatus, setRFQStatus] = useState("");
+  const [currency, setCurrency] = useState("");
+  const [dapCurrency, setDapCurrency] = useState("");
 
   const [currentIndex, setCurrentIndex] = useState(0);
   const totalSections = 5;
@@ -593,6 +936,12 @@ const CreateRfq = () => {
         if (matched?.status) {
           setRFQStatus(matched.status);
         }
+        if (matched?.currency) {
+          setCurrency(matched.currency);
+        }
+        if (matched?.dapCurrency) {
+          setCurrency(matched.dapCurrency);
+        }
         if (matched?.shipment_details) {
           setParsedData(matched.shipment_details);
         }
@@ -638,12 +987,14 @@ const CreateRfq = () => {
 
   const selectedCountry = useWatch({ control, name: "country" });
 
-  useEffect(() => {
-    const currency = countryCurrencyMap[selectedCountry];
-    if (currency) {
-      setValue("currency", currency); // auto-set currency
-    }
-  }, [selectedCountry, setValue]);
+  const totalGrossWeight = watch("package_summary.totalGrossWeight");
+
+  // useEffect(() => {
+  //   const currency = countryCurrencyMap[selectedCountry];
+  //   if (currency) {
+  //     setValue("currency", currency); // auto-set currency
+  //   }
+  // }, [selectedCountry, setValue]);
 
   useEffect(() => {
     if (openDate) {
@@ -1251,28 +1602,56 @@ const CreateRfq = () => {
                       )}
                       placeholder="Select Country"
                       className="w-full"
+                      filter
+                      filterBy="label"
+                      //showClear
                     />
                   )}
                 />
               </div>
 
               {source && selectedCountry && (
-                <div className="col-12 md:col-3">
-                  <label htmlFor="currency">Bid Currency</label>
-                  <Controller
-                    name="currency"
-                    control={control}
-                    render={({ field }) => (
-                      <Dropdown
-                        {...field}
-                        id="currency"
-                        options={currencyOptions}
-                        className="w-full"
-                        placeholder="Select Currency"
-                        disabled={true} // Make read-only
-                      />
-                    )}
-                  />
+                <div className="formgrid grid">
+                  <div className="col-12 md:col-6">
+                    <label htmlFor="currency">Bid Currency</label>
+                    <Controller
+                      name="currency"
+                      control={control}
+                      render={({ field }) => (
+                        <Dropdown
+                          {...field}
+                          id="currency"
+                          options={currencyOptions}
+                          className="w-full"
+                          placeholder="Select Currency"
+                          //disabled={true} // Make read-only
+                          filter
+                          filterBy="label"
+                          //showClear
+                        />
+                      )}
+                    />
+                  </div>
+                  <div className="col-12 md:col-6">
+                    <label htmlFor="currency">DAP Currency Charges</label>
+                    <Controller
+                      name="dapCurrency"
+                      control={control}
+                      render={({ field }) => (
+                        <Dropdown
+                          {...field}
+                          id="dapCurrency"
+                          options={currencyOptions}
+                          className="w-full"
+                          placeholder="Select Currency"
+                          //disabled={true} // Make read-only
+                          filter
+                          filterBy="label"
+                          //showClear
+                        />
+                      )}
+                    />
+                  </div>
                 </div>
               )}
 
@@ -1764,12 +2143,8 @@ const CreateRfq = () => {
                       className="w-full"
                     />
                   </div>
-                  <div className="field col-12 md:col-4">
+                  {/* <div className="field col-12 md:col-4">
                     <label>Stuffing Location</label>
-                    {/* <InputText
-                      {...register("stuffing_location")}
-                      className="w-full"
-                    /> */}
                     <Controller
                       name="stuffing_location"
                       control={control}
@@ -1796,7 +2171,7 @@ const CreateRfq = () => {
                         />
                       )}
                     />
-                  </div>
+                  </div> */}
 
                   <div className="field col-12 md:col-4">
                     <label>Destination Airport</label>
@@ -1962,7 +2337,7 @@ const CreateRfq = () => {
                     </div> */}
 
                     <div className="field col-12 md:col-3">
-                      <label>Factory Location(s)</label>
+                      <label>Stuffing Location(s)</label>
                       <Controller
                         control={control}
                         name="factoryLocation"
@@ -1978,7 +2353,7 @@ const CreateRfq = () => {
                                   : []
                               }
                               options={factoryOptions}
-                              placeholder="Select Factory Locations"
+                              placeholder="Select Stuffing Locations"
                               display="chip"
                               className="w-full mb-2"
                               onChange={(e) => {
@@ -2030,13 +2405,13 @@ const CreateRfq = () => {
                       />
                     </div>
 
-                    <div className="field col-12 md:col-3">
+                    {/* <div className="field col-12 md:col-3">
                       <label>Delivery Terms</label>
                       <InputText
                         {...register("delivery_terms")}
                         className="w-full"
                       />
-                    </div>
+                    </div> */}
 
                     <div className="field col-12 md:col-3">
                       <label>Pickup by Freight Forwarder(FF)</label>
@@ -2573,6 +2948,7 @@ const CreateRfq = () => {
                 >
                   <PackageDimensionsForm
                     mode={watch("transport_mode")}
+                    country={selectedCountry}
                     onPackagesChange={handlePackagesChange}
                     existingPackages={watch("package_summary")}
                   />

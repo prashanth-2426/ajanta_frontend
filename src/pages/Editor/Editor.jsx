@@ -135,7 +135,13 @@ const Editor = () => {
             control={control}
             name="open_date_time"
             render={({ field }) => (
-              <Calendar {...field} className="w-full" showTime showIcon />
+              <Calendar
+                {...field}
+                className="w-full"
+                showTime
+                showIcon
+                dateFormat="dd/mm/yy"
+              />
             )}
           />
         </div>
@@ -145,7 +151,13 @@ const Editor = () => {
             control={control}
             name="close_date_time"
             render={({ field }) => (
-              <Calendar {...field} className="w-full" showTime showIcon />
+              <Calendar
+                {...field}
+                className="w-full"
+                showTime
+                showIcon
+                dateFormat="dd/mm/yy"
+              />
             )}
           />
         </div>

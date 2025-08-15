@@ -143,6 +143,11 @@ const AppMenu = () => {
                 icon: "pi pi-fw pi-calendar",
                 to: "/vendormanagement",
               },
+              {
+                label: "Invoice Management",
+                icon: "pi pi-fw pi-calendar",
+                to: "/invoicemanagement",
+              },
             ],
           },
         ]

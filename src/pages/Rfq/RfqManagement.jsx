@@ -50,6 +50,9 @@ const RfqManagement = () => {
   const [expandedModalRows, setExpandedModalRows] = useState({});
   const [currencySymbol, setCurrencySymbol] = useState("INR");
 
+  const [deliveryDetails, setDeliveryDetails] = useState({});
+  const [invoiceFiles, setInvoiceFiles] = useState({});
+
   const toggleMoreInfo = (shipmentIndex, rowIndex) => {
     setExpandedModalRows((prev) => ({
       ...prev,
@@ -239,6 +242,49 @@ const RfqManagement = () => {
         [field]: value,
       },
     }));
+  };
+
+  const handleDeliverySubmit = async (rfqNumber) => {
+    const delivery = deliveryDetails[rfqNumber];
+    const file = invoiceFiles[rfqNumber];
+
+    if (!delivery?.deliveryDate || !file) {
+      dispatch(
+        toastError({ detail: "Please provide delivery date and invoice." })
+      );
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("rfq_number", rfqNumber);
+    formData.append("vendor_id", user.id);
+    formData.append("delivery_date", delivery.deliveryDate.toISOString());
+    formData.append("notes", delivery.notes || "");
+    formData.append("invoiceAmount", delivery.invoiceAmount || "");
+    formData.append("invoice", file);
+
+    try {
+      const token = localStorage.getItem("USERTOKEN");
+      const response = await fetch("/apis/invoices/submit", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const result = await response.json();
+      if (result.isSuccess) {
+        dispatch(
+          toastSuccess({ detail: "Delivery details submitted successfully!" })
+        );
+      } else {
+        dispatch(toastError({ detail: result.msg || "Submission failed" }));
+      }
+    } catch (error) {
+      console.error("Delivery submission error:", error);
+      dispatch(toastError({ detail: "Something went wrong" }));
+    }
   };
 
   const handlePackageSubmit = async (shipmentIndex, rowData) => {
@@ -729,7 +775,16 @@ const RfqManagement = () => {
                   }}
                 />
               )}
-              <Column field="status" header="Status" />
+              <Column
+                body={() => (
+                  <span>
+                    {getVendorStatusFromBuyerStatus(
+                      rowData.status
+                    ).toUpperCase() || "-"}
+                  </span>
+                )}
+                header="Status"
+              />
               <Column
                 header="Action"
                 body={(itemRow, options) => (
@@ -746,6 +801,95 @@ const RfqManagement = () => {
               />
             </DataTable>
           </>
+        )}
+        {getVendorStatusFromBuyerStatus(rowData.status) ===
+          "QUOTE ACCEPTED" && (
+          <div className="mt-3 p-3 border-1 surface-border border-round">
+            <h5>📦 Delivery & Invoice Submission</h5>
+            <div className="grid formgrid p-fluid">
+              <div className="field col-12 md:col-4">
+                <label>Delivery Date</label>
+                <Calendar
+                  value={
+                    deliveryDetails[rowData.rfq_number]?.deliveryDate || null
+                  }
+                  onChange={(e) =>
+                    setDeliveryDetails((prev) => ({
+                      ...prev,
+                      [rowData.rfq_number]: {
+                        ...(prev[rowData.rfq_number] || {}),
+                        deliveryDate: e.value,
+                      },
+                    }))
+                  }
+                  showIcon
+                  dateFormat="yy-mm-dd"
+                />
+              </div>
+
+              <div className="field col-12 md:col-4">
+                <label>Total Invoice Amount</label>
+                <InputNumber
+                  value={
+                    deliveryDetails[rowData.rfq_number]?.invoiceAmount || null
+                  }
+                  onValueChange={(e) =>
+                    setDeliveryDetails((prev) => ({
+                      ...prev,
+                      [rowData.rfq_number]: {
+                        ...(prev[rowData.rfq_number] || {}),
+                        invoiceAmount: e.value,
+                      },
+                    }))
+                  }
+                  mode="currency"
+                  currency="INR"
+                  locale="en-IN"
+                  className="w-full"
+                />
+              </div>
+
+              <div className="field col-12 md:col-8">
+                <label>Delivery Notes</label>
+                <InputTextarea
+                  value={deliveryDetails[rowData.rfq_number]?.notes || ""}
+                  rows={3}
+                  onChange={(e) =>
+                    setDeliveryDetails((prev) => ({
+                      ...prev,
+                      [rowData.rfq_number]: {
+                        ...(prev[rowData.rfq_number] || {}),
+                        notes: e.target.value,
+                      },
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="field col-12 md:col-6">
+                <label>Upload Invoice (PDF)</label>
+                <input
+                  type="file"
+                  accept="application/pdf"
+                  onChange={(e) =>
+                    setInvoiceFiles((prev) => ({
+                      ...prev,
+                      [rowData.rfq_number]: e.target.files[0],
+                    }))
+                  }
+                />
+              </div>
+
+              <div className="field col-12 md:col-12">
+                <Button
+                  label="Submit Delivery Details"
+                  icon="pi pi-check"
+                  className="p-button-success"
+                  onClick={() => handleDeliverySubmit(rowData.rfq_number)}
+                />
+              </div>
+            </div>
+          </div>
         )}
 
         {rowData.subindustry === "Road Transport" && (
@@ -846,7 +990,6 @@ const RfqManagement = () => {
             </DataTable>
           </>
         )}
-
         {rowData.subindustry == "Ocean Freight" && (
           <>
             {rowData.shipment_details?.map((shipment, shipmentIndex) => (
@@ -1576,7 +1719,6 @@ const RfqManagement = () => {
             ))}
           </>
         )}
-
         {rowData.subindustry == "Air Cargo" && (
           <div>
             {rowData.shipment_details?.map((shipment, shipmentIndex) => (

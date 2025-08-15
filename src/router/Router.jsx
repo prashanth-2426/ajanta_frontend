@@ -15,6 +15,7 @@ import Editor from "../pages/Editor/Editor";
 import CreateRfq from "../pages/Rfq/CreateRfq";
 import RfqManagement from "../pages/Rfq/RfqManagement";
 import VendorManagement from "../pages/VendorManagement/VendorManagement";
+import InvoiceManagement from "../pages/InvoiceManagement/InvoiceManagement";
 import AddUser from "../pages/Users/AddUser";
 import UserManagement from "../pages/Users/UserManagement";
 import { useSelector } from "react-redux";
@@ -52,6 +53,7 @@ const Router = () => {
             <Route path="/users/edit/:userId" element={<AddUser />} />
             <Route path="/users/usermanagement" element={<UserManagement />} />
             <Route path="vendormanagement" element={<VendorManagement />} />
+            <Route path="invoicemanagement" element={<InvoiceManagement />} />
           </Route>
         </Routes>
       </Suspense>
