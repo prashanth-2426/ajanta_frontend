@@ -44,8 +44,8 @@ const vendorTypeOptions = [
 ];
 
 const movementTypes = [
-  { label: "Door to Door", value: "door_to_door" },
-  { label: "Airport(Origin) To Airport(Destination)", value: "port_to_port" },
+  { label: "Door To Door", value: "door_to_door" },
+  { label: "Port To Port", value: "port_to_port" },
 ];
 
 const packageTypes = [
@@ -74,6 +74,8 @@ const materials = [
 const countryCurrencyMap = {
   Afghanistan: "AFN",
   Albania: "ALL",
+  Asia: "AS",
+  Africa: "AF",
   Algeria: "DZD",
   Andorra: "EUR",
   Angola: "AOA",
@@ -121,13 +123,15 @@ const countryCurrencyMap = {
   "Dominican Republic": "DOP",
   Ecuador: "USD",
   Egypt: "EGP",
+  Europe: "EU",
   "El Salvador": "USD",
   Estonia: "EUR",
   Eswatini: "SZL",
   Ethiopia: "ETB",
-  "Euro (e.g. Germany, France, etc.)": "EUR",
   Fiji: "FJD",
+  France: "EUR",
   Gabon: "XAF",
+  Gulf: "GF",
   Gambia: "GMD",
   Georgia: "GEL",
   Germany: "EUR",
@@ -166,6 +170,7 @@ const countryCurrencyMap = {
   Lithuania: "EUR",
   Luxembourg: "EUR",
   Macao: "MOP",
+  Mediterranean: "MED",
   Madagascar: "MGA",
   Malawi: "MWK",
   Malaysia: "MYR",
@@ -193,6 +198,7 @@ const countryCurrencyMap = {
   "North Macedon**ia**": "MKD",
   Norway: "NOK",
   Oman: "OMR",
+  Oceania: "OC",
   Pakistan: "PKR",
   Panama: "PAB",
   Paraguay: "PYG",
@@ -236,6 +242,7 @@ const countryCurrencyMap = {
   Turkmenistan: "TMT",
   Uganda: "UGX",
   Ukraine: "UAH",
+  "United States East Coast": "USEC",
   "United Arab Emirates": "AED",
   "United Kingdom": "GBP",
   "United States": "USD",
@@ -259,6 +266,8 @@ const countryCurrencyMap = {
 
 const currencyOptions = [
   { label: "AED - United Arab Emirates Dirham د.إ", value: "AED" },
+  { label: "AS - Asia", value: "AS" },
+  { label: "AF - Africa", value: "AF" },
   { label: "AFN - Afghan Afghani ؋", value: "AFN" },
   { label: "ALL - Albanian Lek L", value: "ALL" },
   { label: "AMD - Armenian Dram ֏", value: "AMD" },
@@ -300,6 +309,7 @@ const currencyOptions = [
   { label: "EGP - Egyptian Pound £", value: "EGP" },
   { label: "ERN - Eritrean Nakfa Nfk", value: "ERN" },
   { label: "ETB - Ethiopian Birr Br", value: "ETB" },
+  { label: "EU - Europe", value: "EU" },
   { label: "EUR - Euro €", value: "EUR" },
   { label: "FJD - Fijian Dollar $", value: "FJD" },
   { label: "FKP - Falkland Islands Pound £", value: "FKP" },
@@ -309,6 +319,7 @@ const currencyOptions = [
   { label: "GGP - Guernsey Pound £", value: "GGP" },
   { label: "GHS - Ghanaian Cedi ₵", value: "GHS" },
   { label: "GIP - Gibraltar Pound £", value: "GIP" },
+  { label: "GF - Gulf", value: "GF" },
   { label: "GMD - Gambian Dalasi D", value: "GMD" },
   { label: "GNF - Guinean Franc ₣", value: "GNF" },
   { label: "GTQ - Guatemalan Quetzal Q", value: "GTQ" },
@@ -351,6 +362,7 @@ const currencyOptions = [
   { label: "MMK - Burmese Kyat Ks", value: "MMK" },
   { label: "MNT - Mongolian Tögrög ₮", value: "MNT" },
   { label: "MOP - Macanese Pataca P", value: "MOP" },
+  { label: "MED - Mediterranean Region", value: "MED" },
   { label: "MRU - Mauritanian Ouguiya UM", value: "MRU" },
   { label: "MUR - Mauritian Rupee ₨", value: "MUR" },
   { label: "MVR - Maldivian Rufiyaa .ރ", value: "MVR" },
@@ -364,6 +376,7 @@ const currencyOptions = [
   { label: "NOK - Norwegian Krone kr", value: "NOK" },
   { label: "NPR - Nepalese Rupee ₨", value: "NPR" },
   { label: "NZD - New Zealand Dollar $", value: "NZD" },
+  { label: "OC - Oceania", value: "OC" },
   { label: "OMR - Omani Rial ﷼", value: "OMR" },
   { label: "PAB - Panamanian Balboa B/.", value: "PAB" },
   { label: "PEN - Peruvian Sol S/", value: "PEN" },
@@ -402,6 +415,7 @@ const currencyOptions = [
   { label: "TWD - New Taiwan Dollar $", value: "TWD" },
   { label: "TZS - Tanzanian Shilling Sh", value: "TZS" },
   { label: "UAH - Ukrainian Hryvnia ₴", value: "UAH" },
+  { label: "USEC - United States East Coast", value: "USEC" },
   { label: "UGX - Ugandan Shilling Sh", value: "UGX" },
   { label: "USD - United States Dollar $", value: "USD" },
   { label: "UYU - Uruguayan Peso $U", value: "UYU" },
@@ -532,8 +546,8 @@ const industries = [
 ];
 
 const types = [
-  { label: "Forward", value: "Forward" },
-  { label: "Reverse", value: "Reverse" },
+  { label: "Forward", value: "forward" },
+  { label: "Reverse", value: "reverse" },
 ];
 
 const seacargoTypes = [
@@ -642,10 +656,45 @@ const regions = [
 ];
 
 const factoryOptions = [
-  { label: "Paithan", value: "Paithan" },
-  { label: "Dahej", value: "Dahej" },
-  { label: "CWH", value: "CWH" },
-  { label: "Pithampur", value: "Pithampur" },
+  {
+    label: "Paithan",
+    value: "Paithan",
+    address: `Ajanta Pharma Ltd.
+Plant No. B-4/5/6
+MIDC Area, Paithan
+Aurangabad - 431 148.`,
+  },
+  {
+    label: "Dahej",
+    value: "Dahej",
+    address: `AJANTA PHARMA LIMITED
+SEZ - DAHEJ PLOT NO. Z/103/A,
+SEZ-II, DAHEJ SEZ LIMITED,
+VILLAGE-DAHEJ,
+TAL.-VAGRA, DIST-BHARUCH,
+GUJARAT-392130.`,
+  },
+  {
+    label: "CWH",
+    value: "CWH",
+    address: `AJANTA PHARMA LTD
+Gut No.378, Plot No.36,37
+11 KM Stone, Aurangabad-Pune Highway, Waluj
+Aurangabad- 431 113 (M.S.)`,
+  },
+  {
+    label: "Pithampur",
+    value: "Pithampur",
+    address: `AJANTA PHARMA LIMITED
+PLOT NO. M-55-56-57 INDORE SPECIAL ECONOMIC ZONE (ISEZ)
+PHASE II – PITHAMPUR
+DHAR - M.P - 454775`,
+  },
+  {
+    label: "Non SEZ Mumbai Port",
+    value: "NonSEZMumbaiPort",
+    address: `Non SEZ Mumbai Port`,
+  },
 ];
 
 const commodityOptions = [
@@ -776,13 +825,16 @@ const CreateRfq = () => {
   );
 
   const [parsedData, setParsedData] = useState([]);
+  const [formParsedData, setFormParsedData] = useState([]);
 
   const localSectionRef = useRef(null);
   const airSectionRef = useRef(null);
   const seaSectionRef = useRef(null);
   const submitSource = useRef("submit");
   const [formType, setFormType] = useState("draft");
+  const [packageDimensions, setPackageDimensions] = useState([]);
   const [auctionType, setAuctionType] = useState("");
+  const [type, setType] = useState("");
   const [rfqStatus, setRFQStatus] = useState("");
   const [currency, setCurrency] = useState("");
   const [dapCurrency, setDapCurrency] = useState("");
@@ -851,6 +903,7 @@ const CreateRfq = () => {
 
   const [form, setForm] = useState({
     type: null,
+    temperature: null,
     transport_type: null,
     transport_mode: null,
     title: "",
@@ -880,6 +933,8 @@ const CreateRfq = () => {
       package_summary: {
         packages: [],
         value_of_shipment: 0,
+        manual_total_gross_weight: 0,
+        total_cartons: 0,
         shipment_currency: null,
         totalGrossWeight: 0,
         totalVolumetricWeight: 0,
@@ -959,6 +1014,8 @@ const CreateRfq = () => {
             email: matched.buyer.email || "",
             mobile: matched.buyer.mobile || "",
             location: matched.buyer.location || "",
+            preshipmentnumber: matched.buyer.preshipmentnumber || "",
+            postshipmentnumber: matched.buyer.postshipmentnumber || "",
           });
         }
       }
@@ -1016,6 +1073,7 @@ const CreateRfq = () => {
   });
 
   const watchType = watch("type");
+  const watchTemperatureType = watch("temperature");
   const watchEximMode = watch("exim_mode");
   const watchTransportMode = watch("transport_mode");
 
@@ -1031,6 +1089,7 @@ const CreateRfq = () => {
   const onSubmit =
     (formType = "submitted") =>
     async (data) => {
+      buildParsedDataFromForm();
       console.log("Form Data:", data);
       console.log("formType:", formType);
       submitSource.current = formType;
@@ -1115,7 +1174,27 @@ const CreateRfq = () => {
                   volume_weight: data.volume_weight,
                   temperature: data.temperature,
                   country: data.country,
-                  factory_location: data.factory_location,
+                  //factory_location: data.factory_location,
+                  factory_location: Array.isArray(data.factory_location)
+                    ? data.factory_location.map((loc) => {
+                        const match = factoryOptions.find(
+                          (f) => f.value === loc
+                        );
+                        return match
+                          ? { city: loc, address: match.address }
+                          : { city: loc, address: "" };
+                      })
+                    : (() => {
+                        const match = factoryOptions.find(
+                          (f) => f.value === data.factory_location
+                        );
+                        return match
+                          ? {
+                              city: data.factory_location,
+                              address: match.address,
+                            }
+                          : { city: data.factory_location, address: "" };
+                      })(),
                   customs_clearance_location: data.customs_clearance_location,
                   delivery_terms: data.delivery_terms,
                   pickup_by_ff: data.pickup_by_ff,
@@ -1130,7 +1209,8 @@ const CreateRfq = () => {
           vendors: selectedVendors,
           attachment_filenames: files.map((f) => f.name),
           buyer: buyer,
-          shipment_details: parsedData,
+          //shipment_details: parsedData,
+          shipment_details: parsedData.length > 0 ? parsedData : formParsedData,
         };
 
         rfqJson.form_type = formType;
@@ -1191,9 +1271,21 @@ const CreateRfq = () => {
 
   const [files, setFiles] = useState([]);
 
+  // const onUpload = (e) => {
+  //   const uploadedFiles = e.files || [];
+  //   setFiles([...files, ...uploadedFiles]);
+  // };
+
   const onUpload = (e) => {
     const uploadedFiles = e.files || [];
-    setFiles([...files, ...uploadedFiles]);
+
+    setFiles((prevFiles) => {
+      const allFiles = [...prevFiles, ...uploadedFiles];
+      const uniqueFiles = Array.from(
+        new Map(allFiles.map((f) => [f.name, f])).values()
+      );
+      return uniqueFiles;
+    });
   };
 
   const removeFile = (name) => {
@@ -1279,6 +1371,37 @@ const CreateRfq = () => {
     }
   }, [watch("transport_mode")]);
 
+  const buildParsedDataFromForm = () => {
+    const temp = watch("temperature");
+    const country = watch("country_exp_air");
+    const factory = watch("factoryLocation");
+    const clearance = watch("customs_clearance_location");
+    const deliveryTerms = watch("delivery_terms");
+    const pickupByFf = watch("pickup_by_ff_exp_air");
+    const commodity = watch("commodity");
+    const hsCode = watch("hs_code");
+    const consignee = watch("door_delivery_address");
+    const incoterm = watch("incoterm_exp_air");
+    const notes = watch("new_notes");
+    const newData = [
+      {
+        Temp: temp,
+        Country: country,
+        Factory: factory,
+        Clearance: clearance,
+        DeliveryTerms: deliveryTerms,
+        FFPickup: pickupByFf,
+        Commodity: commodity,
+        HSCode: hsCode,
+        Consignee: consignee,
+        Incoterm: incoterm,
+        Notes: notes,
+        package_summary: watch("package_summary"),
+      },
+    ];
+    setFormParsedData(newData);
+  };
+
   const handleExcelUploadt = (e, export_type) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1352,6 +1475,8 @@ const CreateRfq = () => {
               chargeableWeight: Math.max(gross_weight, volWeight),
               totalCBM: cbm,
               value_of_shipment: 0,
+              manual_total_gross_weight: 0,
+              total_cartons: 0,
               shipment_currency: "INR",
             },
           };
@@ -1740,15 +1865,15 @@ const CreateRfq = () => {
                       <Checkbox
                         onChange={(e) => {
                           field.onChange(e.checked);
-                          if (e.checked) {
-                            setValue("hide_current_bid_price", false);
-                            dispatch(
-                              toastError({
-                                detail:
-                                  "You cannot enable both Same Bid and Hide Bid together. Hiding disabled.",
-                              })
-                            );
-                          }
+                          // if (e.checked) {
+                          //   setValue("hide_current_bid_price", false);
+                          //   dispatch(
+                          //     toastError({
+                          //       detail:
+                          //         "You cannot enable both Same Bid and Hide Bid together. Hiding disabled.",
+                          //     })
+                          //   );
+                          // }
                         }}
                         checked={field.value}
                       />
@@ -1766,15 +1891,15 @@ const CreateRfq = () => {
                       <Checkbox
                         onChange={(e) => {
                           field.onChange(e.checked);
-                          if (e.checked) {
-                            setValue("same_bid_price_allowed", false);
-                            dispatch(
-                              toastError({
-                                detail:
-                                  "You cannot enable both Hide Bid and Same Bid. Same Bid disabled.",
-                              })
-                            );
-                          }
+                          // if (e.checked) {
+                          //   setValue("same_bid_price_allowed", false);
+                          //   dispatch(
+                          //     toastError({
+                          //       detail:
+                          //         "You cannot enable both Hide Bid and Same Bid. Same Bid disabled.",
+                          //     })
+                          //   );
+                          // }
                         }}
                         checked={field.value}
                       />
@@ -2130,7 +2255,7 @@ const CreateRfq = () => {
                   </div>
 
                   <div className="field col-12 md:col-4">
-                    <label>Origin Airport</label>
+                    <label>Origin Port</label>
                     <InputText
                       {...register("origin_airport")}
                       className="w-full"
@@ -2174,7 +2299,7 @@ const CreateRfq = () => {
                   </div> */}
 
                   <div className="field col-12 md:col-4">
-                    <label>Destination Airport</label>
+                    <label>Destination Port</label>
                     <InputText
                       {...register("destination_airport")}
                       className="w-full"
@@ -2248,7 +2373,7 @@ const CreateRfq = () => {
                   />
                 ) : (
                   <div className="grid formgrid p-fluid">
-                    <div className="field col-12 md:col-2">
+                    {/* <div className="field col-12 md:col-2">
                       <label>Temp To be Maintained</label>
                       <Controller
                         name="temperature"
@@ -2268,9 +2393,16 @@ const CreateRfq = () => {
                           />
                         )}
                       />
+                    </div> */}
+                    <div className="field col-4">
+                      <label>Temp To be Maintained</label>
+                      <InputText
+                        {...register("temperature")}
+                        className="w-full"
+                      />
                     </div>
                     <div className="field col-12 md:col-2">
-                      <label>Country</label>
+                      {/* <label>Country</label>
                       <Controller
                         control={control}
                         name="country_exp_air"
@@ -2280,6 +2412,29 @@ const CreateRfq = () => {
                             {...field}
                             options={countries}
                             className="w-full"
+                          />
+                        )}
+                      /> */}
+
+                      <label>Country</label>
+                      <Controller
+                        control={control}
+                        name="country_exp_air"
+                        disabled={isReadOnly}
+                        render={({ field }) => (
+                          <Dropdown
+                            {...field}
+                            options={Object.keys(countryCurrencyMap).map(
+                              (country) => ({
+                                label: country,
+                                value: country,
+                              })
+                            )}
+                            placeholder="Select Country"
+                            className="w-full"
+                            filter
+                            filterBy="label"
+                            //showClear
                           />
                         )}
                       />
@@ -2363,6 +2518,25 @@ const CreateRfq = () => {
                                 }
                               }}
                             />
+                            {Array.isArray(field.value) &&
+                              field.value.length > 0 && (
+                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {field.value.map((val, idx) => {
+                                    const factory = factoryOptions.find(
+                                      (opt) => opt.value === val
+                                    );
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="p-2 border rounded shadow-sm bg-gray-50"
+                                      >
+                                        <strong>{factory?.label}:</strong>{" "}
+                                        {factory?.address}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                           </>
                         )}
                       />
@@ -2375,7 +2549,7 @@ const CreateRfq = () => {
                         name="customs_clearance_location"
                         render={({ field }) => (
                           <>
-                            <MultiSelect
+                            {/* <MultiSelect
                               {...field}
                               value={
                                 Array.isArray(field.value)
@@ -2399,7 +2573,46 @@ const CreateRfq = () => {
                                   setCustomClearance("");
                                 }
                               }}
+                            /> */}
+                            <MultiSelect
+                              {...field}
+                              value={
+                                Array.isArray(field.value)
+                                  ? field.value
+                                  : field.value
+                                  ? [field.value]
+                                  : []
+                              }
+                              options={factoryOptions}
+                              placeholder="Select Customs Locations"
+                              display="chip"
+                              className="w-full mb-2"
+                              onChange={(e) => {
+                                field.onChange(e.value);
+                                if (!e.value?.includes("Others")) {
+                                  setCustomClearance("");
+                                }
+                              }}
                             />
+                            {Array.isArray(field.value) &&
+                              field.value.length > 0 && (
+                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                  {field.value.map((val, idx) => {
+                                    const factory = factoryOptions.find(
+                                      (opt) => opt.value === val
+                                    );
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="p-2 border rounded shadow-sm bg-gray-50"
+                                      >
+                                        <strong>{factory?.label}:</strong>{" "}
+                                        {factory?.address}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
                           </>
                         )}
                       />
@@ -2495,9 +2708,9 @@ const CreateRfq = () => {
                       />
                     </div>
 
-                    <div className="field col-12">
+                    {/* <div className="field col-12">
                       <label>Notes</label>
-                      {/* <InputText {...register("notes")} className="w-full" /> */}
+                      <InputText {...register("notes")} className="w-full" />
                       <InputTextarea
                         id="notes"
                         {...register("notes")}
@@ -2505,10 +2718,24 @@ const CreateRfq = () => {
                         placeholder=""
                         className="w-full"
                       />
+                    </div> */}
+
+                    <div className="field col-12">
+                      <label>Notes</label>
+                      <InputTextarea
+                        {...register("new_notes")}
+                        rows={4}
+                        className="w-full"
+                      />
                     </div>
                   </div>
                 )}
                 {/* Removed Vendor fields code */}
+                {/* <Button
+                  label="Generate from Form"
+                  className="p-button-outlined p-button-sm"
+                  onClick={buildParsedDataFromForm}
+                /> */}
               </div>
             )}
 
@@ -2951,6 +3178,16 @@ const CreateRfq = () => {
                     country={selectedCountry}
                     onPackagesChange={handlePackagesChange}
                     existingPackages={watch("package_summary")}
+                    manualGrossWeight={
+                      watch("package_summary")?.manual_total_gross_weight
+                    }
+                    valueOfShipment={
+                      watch("package_summary")?.value_of_shipment
+                    }
+                    shipmentCurrency={
+                      watch("package_summary")?.shipment_currency
+                    }
+                    //totalCartons={watch("package_summary")?.total_cartons}
                   />
                 </fieldset>
               </div>
@@ -3079,13 +3316,13 @@ const CreateRfq = () => {
                   </div>
                 </div>
 
-                <div className="mt-3 text-right">
+                {/* <div className="mt-3 text-right">
                   <Button
                     label="Add Charges"
                     icon="pi pi-plus"
                     className="p-button-sm"
                   />
-                </div>
+                </div> */}
               </Card>
             </fieldset>
           )}
@@ -3540,13 +3777,13 @@ const CreateRfq = () => {
                   </div>
                 </div>
 
-                <div className="mt-3 text-right">
+                {/* <div className="mt-3 text-right">
                   <Button
                     label="Add Additional Bid Details"
                     icon="pi pi-plus"
                     className="p-button-sm p-button-outlined"
                   />
-                </div>
+                </div> */}
               </Card>
             </fieldset>
           )}
@@ -3901,7 +4138,7 @@ const CreateRfq = () => {
 
             {files.length > 0 && (
               <div className="mt-4">
-                <h5 className="mb-3">Attached Files:</h5>
+                <h5 className="mb-3">Attached Files: {files.length}</h5>
                 <ul className="list-none m-0 p-0">
                   {files.map((file, idx) => (
                     <li
@@ -3930,7 +4167,7 @@ const CreateRfq = () => {
         </fieldset>
       )}
 
-      {activeIndex === 3 && (
+      {activeIndex === 3 && !isReadOnly && (
         <fieldset
           disabled={isReadOnly}
           style={{ border: "none", padding: 0, margin: 0 }}
@@ -4074,6 +4311,30 @@ const CreateRfq = () => {
                     onChange={(e) => updateField("location", e.target.value)}
                   />
                 </div>
+
+                <div className="field col-12 md:col-6">
+                  <label htmlFor="preshipmentnumber">Pre Shipment Number</label>
+                  <InputText
+                    id="preshipmentnumber"
+                    value={buyer.preshipmentnumber}
+                    onChange={(e) =>
+                      updateField("preshipmentnumber", e.target.value)
+                    }
+                  />
+                </div>
+
+                <div className="field col-12 md:col-6">
+                  <label htmlFor="postshipmentnumber">
+                    Post Shipment Number
+                  </label>
+                  <InputText
+                    id="postshipmentnumber"
+                    value={buyer.postshipmentnumber}
+                    onChange={(e) =>
+                      updateField("postshipmentnumber", e.target.value)
+                    }
+                  />
+                </div>
               </div>
             </Card>
           </form>
@@ -4123,9 +4384,9 @@ const CreateRfq = () => {
                   className="p-button-success"
                   disabled={isReadOnly}
                   onClick={handleSubmit(onSubmit("submitted"))}
-                  // disabled={
-                  //   rfqStatus === "auctioned" || formType === "submitted"
-                  // }
+                  disabled={
+                    rfqStatus === "auctioned" || formType === "submitted"
+                  }
                 />
               </div>
             )}

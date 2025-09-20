@@ -37,6 +37,9 @@ const PackageDimensionsForm = ({
   country,
   onPackagesChange,
   existingPackages = {},
+  manualGrossWeight,
+  valueOfShipment,
+  shipmentCurrency,
 }) => {
   console.log("mode value is", mode);
   console.log("exising pacakge details", existingPackages);
@@ -44,7 +47,9 @@ const PackageDimensionsForm = ({
   const role = usert.role;
   const isReadOnly = role === "vendor";
   const [value_of_shipment, setValueOfShipment] = useState(0);
-  const [shipment_currency, setShipmentCurrency] = useState("INR");
+  const [manual_total_gross_weight, setManualTotalGrossWeight] = useState(null);
+  //const [total_cartons, setTotalCartons] = useState(null);
+  const [shipment_currency, setShipmentCurrency] = useState(null);
   const [previousAuctions, setPreviousAuctions] = useState([]);
   const [packages, setPackages] = useState(() =>
     existingPackages.packages?.length
@@ -69,6 +74,28 @@ const PackageDimensionsForm = ({
     }
   }, [existingPackages]);
 
+  useEffect(() => {
+    if (manualGrossWeight) {
+      setManualTotalGrossWeight(manualGrossWeight);
+    }
+  }, [manualGrossWeight]);
+
+  useEffect(() => {
+    if (valueOfShipment) {
+      setValueOfShipment(valueOfShipment);
+    }
+  }, [valueOfShipment]);
+  useEffect(() => {
+    if (shipmentCurrency) {
+      setShipmentCurrency(shipmentCurrency);
+    }
+  }, [shipmentCurrency]);
+  // useEffect(() => {
+  //   if (totalCartons) {
+  //     setTotalCartons(totalCartons);
+  //   }
+  // }, [totalCartons]);
+
   const [freightRatePerKg, setFreightRatePerKg] = useState(0);
 
   const previousPackagesRef = useRef();
@@ -83,10 +110,13 @@ const PackageDimensionsForm = ({
       .toFixed(2);
 
     const totalGrossWeight = calculateTotalGrossWeight(packages);
+    const totalCartons = calculateTotalCartons(packages);
 
     const dataToSend = {
       packages,
       value_of_shipment,
+      manual_total_gross_weight,
+      //total_cartons,
       shipment_currency,
       totalGrossWeight,
       volumetricFactor,
@@ -99,7 +129,14 @@ const PackageDimensionsForm = ({
       previousPackagesRef.current = dataToSend;
       onPackagesChange?.(dataToSend);
     }
-  }, [packages, value_of_shipment, shipment_currency, onPackagesChange]);
+  }, [
+    packages,
+    value_of_shipment,
+    manual_total_gross_weight,
+    //total_cartons,
+    shipment_currency,
+    onPackagesChange,
+  ]);
 
   const handleChange = (index, field, value) => {
     const updated = [...packages];
@@ -159,6 +196,15 @@ const PackageDimensionsForm = ({
       .toFixed(2);
   };
 
+  const calculateTotalCartons = (packages) => {
+    return packages
+      .reduce((sum, pkg) => {
+        const qty = parseFloat(pkg.number) || 0;
+        return sum + qty;
+      }, 0)
+      .toFixed(2);
+  };
+
   const totalCBM = packages
     .reduce((sum, pkg) => sum + parseFloat(calculateCBM(pkg)), 0)
     .toFixed(4);
@@ -168,6 +214,7 @@ const PackageDimensionsForm = ({
     .toFixed(2);
 
   const totalGrossWeight = calculateTotalGrossWeight(packages);
+  const totalCartons = calculateTotalCartons(packages);
 
   const calculateChargeableWeight = (pkg) => {
     const gross = parseFloat(pkg.gross_weight) || 0;
@@ -247,6 +294,8 @@ const PackageDimensionsForm = ({
       setPackages(updated);
     } else {
       if (field === "value_of_shipment") setValueOfShipment(value);
+      if (field === "manual_total_gross_weight")
+        setManualTotalGrossWeight(value);
       if (field === "shipment_currency") setShipmentCurrency(value);
     }
   };
@@ -290,6 +339,7 @@ const PackageDimensionsForm = ({
               label="Sample File"
               className="p-button-sm p-button-info"
               onClick={handleSampleDownload}
+              disabled={isReadOnly}
             />
             <Button
               icon="pi pi-upload"
@@ -297,6 +347,7 @@ const PackageDimensionsForm = ({
               className="p-button-sm p-button-success"
               onClick={handleButtonClick}
               type="button"
+              disabled={isReadOnly}
             />
           </div>
         </div>
@@ -437,6 +488,7 @@ const PackageDimensionsForm = ({
                   icon="pi pi-trash"
                   className="p-button-danger"
                   onClick={() => removePackage(index)}
+                  disabled={isReadOnly}
                 />
               )}
             </div>
@@ -448,12 +500,42 @@ const PackageDimensionsForm = ({
           label="Add Package"
           onClick={addPackage}
           className="mt-3"
+          disabled={isReadOnly}
         />
 
         <div className="grid mt-4">
+          <div className="col-12 md:col-4">
+            <label>Total Cartons</label>
+            <div className="p-inputgroup w-full">
+              <InputNumber
+                value={totalCartons}
+                //onValueChange={(e) => setTotalCartons(e.value)}
+                className="w-25rem"
+              />
+            </div>
+          </div>
+
           <div className="col-12 md:col-3">
-            <label>Total Gross Weight</label>
-            <InputNumber value={totalGrossWeight} className="w-full" />
+            <label>Total Gross Weight Auto Calculated</label>
+            <InputNumber
+              mode="decimal"
+              minFractionDigits={2}
+              value={totalGrossWeight}
+              className="w-full"
+            />
+          </div>
+
+          <div className="col-12 md:col-4">
+            <label>Manual Total Gross Weight</label>
+            <div className="p-inputgroup w-full">
+              <InputNumber
+                value={manual_total_gross_weight}
+                mode="decimal"
+                onValueChange={(e) => setManualTotalGrossWeight(e.value)}
+                minFractionDigits={2}
+                className="w-25rem"
+              />
+            </div>
           </div>
 
           {/* {mode === "air" && ( */}
@@ -469,7 +551,8 @@ const PackageDimensionsForm = ({
             <div className="p-inputgroup w-full">
               <InputNumber
                 value={totalVolumetricWeight}
-                readOnly
+                mode="decimal"
+                minFractionDigits={2}
                 className="w-full"
               />
               <span className="p-inputgroup-addon">KG</span>
@@ -480,19 +563,21 @@ const PackageDimensionsForm = ({
           {/* {mode === "lcl" && ( */}
           <div className="col-12 md:col-3">
             <label>Total Weight (In CBM)</label>
-            <InputNumber value={totalCBM} readOnly className="w-full" />
+            <InputNumber value={totalCBM} className="w-full" />
           </div>
           {/* )} */}
 
-          <div className="col-12 md:col-3">
+          <div className="col-12 md:col-4">
             <label>Value of Shipment & Currency</label>
             <div className="p-inputgroup w-full">
               <InputNumber
                 value={value_of_shipment}
+                mode="decimal"
+                minFractionDigits={2}
                 onValueChange={(e) =>
                   handleCurrencyChange("value_of_shipment", e.value)
                 }
-                className="w-full"
+                className="w-25rem"
               />
               <Dropdown
                 value={shipment_currency}
@@ -520,6 +605,9 @@ const PackageDimensionsForm = ({
                   <strong>RFQ:</strong> {auction.rfq_number}
                 </p>
                 <p>
+                  <strong>Shipment Number:</strong> {auction.shipment_number}
+                </p>
+                <p>
                   <strong>Weight:</strong> {auction.totalGrossWeight} kg
                 </p>
                 {auction.vendors?.map((vendor, vIndex) =>
@@ -529,6 +617,12 @@ const PackageDimensionsForm = ({
                         key={`${vIndex}-${i}-${j}`}
                         className="p-2 border-top-1 border-300 mt-2"
                       >
+                        <p>
+                          <strong>Vendor Company:</strong> {vendor.company}
+                        </p>
+                        <p>
+                          <strong>Vendor Email:</strong> {vendor.email}
+                        </p>
                         <p>
                           <strong>Airline:</strong> {quote.airline_name}
                         </p>

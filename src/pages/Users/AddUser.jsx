@@ -14,6 +14,12 @@ const roleOptions = [
   { label: "User", value: "user" },
 ];
 
+const industryOptions = [
+  { label: "Air", value: "air" },
+  { label: "Ocean", value: "ocean" },
+  { label: "Road", value: "road" },
+];
+
 const AddUser = () => {
   const dispatch = useDispatch();
   const { userId } = useParams(); // 👈 get userId from URL
@@ -169,99 +175,114 @@ const AddUser = () => {
         </div>
 
         {/* Business Info */}
-        <div className="col-12 md:col-4">
+        {/* <div className="col-12 md:col-4">
           <label>Industry</label>
           <InputText
             value={form.industry}
             onChange={(e) => handleChange("industry", e.target.value)}
             className="w-full"
           />
-        </div>
-        <div className="col-12 md:col-4">
-          <label>Sub Industry</label>
-          <InputText
-            value={form.subIndustry}
-            onChange={(e) => handleChange("subIndustry", e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="col-12 md:col-4">
-          <label>Product</label>
-          <InputText
-            value={form.product}
-            onChange={(e) => handleChange("product", e.target.value)}
-            className="w-full"
-          />
-        </div>
+        </div> */}
 
-        {/* Tax IDs */}
-        <div className="col-12 md:col-6">
-          <label>GST Number</label>
-          <InputText
-            value={form.gst_number}
-            onChange={(e) => handleChange("gst_number", e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="col-12 md:col-6">
-          <label>PAN Number</label>
-          <InputText
-            value={form.pan_number}
-            onChange={(e) => handleChange("pan_number", e.target.value)}
-            className="w-full"
-          />
-        </div>
+        {form.role === "vendor" && (
+          <>
+            <div className="col-12 md:col-4">
+              <label>Industry</label>
+              <Dropdown
+                value={form.industry}
+                options={industryOptions}
+                onChange={(e) => handleChange("industry", e.value)}
+                placeholder="Select Industry"
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-4">
+              <label>Sub Industry</label>
+              <InputText
+                value={form.subIndustry}
+                onChange={(e) => handleChange("subIndustry", e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-4">
+              <label>Product</label>
+              <InputText
+                value={form.product}
+                onChange={(e) => handleChange("product", e.target.value)}
+                className="w-full"
+              />
+            </div>
 
-        {/* Address */}
-        <div className="col-12 md:col-6">
-          <label>Address Line 1</label>
-          <InputText
-            value={form.address_line1}
-            onChange={(e) => handleChange("address_line1", e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="col-12 md:col-6">
-          <label>Address Line 2</label>
-          <InputText
-            value={form.address_line2}
-            onChange={(e) => handleChange("address_line2", e.target.value)}
-            className="w-full"
-          />
-        </div>
+            {/* Tax IDs */}
+            <div className="col-12 md:col-6">
+              <label>GST Number</label>
+              <InputText
+                value={form.gst_number}
+                onChange={(e) => handleChange("gst_number", e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-6">
+              <label>PAN Number</label>
+              <InputText
+                value={form.pan_number}
+                onChange={(e) => handleChange("pan_number", e.target.value)}
+                className="w-full"
+              />
+            </div>
 
-        <div className="col-12 md:col-3">
-          <label>City</label>
-          <InputText
-            value={form.city}
-            onChange={(e) => handleChange("city", e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="col-12 md:col-3">
-          <label>State</label>
-          <InputText
-            value={form.state}
-            onChange={(e) => handleChange("state", e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="col-12 md:col-3">
-          <label>Country</label>
-          <InputText
-            value={form.country}
-            onChange={(e) => handleChange("country", e.target.value)}
-            className="w-full"
-          />
-        </div>
-        <div className="col-12 md:col-3">
-          <label>Zipcode</label>
-          <InputText
-            value={form.zipcode}
-            onChange={(e) => handleChange("zipcode", e.target.value)}
-            className="w-full"
-          />
-        </div>
+            {/* Address */}
+            <div className="col-12 md:col-6">
+              <label>Address Line 1</label>
+              <InputText
+                value={form.address_line1}
+                onChange={(e) => handleChange("address_line1", e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-6">
+              <label>Address Line 2</label>
+              <InputText
+                value={form.address_line2}
+                onChange={(e) => handleChange("address_line2", e.target.value)}
+                className="w-full"
+              />
+            </div>
+
+            <div className="col-12 md:col-3">
+              <label>City</label>
+              <InputText
+                value={form.city}
+                onChange={(e) => handleChange("city", e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-3">
+              <label>State</label>
+              <InputText
+                value={form.state}
+                onChange={(e) => handleChange("state", e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-3">
+              <label>Country</label>
+              <InputText
+                value={form.country}
+                onChange={(e) => handleChange("country", e.target.value)}
+                className="w-full"
+              />
+            </div>
+            <div className="col-12 md:col-3">
+              <label>Zipcode</label>
+              <InputText
+                value={form.zipcode}
+                onChange={(e) => handleChange("zipcode", e.target.value)}
+                className="w-full"
+              />
+            </div>
+          </>
+        )}
 
         <div className="col-12 text-right">
           <Button label="Create User" onClick={handleSubmit} className="mt-3" />
