@@ -1748,6 +1748,7 @@ const CreateRfq = () => {
                           id="currency"
                           options={currencyOptions}
                           className="w-full"
+                          disabled={isReadOnly}
                           placeholder="Select Currency"
                           //disabled={true} // Make read-only
                           filter
@@ -1766,6 +1767,7 @@ const CreateRfq = () => {
                         <Dropdown
                           {...field}
                           id="dapCurrency"
+                          disabled={isReadOnly}
                           options={currencyOptions}
                           className="w-full"
                           placeholder="Select Currency"
@@ -1818,6 +1820,7 @@ const CreateRfq = () => {
                   <label>Select Auction Type</label>
                   <Controller
                     name="pickup_by_ff"
+                    disabled={isReadOnly}
                     control={control}
                     render={({ field }) => (
                       <div className="flex gap-3">
@@ -1830,6 +1833,7 @@ const CreateRfq = () => {
                               <RadioButton
                                 inputId={`pickup_by_ff_${option}`}
                                 value={option}
+                                disabled={isReadOnly}
                                 onChange={(e) => field.onChange(e.value)}
                                 checked={field.value === option}
                               />
@@ -1863,6 +1867,7 @@ const CreateRfq = () => {
                     name="same_bid_price_allowed"
                     render={({ field }) => (
                       <Checkbox
+                        disabled={isReadOnly}
                         onChange={(e) => {
                           field.onChange(e.checked);
                           // if (e.checked) {
@@ -1889,6 +1894,7 @@ const CreateRfq = () => {
                     name="hide_current_bid_price"
                     render={({ field }) => (
                       <Checkbox
+                        disabled={isReadOnly}
                         onChange={(e) => {
                           field.onChange(e.checked);
                           // if (e.checked) {
@@ -1916,6 +1922,7 @@ const CreateRfq = () => {
                     name="allow_multiple_airline_quote"
                     render={({ field }) => (
                       <Checkbox
+                        disabled={isReadOnly}
                         onChange={(e) => field.onChange(e.checked)}
                         checked={field.value}
                       />
@@ -2370,6 +2377,7 @@ const CreateRfq = () => {
                     setData={setParsedData}
                     setValue={setValue}
                     type={"air"}
+                    isReadOnly={isReadOnly}
                   />
                 ) : (
                   <div className="grid formgrid p-fluid">
@@ -2783,6 +2791,7 @@ const CreateRfq = () => {
                       setData={setParsedData}
                       setValue={setValue}
                       type={"sea"}
+                      isReadOnly={isReadOnly}
                     />
                   )}
 
@@ -4382,10 +4391,11 @@ const CreateRfq = () => {
                   type="submit"
                   label={source === "auction" ? "Create Auction" : "Submit RFQ"}
                   className="p-button-success"
-                  disabled={isReadOnly}
                   onClick={handleSubmit(onSubmit("submitted"))}
                   disabled={
-                    rfqStatus === "auctioned" || formType === "submitted"
+                    rfqStatus === "auctioned" ||
+                    formType === "submitted" ||
+                    isReadOnly
                   }
                 />
               </div>

@@ -3,7 +3,7 @@ import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import PackageDimensionsForm from "./PackageDimensionsForm";
 
-const DataStepperForm = ({ data, setData, setValue, type }) => {
+const DataStepperForm = ({ data, setData, setValue, type, isReadOnly }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [formData, setFormData] = useState(data[0] || {});
 
@@ -64,16 +64,19 @@ const DataStepperForm = ({ data, setData, setValue, type }) => {
       </div>
 
       <div className="grid">
-        {Object.keys(formData).map((field, index) => (
-          <div className="col-12 md:col-6 lg:col-4 mt-3" key={index}>
-            <label>{field}</label>
-            <InputText
-              className="w-full"
-              value={formData[field]}
-              onChange={(e) => handleChange(field, e.target.value)}
-            />
-          </div>
-        ))}
+        {Object.keys(formData)
+          .filter((field) => field !== "package_summary")
+          .map((field, index) => (
+            <div className="col-12 md:col-6 lg:col-4 mt-3" key={index}>
+              <label>{field}</label>
+              <InputText
+                disabled={isReadOnly}
+                className="w-full"
+                value={formData[field]}
+                onChange={(e) => handleChange(field, e.target.value)}
+              />
+            </div>
+          ))}
       </div>
 
       <PackageDimensionsForm

@@ -369,6 +369,7 @@ const PackageDimensionsForm = ({
               <div className="p-inputgroup w-full">
                 <InputNumber
                   value={pkg.number}
+                  disabled={isReadOnly}
                   onValueChange={(e) => handleChange(index, "number", e.value)}
                   placeholder="Qty"
                   className="w-full"
@@ -397,6 +398,7 @@ const PackageDimensionsForm = ({
               <label>L</label>
               <InputNumber
                 value={pkg.length}
+                disabled={isReadOnly}
                 mode="decimal"
                 minFractionDigits={2}
                 onValueChange={(e) => handleChange(index, "length", e.value)}
@@ -407,6 +409,7 @@ const PackageDimensionsForm = ({
               <label>B</label>
               <InputNumber
                 value={pkg.breadth}
+                disabled={isReadOnly}
                 mode="decimal"
                 minFractionDigits={2}
                 onValueChange={(e) => handleChange(index, "breadth", e.value)}
@@ -417,6 +420,7 @@ const PackageDimensionsForm = ({
               <label>H</label>
               <InputNumber
                 value={pkg.height}
+                disabled={isReadOnly}
                 mode="decimal"
                 minFractionDigits={2}
                 onValueChange={(e) => handleChange(index, "height", e.value)}
@@ -441,6 +445,7 @@ const PackageDimensionsForm = ({
               <div className="p-inputgroup w-full">
                 <InputNumber
                   value={pkg.gross_weight}
+                  disabled={isReadOnly}
                   mode="decimal"
                   minFractionDigits={2}
                   onValueChange={(e) =>
@@ -460,6 +465,7 @@ const PackageDimensionsForm = ({
             <div className="col-12 md:col-1">
               <label>Vol. Wt</label>
               <InputNumber
+                disabled={isReadOnly}
                 value={calculateVolumetricWeight(pkg)}
                 readOnly
                 className="w-full"
@@ -505,9 +511,10 @@ const PackageDimensionsForm = ({
 
         <div className="grid mt-4">
           <div className="col-12 md:col-4">
-            <label>Total Cartons</label>
+            <label>Total Cartons / Pallets</label>
             <div className="p-inputgroup w-full">
               <InputNumber
+                disabled={isReadOnly}
                 value={totalCartons}
                 //onValueChange={(e) => setTotalCartons(e.value)}
                 className="w-25rem"
@@ -518,6 +525,7 @@ const PackageDimensionsForm = ({
           <div className="col-12 md:col-3">
             <label>Total Gross Weight Auto Calculated</label>
             <InputNumber
+              disabled={isReadOnly}
               mode="decimal"
               minFractionDigits={2}
               value={totalGrossWeight}
@@ -529,6 +537,7 @@ const PackageDimensionsForm = ({
             <label>Manual Total Gross Weight</label>
             <div className="p-inputgroup w-full">
               <InputNumber
+                disabled={isReadOnly}
                 value={manual_total_gross_weight}
                 mode="decimal"
                 onValueChange={(e) => setManualTotalGrossWeight(e.value)}
@@ -541,7 +550,12 @@ const PackageDimensionsForm = ({
           {/* {mode === "air" && ( */}
           <div className="col-12 md:col-3">
             <label>Volumetric Wt. Factor</label>
-            <InputNumber value={volumetricFactor} readOnly className="w-full" />
+            <InputNumber
+              disabled={isReadOnly}
+              value={volumetricFactor}
+              readOnly
+              className="w-full"
+            />
           </div>
           {/* )} */}
 
@@ -550,6 +564,7 @@ const PackageDimensionsForm = ({
             <label>Total Volumetric Weight</label>
             <div className="p-inputgroup w-full">
               <InputNumber
+                disabled={isReadOnly}
                 value={totalVolumetricWeight}
                 mode="decimal"
                 minFractionDigits={2}
@@ -563,7 +578,11 @@ const PackageDimensionsForm = ({
           {/* {mode === "lcl" && ( */}
           <div className="col-12 md:col-3">
             <label>Total Weight (In CBM)</label>
-            <InputNumber value={totalCBM} className="w-full" />
+            <InputNumber
+              disabled={isReadOnly}
+              value={totalCBM}
+              className="w-full"
+            />
           </div>
           {/* )} */}
 
@@ -571,6 +590,7 @@ const PackageDimensionsForm = ({
             <label>Value of Shipment & Currency</label>
             <div className="p-inputgroup w-full">
               <InputNumber
+                disabled={isReadOnly}
                 value={value_of_shipment}
                 mode="decimal"
                 minFractionDigits={2}

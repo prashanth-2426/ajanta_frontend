@@ -15,6 +15,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Calendar } from "primereact/calendar";
 import { InputTextarea } from "primereact/inputtextarea";
 import { getRates } from "../../utils/exchangeRates";
+import { set } from "react-hook-form";
 
 const RfqManagement = () => {
   const user = useSelector((state) => state.auth.user);
@@ -49,6 +50,10 @@ const RfqManagement = () => {
 
   const [expandedModalRows, setExpandedModalRows] = useState({});
   const [currencySymbol, setCurrencySymbol] = useState("INR");
+
+  const [exchangeRate, setExchangeRate] = useState(1);
+  const [totaldapdppcharge, setTotaldapdppCharge] = useState(0);
+  const [fetchingRateMsg, setFetchingRateMsg] = useState(null);
 
   const [deliveryDetails, setDeliveryDetails] = useState({});
   const [invoiceFiles, setInvoiceFiles] = useState({});
@@ -178,6 +183,7 @@ const RfqManagement = () => {
                   targetMap[shipmentIndex].push({
                     airline_name: quote.airline_name || "",
                     airport: quote.airport || "",
+                    currency: quote.currency || "",
                     gross_weight: quote.gross_weight || "",
                     volume_weight: quote.volume_weight || "",
                     chargeable_weight: quote.chargeable_weight || "",
@@ -192,11 +198,17 @@ const RfqManagement = () => {
                     pac: quote.pac || "",
                     awb: quote.awb || "",
                     total_charges: quote.total_charges || "",
+                    totaldapdppcharge: quote.totaldapdppcharge || "",
+                    grandTotalValue: quote.grandTotalValue || "",
                     booking_reference: quote.booking_reference || "",
-                    flight_schedule: quote.flight_schedule || "",
+                    route1: quote?.route1 || "",
+                    flight_schedule1: quote?.flight_schedule1 || "",
+                    route2: quote?.route2 || "",
+                    flight_schedule2: quote?.flight_schedule2 || "",
+                    route3: quote?.route3 || "",
+                    flight_schedule3: quote?.flight_schedule3 || "",
                     pickup_date: quote.pickup_date || "",
                     clearance_date: quote.clearance_date || "",
-                    route: quote.route || "",
                     freight_validity: quote.freight_validity || "",
                     insurance: quote.insurance || "",
                     pickup_charges: quote.pickup_charges || "",
@@ -322,9 +334,17 @@ const RfqManagement = () => {
 
       const result = await response.json();
       console.log("Submit Quote  response", result);
-      dispatch(
-        toastSuccess({ detail: "Packages Quote Submitted Successfully.." })
-      );
+      if (!result.isSuccess) {
+        dispatch(
+          toastError({
+            detail: result.message,
+          })
+        );
+      } else {
+        dispatch(
+          toastSuccess({ detail: "Packages Quote Submitted Successfully.." })
+        );
+      }
     } catch (error) {
       console.error("Error submitting packages quote:", error);
     }
@@ -543,6 +563,76 @@ const RfqManagement = () => {
     });
   };
 
+  const handleDapDdpChange = (
+    shipment,
+    shipmentIndex,
+    rowIndex,
+    field,
+    value
+  ) => {
+    const toNumber = (val) => parseFloat(val) || 0;
+    const prevData = [...(airlineData[shipmentIndex] || [])];
+    const row = { ...prevData[rowIndex], [field]: value };
+    let selectedCurrency = row.currency;
+    if (!selectedCurrency) selectedCurrency = "INR";
+    if (selectedCurrency && exchangeRate) {
+      const dapDdp = toNumber(row.dap_ddp_charges);
+      const convertedDapDdp = dapDdp * exchangeRate;
+      //setTotaldapdppCharge(convertedDapDdp);
+      row.totaldapdppcharge = convertedDapDdp;
+      const prevTotal = parseFloat(row.total_charges) || 0;
+      const prevdapdppTotal = parseFloat(row.totaldapdppcharge) || 0;
+
+      row.grandTotalValue = prevTotal + prevdapdppTotal;
+      prevData[rowIndex] = row;
+      setAirlineData((prev) => ({
+        ...prev,
+        [shipmentIndex]: prevData,
+      }));
+    }
+  };
+
+  const handleCurrencyChange = async (
+    shipment,
+    shipmentIndex,
+    rowIndex,
+    field,
+    value
+  ) => {
+    const toNumber = (val) => parseFloat(val) || 0;
+    const prevData = [...(airlineData[shipmentIndex] || [])];
+    const row = { ...prevData[rowIndex], [field]: value };
+    let dapDdp = toNumber(row.dap_ddp_charges);
+
+    const currency = row.currency || "INR";
+
+    let exchangeRate = 1;
+    try {
+      setFetchingRateMsg("Fetching latest exchange rate...");
+      exchangeRate = await getRates(currency, "INR");
+      setExchangeRate(exchangeRate);
+      setFetchingRateMsg(null);
+      console.log("[DEBUG] Fetched exchange rate:", exchangeRate);
+    } catch (e) {
+      console.error("Exchange rate error:", e);
+    }
+
+    const convertedDapDdp = dapDdp * exchangeRate;
+    console.log("convertedDapDdp value", convertedDapDdp);
+
+    const prevTotal = parseFloat(row.total_charges) || 0;
+    row.total_charges = prevTotal;
+    row.totaldapdppcharge = convertedDapDdp;
+    row.grandTotalValue = row.total_charges + convertedDapDdp;
+    console.log("Total Charges", row.total_charges);
+
+    prevData[rowIndex] = row;
+    setAirlineData((prev) => ({
+      ...prev,
+      [shipmentIndex]: prevData,
+    }));
+  };
+
   const handleInputChange = async (
     shipment,
     shipmentIndex,
@@ -564,7 +654,7 @@ const RfqManagement = () => {
         ? value
         : shipment.package_summary?.totalVolumetricWeight
     );
-    row.chargeable_weight = Math.max(gw, vw);
+    //row.chargeable_weight = Math.max(gw, vw);
 
     const cw = toNumber(row.chargeable_weight);
     const baseRate = toNumber(row.base_rate);
@@ -573,30 +663,13 @@ const RfqManagement = () => {
     const ams = toNumber(row.ams);
     const pac = toNumber(row.pac);
     const awb = toNumber(row.awb);
-    let dapDdp = toNumber(row.dap_ddp_charges);
 
-    const currency = row.currency || "INR";
+    row.total_charges = (cw * baseRate + ams + pac + awb + other).toFixed(2);
 
-    let exchangeRate = 1;
-    if (currency !== "INR") {
-      try {
-        exchangeRate = await getRates(currency, "INR");
-        console.log("[DEBUG] Fetched exchange rate:", exchangeRate);
-      } catch (e) {
-        console.error("Exchange rate error:", e);
-      }
-    }
+    const prevTotal = parseFloat(row.total_charges) || 0;
+    const prevdapdppTotal = parseFloat(row.totaldapdppcharge) || 0;
 
-    const convertedDapDdp = dapDdp * exchangeRate;
-
-    row.total_charges = (
-      cw * baseRate +
-      ams +
-      pac +
-      awb +
-      convertedDapDdp +
-      other
-    ).toFixed(2);
+    row.grandTotalValue = prevTotal + prevdapdppTotal;
 
     prevData[rowIndex] = row;
     setAirlineData((prev) => ({
@@ -1806,492 +1879,523 @@ const RfqManagement = () => {
                   </div>
                 </div>
 
-                <div className="grid p-2 font-bold border-bottom-1 surface-border">
-                  <div className="col-1">Airline</div>
-                  <div className="col-1">Airport</div>
-                  {/* <div className="col-1">Gross Wt</div>
-              <div className="col-1">Volume Wt</div> */}
-                  <div className="col-1">Chargeable Wt(KG)</div>
-                  <div className="col-1">Base Rate (Rs/KG)</div>
-                  <div className="col-1">AMS</div>
-                  <div className="col-1">PAC</div>
-                  <div className="col-1">AWB</div>
-                  <div className="col-1">Currency</div>
-                  <div className="col-1">DDP</div>
-                  <div className="col-1">Other Charges</div>
-                  <div className="col-1">Total</div>
-                  <div className="col-2">Actions</div>
-                </div>
                 {(airlineData[shipmentIndex] || []).map((row, idx) => (
-                  <div className="grid p-2 align-items-center" key={idx}>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.airline_name}
-                        className="w-full"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "airline_name",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.airport}
-                        className="w-full"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "airport",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.chargeable_weight}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "chargeable_weight",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.base_rate}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "base_rate",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.ams}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "ams",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.pac}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "pac",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.awb}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "awb",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <Dropdown
-                        value={row.currency || "INR"}
-                        options={["INR", "USD", "EUR"]}
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "currency",
-                            e.value
-                          )
-                        }
-                        className="w-7rem"
-                      />
+                  <div
+                    key={idx}
+                    className="p-3 mb-3 border-1 border-round surface-100 shadow-1"
+                  >
+                    <h4 className="mb-3">Airline Entry {idx + 1}</h4>
+
+                    {/* Basic Details */}
+                    <div className="grid formgrid p-fluid">
+                      <div className="field col-12 md:col-2">
+                        <label>Airline</label>
+                        <InputText
+                          value={row.airline_name}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "airline_name",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>Airport</label>
+                        <InputText
+                          value={row.airport}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "airport",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>Chargeable Weight (KG)</label>
+                        <InputNumber
+                          value={row.chargeable_weight || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "chargeable_weight",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>Freight (Rs/KG)</label>
+                        <InputNumber
+                          value={row.base_rate || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "base_rate",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>AMS (CURRENCY-INR)</label>
+                        <InputNumber
+                          value={row.ams || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "ams",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>PAC (CURRENCY-INR)</label>
+                        <InputNumber
+                          value={row.pac || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "pac",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>AWB (CURRENCY-INR)</label>
+                        <InputNumber
+                          value={row.awb || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "awb",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Other Charges (CURRENCY-INR)</label>
+                        <InputNumber
+                          value={row.other_charges || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "other_charges",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>
+                          <b>Total</b>
+                        </label>
+                        <InputNumber
+                          value={row.total_charges || 0}
+                          readOnly
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "total_charges",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>Currency</label>
+                        <Dropdown
+                          value={row.currency || "INR"}
+                          options={["INR", "USD", "EUR"]}
+                          onChange={(e) =>
+                            handleCurrencyChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "currency",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-2">
+                        <label>Exchange Rate</label>
+                        <InputNumber value={exchangeRate || 0} readOnly />
+                        <span>{fetchingRateMsg}</span>
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>DAP/DDP</label>
+                        <InputNumber
+                          value={row.dap_ddp_charges || 0}
+                          onValueChange={(e) =>
+                            handleDapDdpChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "dap_ddp_charges",
+                              e.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>
+                          <b>Total DAP/DPP Charge</b>
+                        </label>
+                        <InputNumber
+                          value={row.totaldapdppcharge || 0}
+                          readOnly
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4 ml-auto">
+                        <label>
+                          <b>Grand Total</b>
+                        </label>
+                        <InputNumber
+                          value={row.grandTotalValue || 0}
+                          readOnly
+                        />
+                      </div>
                     </div>
 
-                    <div className="col-1 p-1">
-                      <InputText
-                        body={(row) => <span>{row.dap_ddp_charges}</span>}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "dap_ddp_charges",
-                            e.target.value
-                          )
-                        }
-                      />
+                    {/* More Info Section - Always Visible */}
+                    <div className="grid formgrid p-fluid mt-3 border-top-1 pt-3">
+                      <div className="field col-12 md:col-4">
+                        <label>Transit Days</label>
+                        <InputText
+                          value={row.transit_days || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "transit_days",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Booking Reference</label>
+                        <InputText
+                          value={row.booking_reference || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "booking_reference",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Insurance Provided?</label>
+                        <Dropdown
+                          value={row.insurance || "No"}
+                          options={["Yes", "No"]}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "insurance",
+                              e.value
+                            )
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-6">
+                        <label>Flight Route 1</label>
+                        <InputText
+                          value={row.route1 || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "route1",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-6">
+                        <label>Flight Schedule 1</label>
+                        <Calendar
+                          value={
+                            row.flight_schedule1
+                              ? new Date(row.flight_schedule1)
+                              : null
+                          }
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "flight_schedule1",
+                              e.value
+                            )
+                          }
+                          showIcon
+                          dateFormat="dd/mm/yy"
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-6">
+                        <label>Flight Route 2</label>
+                        <InputText
+                          value={row.route2 || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "route2",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-6">
+                        <label>Flight Schedule 2</label>
+                        <Calendar
+                          value={
+                            row.flight_schedule2
+                              ? new Date(row.flight_schedule2)
+                              : null
+                          }
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "flight_schedule2",
+                              e.value
+                            )
+                          }
+                          showIcon
+                          dateFormat="dd/mm/yy"
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-6">
+                        <label>Flight Route 3</label>
+                        <InputText
+                          value={row.route3 || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "route3",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-6">
+                        <label>Flight Schedule 3</label>
+                        <Calendar
+                          value={
+                            row.flight_schedule3
+                              ? new Date(row.flight_schedule3)
+                              : null
+                          }
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "flight_schedule3",
+                              e.value
+                            )
+                          }
+                          showIcon
+                          dateFormat="dd/mm/yy"
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Pickup Date</label>
+                        <Calendar
+                          value={
+                            row.pickup_date ? new Date(row.pickup_date) : null
+                          }
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "pickup_date",
+                              e.value
+                            )
+                          }
+                          showIcon
+                          dateFormat="dd/mm/yy"
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Clearance Date</label>
+                        <Calendar
+                          value={
+                            row.clearance_date
+                              ? new Date(row.clearance_date)
+                              : null
+                          }
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "clearance_date",
+                              e.value
+                            )
+                          }
+                          showIcon
+                          dateFormat="dd/mm/yy"
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Validity Date</label>
+                        <Calendar
+                          value={
+                            row.freight_validity
+                              ? new Date(row.freight_validity)
+                              : null
+                          }
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "freight_validity",
+                              e.value
+                            )
+                          }
+                          showIcon
+                          dateFormat="dd/mm/yy"
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Pickup Charges</label>
+                        <InputNumber
+                          value={row.pickup_charges || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "pickup_charges",
+                              e.value
+                            )
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12 md:col-4">
+                        <label>Free Storage Days</label>
+                        <InputNumber
+                          value={row.free_storage_days || 0}
+                          onValueChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "free_storage_days",
+                              e.value
+                            )
+                          }
+                          className="w-full"
+                        />
+                      </div>
+
+                      <div className="field col-12">
+                        <label>Remarks / Conditions</label>
+                        <InputTextarea
+                          value={row.remarks || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "remarks",
+                              e.target.value
+                            )
+                          }
+                          rows={2}
+                          className="w-full"
+                        />
+                      </div>
                     </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.other_charges}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "other_charges",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-1 p-1">
-                      <InputText
-                        value={row.total_charges}
-                        className="w-full"
-                        type="number"
-                        onChange={(e) =>
-                          handleInputChange(
-                            shipment,
-                            shipmentIndex,
-                            idx,
-                            "total_charges",
-                            e.target.value
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="col-2 p-1">
-                      <Button
-                        icon="pi pi-angle-down"
-                        className="p-button-text p-button-secondary"
-                        onClick={() => toggleMoreInfo(shipmentIndex, idx)}
-                        tooltip="More Info"
-                      />
+
+                    {/* Actions */}
+                    <div className="flex justify-content-end gap-2 mt-3">
                       <Button
                         icon="pi pi-trash"
                         className="p-button-text p-button-danger"
                         onClick={() => handleDeleteRow(shipmentIndex, idx)}
+                        label="Delete Entry"
                       />
                     </div>
                   </div>
                 ))}
-                {(airlineData[shipmentIndex] || []).map((row, rowIndex) => {
-                  const expanded =
-                    expandedModalRows[`${shipmentIndex}_${rowIndex}`];
-                  return expanded ? (
-                    <div
-                      key={`more-info-${shipmentIndex}-${rowIndex}`}
-                      className="p-3 mb-3 border-1 border-round surface-100"
-                    >
-                      <div className="grid formgrid p-fluid">
-                        <div className="field col-12 md:col-4">
-                          <label>Transit Days</label>
-                          <InputText
-                            value={row.transit_days || ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "transit_days",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Freight Per Kg</label>
-                          <InputText
-                            value={row.freight_per_kg || ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "freight_per_kg",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Booking Reference</label>
-                          <InputText
-                            value={row.booking_reference || ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "booking_reference",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Flight Route</label>
-                          <InputText
-                            value={row.route || ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "route",
-                                e.target.value
-                              )
-                            }
-                          />
-                        </div>
 
-                        <div className="field col-12 md:col-4">
-                          <label>Flight Schedule</label>
-                          <Calendar
-                            value={
-                              row.flight_schedule
-                                ? new Date(row.flight_schedule)
-                                : null
-                            }
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "flight_schedule",
-                                e.value
-                              )
-                            }
-                            showIcon
-                            dateFormat="dd/mm/yy"
-                            className="w-full"
-                          />
-                        </div>
-
-                        <div className="field col-12 md:col-4">
-                          <label>Pickup Date</label>
-                          <Calendar
-                            value={
-                              row.pickup_date ? new Date(row.pickup_date) : null
-                            }
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "pickup_date",
-                                e.value
-                              )
-                            }
-                            showIcon
-                            dateFormat="dd/mm/yy"
-                            className="w-full"
-                          />
-                        </div>
-
-                        <div className="field col-12 md:col-4">
-                          <label>Clearance Date</label>
-                          <Calendar
-                            value={
-                              row.clearance_date
-                                ? new Date(row.clearance_date)
-                                : null
-                            }
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "clearance_date",
-                                e.value
-                              )
-                            }
-                            showIcon
-                            dateFormat="dd/mm/yy"
-                            className="w-full"
-                          />
-                        </div>
-
-                        <div className="field col-12 md:col-4">
-                          <label>Validity Date</label>
-                          <Calendar
-                            value={
-                              row.freight_validity
-                                ? new Date(row.freight_validity)
-                                : null
-                            }
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "freight_validity",
-                                e.value
-                              )
-                            }
-                            showIcon
-                            dateFormat="dd/mm/yy"
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Currency</label>
-                          <Dropdown
-                            value={row.currency || "INR"}
-                            options={["INR", "USD", "EUR"]}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "currency",
-                                e.value
-                              )
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Insurance Provided?</label>
-                          <Dropdown
-                            value={row.insurance || "No"}
-                            options={["Yes", "No"]}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "insurance",
-                                e.value
-                              )
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Pickup Charges</label>
-                          <InputNumber
-                            value={row.pickup_charges || 0}
-                            onValueChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "pickup_charges",
-                                e.value
-                              )
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Documentation Charges</label>
-                          <InputNumber
-                            value={row.documentation_charges || 0}
-                            onValueChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "documentation_charges",
-                                e.value
-                              )
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Customs Handling Charges</label>
-                          <InputNumber
-                            value={row.customs_handling || 0}
-                            onValueChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "customs_handling",
-                                e.value
-                              )
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12 md:col-4">
-                          <label>Free Storage Days</label>
-                          <InputNumber
-                            value={row.free_storage_days || 0}
-                            onValueChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "free_storage_days",
-                                e.value
-                              )
-                            }
-                            className="w-full"
-                          />
-                        </div>
-                        <div className="field col-12">
-                          <label>Remarks / Conditions</label>
-                          <InputTextarea
-                            value={row.remarks || ""}
-                            onChange={(e) =>
-                              handleInputChange(
-                                shipment,
-                                shipmentIndex,
-                                rowIndex,
-                                "remarks",
-                                e.target.value
-                              )
-                            }
-                            rows={2}
-                            className="w-full"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  ) : null;
-                })}
                 <DataTable
                   value={shipment.package_summary?.packages || []}
                   responsiveLayout="scroll"
@@ -2365,7 +2469,7 @@ const RfqManagement = () => {
         />
       )}
 
-      {["received_quotes", "evaluated", "negotiation"].includes(
+      {["received_quotes", "evaluated", "negotiation", "accepted"].includes(
         rowData.status
       ) && (
         <Button
@@ -2520,22 +2624,37 @@ const RfqManagement = () => {
           rows={10}
           responsiveLayout="scroll"
           sortMode="multiple"
+          globalFilter={globalFilter}
+          filters={filters}
+          filterDisplay="menu"
+          onFilter={(e) => setFilters(e.filters)} // ✅ keep filters in sync
           globalFilterFields={[
             "title",
             "type",
             "transport_mode",
             "currency",
             "rfq_number",
+            "auction_number",
+            "buyer.preshipmentnumber",
+            "buyer.postshipmentnumber",
           ]}
-          filters={filters}
-          filterDisplay="menu"
           removableSort
           className="p-datatable-sm"
         >
           <Column
+            field="buyer.preshipmentnumber"
+            filter
+            filterPlaceholder="Search..."
             body={(rowData) => rowData.auction_number || rowData.rfq_number}
             header="RFQ / Auction #"
             sortable
+          />
+          <Column
+            body={(rowData) =>
+              rowData.buyer.preshipmentnumber ||
+              rowData.buyer.postshipmentnumber
+            }
+            header="Shipment Number"
           />
           <Column
             header="Title"
@@ -2545,7 +2664,11 @@ const RfqManagement = () => {
             body={(rowData) => rowData.title?.toUpperCase()}
           />
           <Column
-            body={(rowData) => rowData.form_type?.toUpperCase()}
+            body={(rowData) =>
+              rowData.status
+                ? rowData.status?.toUpperCase()
+                : rowData.form_type?.toUpperCase()
+            }
             header="Status"
             sortable
             filter
@@ -2599,6 +2722,13 @@ const RfqManagement = () => {
           <Column
             body={(rowData) => rowData.auction_number || rowData.rfq_number}
             header="RFQ / Auction #"
+          />
+          <Column
+            body={(rowData) =>
+              rowData.buyer.preshipmentnumber ||
+              rowData.buyer.postshipmentnumber
+            }
+            header="Shipment Number"
           />
           <Column
             body={(rowData) =>

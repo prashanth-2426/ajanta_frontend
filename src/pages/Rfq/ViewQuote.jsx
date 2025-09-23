@@ -770,7 +770,7 @@ const ViewQuote = () => {
             label="Send"
             className="p-button-sm p-button-warning"
             onClick={submitNegotiation}
-            disabled={selectedVendors.length === 0}
+            //disabled={selectedVendors.length === 0}
           />
           <Button
             label="Cancel"
