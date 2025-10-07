@@ -13,6 +13,8 @@ import { Dialog } from "primereact/dialog";
 import { Checkbox } from "primereact/checkbox";
 import { InputNumber } from "primereact/inputnumber";
 import { InputTextarea } from "primereact/inputtextarea";
+import jsPDF from "jspdf";
+import "jspdf-autotable";
 
 const ViewQuote = () => {
   const { rfqNumber } = useParams();
@@ -28,6 +30,10 @@ const ViewQuote = () => {
 
   const [isFlatView, setIsFlatView] = useState(false);
   const [invAmount, setInvAmount] = useState(null);
+
+  const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [acceptRemarks, setAcceptRemarks] = useState("");
+  const [expandedRows, setExpandedRows] = useState(null);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -467,7 +473,7 @@ const ViewQuote = () => {
                 body={(row) => `${row.chargeable_weight || "-"} kg`}
               />
               <Column
-                header="Base Rate (Rs/Kg)"
+                header="Freight (Rs/Kg)"
                 body={(row) => row.base_rate || "-"}
               />
               <Column header="AMS" body={(row) => row.ams || "-"} />
@@ -513,7 +519,7 @@ const ViewQuote = () => {
                 body={(row) => `${row.chargeable_weight || "-"} kg`}
               />
               <Column
-                header="Base Rate (Rs/Kg)"
+                header="Freight (Rs/Kg)"
                 body={(row) => row.base_rate || "-"}
               />
               <Column header="AMS" body={(row) => row.ams || "-"} />
@@ -566,6 +572,153 @@ const ViewQuote = () => {
         );
       }) || [];
 
+    const rowExpansionTemplate = (row) => {
+      // Pair each route with its corresponding schedule
+      const flightRoutes = [
+        { route: row.route1, schedule: row.flight_schedule1 },
+        { route: row.route2, schedule: row.flight_schedule2 },
+        { route: row.route3, schedule: row.flight_schedule3 },
+      ].filter((r) => r.route || r.schedule); // keep only filled ones
+
+      return (
+        <div className="p-3">
+          <div className="grid">
+            <div className="col-12 md:col-4">
+              <strong>Currency:</strong> {row.currency || "-"}
+            </div>
+            <div className="col-12 md:col-4">
+              <strong>Transit Days:</strong> {row.transit_days || "-"}
+            </div>
+            <div className="col-12 md:col-4">
+              <strong>Exchange Rate:</strong> {row.exchange_rate || "-"}
+            </div>
+
+            {/* Flight Routes + Schedules */}
+            <div className="col-12">
+              <strong>Flight Route & Schedule:</strong>
+              <div className="grid mt-2">
+                {flightRoutes.length > 0 ? (
+                  flightRoutes.map((fr, idx) => (
+                    <div key={idx} className="col-12 md:col-6 mb-2">
+                      <div className="p-2 border-round surface-100">
+                        <div>
+                          <strong>Route:</strong> {fr.route || "-"}
+                        </div>
+                        <div>
+                          <strong>Schedule:</strong>{" "}
+                          {fr.schedule
+                            ? new Date(fr.schedule).toLocaleDateString()
+                            : "-"}
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="col-12">-</div>
+                )}
+              </div>
+            </div>
+
+            <div className="col-12">
+              <strong>Remarks:</strong> {row.remarks || "-"}
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    const exportToPDF = (allQuotes, rfqNumber) => {
+      const doc = new jsPDF();
+
+      // 🔹 Add Header
+      doc.setFontSize(14);
+      doc.text(`RFQ Summary Report - ${rfqNumber}`, 14, 20);
+
+      doc.setFontSize(10);
+      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+
+      // 🔹 Generate tables per quote
+      allQuotes.forEach((row, index) => {
+        const routes = [
+          { route: row.route1, schedule: row.flight_schedule1 },
+          { route: row.route2, schedule: row.flight_schedule2 },
+          { route: row.route3, schedule: row.flight_schedule3 },
+        ]
+          .filter((r) => r.route || r.schedule)
+          .map((r) => {
+            const routeText = r.route || "-";
+            const scheduleText = r.schedule
+              ? new Date(r.schedule).toLocaleDateString()
+              : "-";
+            return `${routeText}\n${scheduleText}`; // schedule below route
+          })
+          .join("\n");
+
+        const data = [
+          ["Vendor", row.vendor_name || "-"],
+          ["Airline", row.airline_name || "-"],
+          ["Airport", row.airport || "-"],
+          [
+            "Chargeable Wt",
+            row.chargeable_weight ? `${row.chargeable_weight} kg` : "-",
+          ],
+          ["Freight", row.base_rate || "-"],
+          ["AMS(INR)", row.ams || "-"],
+          ["PAC(INR)", row.pac || "-"],
+          ["AWB(INR)", row.awb || "-"],
+          ["DAP/DDP", row.dap_ddp_charges || "-"],
+          ["Other(INR)", row.other_charges || "-"],
+          [
+            "Total Charges(INR)",
+            `${parseFloat(row.total_charges || 0).toFixed(2)}`,
+          ],
+          ["Transit Days", row.transit_days || "-"],
+          ["Currency", row.currency || "-"],
+          ["Exchange Rate", row.exchange_rate || "-"],
+          ["Flight Details", routes || "-"],
+          ["Remarks", row.remarks || "-"],
+        ];
+
+        doc.autoTable({
+          startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 35, // stack tables
+          body: data,
+          theme: "grid",
+          styles: { fontSize: 8, cellPadding: 2, valign: "top" },
+          headStyles: { fillColor: [22, 160, 133] },
+          columnStyles: {
+            0: { cellWidth: 50, fontStyle: "bold" }, // Labels
+            1: { cellWidth: 130 }, // Values
+          },
+          showHead: "never", // no column headers
+        });
+
+        // 🔹 Add separator line between vendors
+        if (index < allQuotes.length - 1) {
+          doc.setFontSize(9);
+          doc.text(
+            "----------------------------------------",
+            14,
+            doc.lastAutoTable.finalY + 5
+          );
+        }
+      });
+
+      // 🔹 Footer with page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(9);
+        doc.text(
+          `Page ${i} of ${pageCount}`,
+          doc.internal.pageSize.getWidth() - 20,
+          doc.internal.pageSize.getHeight() - 10
+        );
+      }
+
+      // 🔹 Save PDF
+      doc.save(`RFQ_${rfqNumber}_Summary.pdf`);
+    };
+
     return (
       <div className="mt-4">
         <h4 className="mb-3">✈️ All Shipment Quotes (Flat View)</h4>
@@ -580,12 +733,29 @@ const ViewQuote = () => {
             placeholder="Enter invoice amount"
           />
         </div>
+        <div className="flex justify-content-between align-items-center mb-3">
+          <h3>RFQ Quotes Summary</h3>
+          <Button
+            label="Download PDF"
+            icon="pi pi-download"
+            className="p-button-sm p-button-success"
+            onClick={() => exportToPDF(allQuotes, rfq?.rfq_number)}
+          />
+        </div>
         <DataTable
           value={allQuotes}
           responsiveLayout="scroll"
           className="p-datatable-sm"
           emptyMessage="No shipment quotes available"
+          selection={selectedVendors}
+          onSelectionChange={(e) => setSelectedVendors(e.value)}
+          dataKey="vendor_id" // make sure vendor_id is unique in your data
+          expandedRows={expandedRows}
+          onRowToggle={(e) => setExpandedRows(e.data)}
+          rowExpansionTemplate={rowExpansionTemplate}
         >
+          <Column expander style={{ width: "3rem" }} />
+          <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
           <Column header="Vendor" body={(row) => row.vendor_name} />
           <Column header="Airline" body={(row) => row.airline_name || "-"} />
           <Column header="Airport" body={(row) => row.airport || "-"} />
@@ -594,7 +764,7 @@ const ViewQuote = () => {
             body={(row) => `${row.chargeable_weight || "-"} kg`}
           />
           <Column
-            header="Base Rate (Rs/Kg)"
+            header="Freight (Rs/Kg)"
             body={(row) => row.base_rate || "-"}
           />
           <Column header="AMS" body={(row) => row.ams || "-"} />
@@ -690,7 +860,9 @@ const ViewQuote = () => {
           <Button
             label="✅ Accept L1 Quote"
             className="p-button-success p-button-sm"
-            onClick={() => handleAction("accept_l1", rfq.rfq_number)}
+            //onClick={() => handleAction("accept_l1", rfq.rfq_number)}
+            onClick={() => setShowAcceptDialog(true)}
+            disabled={selectedVendors.length === 0}
           />
           <Button
             label="✏️ Negotiate"
@@ -698,7 +870,7 @@ const ViewQuote = () => {
             //onClick={() => handleAction("negotiate", rfq.rfq_number)}
             onClick={() => setShowNegotiationDialog(true)}
           />
-          <Button
+          {/* <Button
             label="⚖️ Move to Auction"
             className="p-button-info p-button-sm"
             onClick={() => handleAction("auction", rfq.rfq_number)}
@@ -707,7 +879,7 @@ const ViewQuote = () => {
             label="❌ Reject All"
             className="p-button-danger p-button-sm"
             onClick={() => handleAction("reject", rfq.rfq_number)}
-          />
+          /> */}
         </div>
       </Panel>
 
@@ -776,6 +948,59 @@ const ViewQuote = () => {
             label="Cancel"
             className="p-button-secondary p-button-sm"
             onClick={() => setShowNegotiationDialog(false)}
+          />
+        </div>
+      </Dialog>
+      <Dialog
+        header="Accept L1 Quote"
+        visible={showAcceptDialog}
+        onHide={() => setShowAcceptDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          <h5>Selected Vendors</h5>
+          {selectedVendors.map((v) => (
+            <div key={v.vendor_id} className="mb-2">
+              <i className="pi pi-user mr-2" />
+              <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={acceptRemarks}
+            onChange={(e) => setAcceptRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Accept"
+            className="p-button-sm p-button-success"
+            onClick={async () => {
+              await postData("quotesummary/update-rfq-status", {
+                rfq_number: rfq.rfq_number,
+                action: "accept_l1",
+                vendors: selectedVendors.map((v) => v.vendor_id),
+                remarks: acceptRemarks,
+              });
+              dispatch(
+                toastSuccess({ detail: "Accepted L1 Quote successfully!" })
+              );
+              setShowAcceptDialog(false);
+              setSelectedVendors([]);
+              setAcceptRemarks("");
+            }}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowAcceptDialog(false)}
           />
         </div>
       </Dialog>

@@ -75,21 +75,25 @@ const PackageDimensionsForm = ({
   }, [existingPackages]);
 
   useEffect(() => {
-    if (manualGrossWeight) {
-      setManualTotalGrossWeight(manualGrossWeight);
+    if (existingPackages.manual_total_gross_weight) {
+      console.log(
+        "manualGrossWeight value in useEffect:",
+        existingPackages.manual_total_gross_weight
+      );
+      setManualTotalGrossWeight(existingPackages.manual_total_gross_weight);
     }
-  }, [manualGrossWeight]);
+  }, [existingPackages.manual_total_gross_weight]);
 
   useEffect(() => {
-    if (valueOfShipment) {
-      setValueOfShipment(valueOfShipment);
+    if (existingPackages.value_of_shipment) {
+      setValueOfShipment(existingPackages.value_of_shipment);
     }
-  }, [valueOfShipment]);
+  }, [existingPackages.value_of_shipment]);
   useEffect(() => {
-    if (shipmentCurrency) {
-      setShipmentCurrency(shipmentCurrency);
+    if (existingPackages.shipment_currency) {
+      setShipmentCurrency(existingPackages.shipment_currency);
     }
-  }, [shipmentCurrency]);
+  }, [existingPackages.shipmentCurrency]);
   // useEffect(() => {
   //   if (totalCartons) {
   //     setTotalCartons(totalCartons);
@@ -364,7 +368,7 @@ const PackageDimensionsForm = ({
 
         {packages.map((pkg, index) => (
           <div className="grid align-items-end mb-3" key={index}>
-            <div className="col-12 md:col-3">
+            <div className="col-12 md:col-2">
               <label>Qty & Type</label>
               <div className="p-inputgroup w-full">
                 <InputNumber

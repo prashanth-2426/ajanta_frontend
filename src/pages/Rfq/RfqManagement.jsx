@@ -37,6 +37,7 @@ const RfqManagement = () => {
   const [expandedRows, setExpandedRows] = useState(null);
   const [quotes, setQuotes] = useState({});
   const [roadTransportQuotes, setRoadTransportQuotes] = useState({});
+  const [negotiationData, setNetogiationData] = useState({});
   const [competingQuotes, setCompetingQuotes] = useState({});
   const userRole = "vendor";
   const airlines = ["Air India", "Emirates", "Qatar Airways"];
@@ -87,7 +88,24 @@ const RfqManagement = () => {
     }
   };
 
+  const handleRowExpand = (e) => {
+    const key = e.data.row_id;
+    setExpandedRows({ [key]: true });
+    fetchQuotesById(e.data.rfq_number);
+  };
+
+  const handleRowCollapse = (e) => {
+    setExpandedRows({});
+  };
+
   const fetchQuotesById = async (rfqNumber) => {
+    setQuotes({});
+    setCompetingQuotes({});
+    setAirlineQuotes({});
+    setAirlineData({});
+    setShiplineData({});
+    setRoadTransportQuotes({});
+    setNetogiationData({});
     try {
       const data = await getData(`quotes/${rfqNumber}`);
       const mappedQuotes = {};
@@ -219,6 +237,9 @@ const RfqManagement = () => {
                 }
               });
             });
+          }
+          if (entry.negotiation) {
+            setNetogiationData(entry.negotiation || {});
           }
         }
 
@@ -1860,6 +1881,37 @@ const RfqManagement = () => {
                     <span className="p-col-4 pl-4">
                       <strong>CBM:</strong> {shipment.package_summary?.totalCBM}
                     </span>
+
+                    {negotiationData.last_purchase_price && (
+                      <div className="p-col-12 mt-3">
+                        <div className="p-3 border-1 border-round surface-100 shadow-1">
+                          <h4 className="m-0 mb-2 text-primary">
+                            Negotiation Request Details
+                          </h4>
+                          <div className="text-sm">
+                            <p className="m-1">
+                              <strong>
+                                Last Purchase Price (LPP) / Target Price:
+                              </strong>{" "}
+                              {negotiationData.last_purchase_price || "N/A"}
+                            </p>
+                            <p className="m-1">
+                              <strong>Reason:</strong>{" "}
+                              {negotiationData.remarks || "N/A"}
+                            </p>
+                            <p className="m-1">
+                              <strong>Date:</strong>{" "}
+                              {negotiationData.requested_at
+                                ? new Date(
+                                    negotiationData.requested_at
+                                  ).toLocaleString()
+                                : "N/A"}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="p-col-12 text-right mt-3">
                       <Button
                         icon="pi pi-send"
@@ -2097,56 +2149,6 @@ const RfqManagement = () => {
 
                     {/* More Info Section - Always Visible */}
                     <div className="grid formgrid p-fluid mt-3 border-top-1 pt-3">
-                      <div className="field col-12 md:col-4">
-                        <label>Transit Days</label>
-                        <InputText
-                          value={row.transit_days || ""}
-                          onChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "transit_days",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>Booking Reference</label>
-                        <InputText
-                          value={row.booking_reference || ""}
-                          onChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "booking_reference",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>Insurance Provided?</label>
-                        <Dropdown
-                          value={row.insurance || "No"}
-                          options={["Yes", "No"]}
-                          onChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "insurance",
-                              e.value
-                            )
-                          }
-                          className="w-full"
-                        />
-                      </div>
-
                       <div className="field col-12 md:col-6">
                         <label>Flight Route 1</label>
                         <InputText
@@ -2264,7 +2266,7 @@ const RfqManagement = () => {
                         />
                       </div>
 
-                      <div className="field col-12 md:col-4">
+                      <div className="field col-12 md:col-3">
                         <label>Pickup Date</label>
                         <Calendar
                           value={
@@ -2285,7 +2287,7 @@ const RfqManagement = () => {
                         />
                       </div>
 
-                      <div className="field col-12 md:col-4">
+                      <div className="field col-12 md:col-3">
                         <label>Clearance Date</label>
                         <Calendar
                           value={
@@ -2307,8 +2309,23 @@ const RfqManagement = () => {
                           className="w-full"
                         />
                       </div>
+                      <div className="field col-12 md:col-3">
+                        <label>Transit Days</label>
+                        <InputText
+                          value={row.transit_days || ""}
+                          onChange={(e) =>
+                            handleInputChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "transit_days",
+                              e.target.value
+                            )
+                          }
+                        />
+                      </div>
 
-                      <div className="field col-12 md:col-4">
+                      <div className="field col-12 md:col-3">
                         <label>Validity Date</label>
                         <Calendar
                           value={
@@ -2327,40 +2344,6 @@ const RfqManagement = () => {
                           }
                           showIcon
                           dateFormat="dd/mm/yy"
-                          className="w-full"
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>Pickup Charges</label>
-                        <InputNumber
-                          value={row.pickup_charges || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "pickup_charges",
-                              e.value
-                            )
-                          }
-                          className="w-full"
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>Free Storage Days</label>
-                        <InputNumber
-                          value={row.free_storage_days || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "free_storage_days",
-                              e.value
-                            )
-                          }
                           className="w-full"
                         />
                       </div>
@@ -2485,9 +2468,10 @@ const RfqManagement = () => {
   const handleDelete = async (rfq_number) => {
     if (!window.confirm("Are you sure you want to delete this RFQ?")) return;
 
-    const response = await postData(`rfq/${rfq_number}/delete`, {});
+    const response = await postData(`rfqs/${rfq_number}/delete`, {});
     if (response?.isSuccess) {
       dispatch(toastSuccess({ detail: "RFQ deleted successfully!" }));
+      fetchRfqs();
     } else {
       dispatch(
         toastError({ detail: response?.msg || "Failed to delete RFQ." })
@@ -2708,8 +2692,10 @@ const RfqManagement = () => {
         <DataTable
           value={filteredRfqs}
           expandedRows={expandedRows}
-          onRowToggle={(e) => setExpandedRows(e.data)}
-          onRowExpand={(e) => fetchQuotesById(e.data.rfq_number)}
+          // onRowToggle={(e) => setExpandedRows(e.data)}
+          // onRowExpand={(e) => fetchQuotesById(e.data.rfq_number)}
+          onRowExpand={handleRowExpand}
+          onRowCollapse={handleRowCollapse}
           rowExpansionTemplate={rowExpansionTemplate}
           dataKey="row_id"
           responsiveLayout="scroll"

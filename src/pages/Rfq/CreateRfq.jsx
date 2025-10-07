@@ -1215,6 +1215,15 @@ const CreateRfq = () => {
 
         rfqJson.form_type = formType;
 
+        if (
+          rfqJson.shipment_details[0]?.package_summary &&
+          rfqJson.shipment_details[0]?.package_summary
+            .manual_total_gross_weight == null
+        ) {
+          alert("⚠️ Manual Total Gross Weight is required!");
+          return;
+        }
+
         console.log("RFQ JSON:", rfqJson);
 
         try {
@@ -3196,7 +3205,6 @@ const CreateRfq = () => {
                     shipmentCurrency={
                       watch("package_summary")?.shipment_currency
                     }
-                    //totalCartons={watch("package_summary")?.total_cartons}
                   />
                 </fieldset>
               </div>
