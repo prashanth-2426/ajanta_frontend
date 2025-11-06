@@ -1,8 +1,11 @@
 import AppSubMenu from "./AppSubMenu";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 
 const AppMenu = () => {
   const user = useSelector((state) => state.auth.user);
+  const navigate = useNavigate();
   console.log("User Info:", user);
   const role = user?.role;
   console.log("User Role:", role);
@@ -56,7 +59,7 @@ const AppMenu = () => {
             },
           ],
         },
-        ...(isBuyer
+        ...(isBuyer || isAdmin
           ? [
               {
                 label: "RFQ",
@@ -70,7 +73,7 @@ const AppMenu = () => {
           icon: "pi pi-fw pi-home",
           to: "/rfqs",
         },
-        ...(isBuyer
+        ...(isBuyer || isAdmin
           ? [
               {
                 label: "Quotes Summary",
@@ -81,7 +84,7 @@ const AppMenu = () => {
           : []),
       ],
     },
-    ...(isBuyer
+    ...(isBuyer || isAdmin
       ? [
           {
             label: "Auctions",
@@ -102,7 +105,7 @@ const AppMenu = () => {
         ]
       : []),
 
-    ...(isBuyer
+    ...(isAdmin
       ? [
           {
             label: "Invoice Management",
@@ -122,7 +125,7 @@ const AppMenu = () => {
           },
         ]
       : []),
-    ...(isBuyer
+    ...(isAdmin
       ? [
           {
             label: "Admin Panel",

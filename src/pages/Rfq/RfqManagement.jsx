@@ -5,7 +5,7 @@ import { Column } from "primereact/column";
 import { InputText } from "primereact/inputtext";
 import { Button } from "primereact/button";
 import { FilterMatchMode } from "primereact/api";
-import { getData, postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { useNavigate } from "react-router-dom";
 import { formatDate } from "../../utils/local";
 import { toastError, toastSuccess } from "../../store/toastSlice";
@@ -18,12 +18,13 @@ import { getRates } from "../../utils/exchangeRates";
 import { set } from "react-hook-form";
 
 const RfqManagement = () => {
+  const { postData, getData } = useApi();
   const user = useSelector((state) => state.auth.user);
-  console.log("user info on lisitng", user);
+  //console.log("user info on lisitng", user);
   const role = user?.role;
-  console.log("User Role:", role);
+  //console.log("User Role:", role);
   const isVendor = user?.role === "vendor";
-  console.log("isVendor value", isVendor);
+  //console.log("isVendor value", isVendor);
   const [rfqs, setRfqs] = useState([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [filters, setFilters] = useState({
@@ -38,6 +39,7 @@ const RfqManagement = () => {
   const [quotes, setQuotes] = useState({});
   const [roadTransportQuotes, setRoadTransportQuotes] = useState({});
   const [negotiationData, setNetogiationData] = useState({});
+  const [quoteAcceptedData, setQuoteAcceptedData] = useState({});
   const [competingQuotes, setCompetingQuotes] = useState({});
   const userRole = "vendor";
   const airlines = ["Air India", "Emirates", "Qatar Airways"];
@@ -70,14 +72,20 @@ const RfqManagement = () => {
 
   const navigate = useNavigate();
 
+  useEffect(() => {
+    if (!role == undefined) {
+      navigate("/login");
+    }
+  }, [user, navigate]);
+
   const fetchRfqs = async () => {
     try {
       const url = isVendor
         ? `rfqs?email=${encodeURIComponent(user.email)}`
         : `rfqs`;
-      console.log("Fetching RFQs from URL:", url);
+      //console.log("Fetching RFQs from URL:", url);
       const data = await getData(url);
-      console.log("Fetched RFQs:", data);
+      //console.log("Fetched RFQs:", data);
       const enriched = data.map((r) => ({
         ...r,
         row_id: r.auction_number || r.rfq_number,
@@ -105,7 +113,8 @@ const RfqManagement = () => {
     setAirlineData({});
     setShiplineData({});
     setRoadTransportQuotes({});
-    setNetogiationData({});
+    setNetogiationData([]);
+    setQuoteAcceptedData({});
     try {
       const data = await getData(`quotes/${rfqNumber}`);
       const mappedQuotes = {};
@@ -140,9 +149,9 @@ const RfqManagement = () => {
                   customs: q.customs || "",
                 };
               });
-              console.log("package value", pkg);
+              //console.log("package value", pkg);
               const shipmentIndex = pkg?.shipment_index;
-              console.log("shipmentIndex value", shipmentIndex);
+              //console.log("shipmentIndex value", shipmentIndex);
               if (!mappedExportAirlinePackageQuotes[shipmentIndex]) {
                 mappedExportAirlinePackageQuotes[shipmentIndex] = [];
               }
@@ -150,7 +159,7 @@ const RfqManagement = () => {
               pkg.quotes?.forEach((quote) => {
                 const isSealine = "sealine_name" in quote;
 
-                console.log("isSealine value", isSealine);
+                //console.log("isSealine value", isSealine);
 
                 const targetMap = isSealine
                   ? mappedExportShiplinePackageQuotes
@@ -207,6 +216,7 @@ const RfqManagement = () => {
                     chargeable_weight: quote.chargeable_weight || "",
                     transit_days: quote.transit_days || "",
                     freight_per_kg: quote.base || "",
+                    exchangeRate: quote.exchangeRate || "",
                     dap_ddp_charges: quote.dap_ddp_charges || "",
                     other_charges: quote.other_charges || "",
                     remarks: quote.remarks || "",
@@ -239,7 +249,10 @@ const RfqManagement = () => {
             });
           }
           if (entry.negotiation) {
-            setNetogiationData(entry.negotiation || {});
+            setNetogiationData(entry.negotiation || []);
+          }
+          if (entry.acceptedDetails) {
+            setQuoteAcceptedData(entry.acceptedDetails || {});
           }
         }
 
@@ -252,10 +265,10 @@ const RfqManagement = () => {
           });
         });
       });
-      console.log(
-        "mappedExportAirlinePackageQuotes data",
-        mappedExportAirlinePackageQuotes
-      );
+      // console.log(
+      //   "mappedExportAirlinePackageQuotes data",
+      //   mappedExportAirlinePackageQuotes
+      // );
       setQuotes(mappedQuotes);
       setCompetingQuotes(groupedByItem);
       setAirlineQuotes(mappedPackageQuotes);
@@ -326,11 +339,12 @@ const RfqManagement = () => {
 
     const airlineQuotesForShipment = airlineData[shipmentIndex] || [];
 
-    console.log("airlineQuotesForShipment details", airlineQuotesForShipment);
+    //console.log("airlineQuotesForShipment details", airlineQuotesForShipment);
 
     const payload = {
       rfq_id: rfqId,
       vendor_id: vendorId,
+      company: user.company,
       quotes: [],
       package_quotes: [
         {
@@ -340,7 +354,7 @@ const RfqManagement = () => {
       ],
     };
 
-    console.log("payload data", payload);
+    //console.log("payload data", payload);
 
     try {
       const token = localStorage.getItem("USERTOKEN");
@@ -354,7 +368,7 @@ const RfqManagement = () => {
       });
 
       const result = await response.json();
-      console.log("Submit Quote  response", result);
+      //console.log("Submit Quote  response", result);
       if (!result.isSuccess) {
         dispatch(
           toastError({
@@ -363,11 +377,11 @@ const RfqManagement = () => {
         );
       } else {
         dispatch(
-          toastSuccess({ detail: "Packages Quote Submitted Successfully.." })
+          toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
         );
       }
     } catch (error) {
-      console.error("Error submitting packages quote:", error);
+      console.error("Error submitting auction quote:", error);
     }
   };
 
@@ -377,7 +391,7 @@ const RfqManagement = () => {
 
     const shiplineQuotesForShipment = shiplineData[shipmentIndex] || [];
 
-    console.log("shiplineQuotesForShipment details", shiplineQuotesForShipment);
+    //console.log("shiplineQuotesForShipment details", shiplineQuotesForShipment);
 
     const payload = {
       rfq_id: rfqId,
@@ -391,7 +405,7 @@ const RfqManagement = () => {
       ],
     };
 
-    console.log("payload data", payload);
+    //console.log("payload data", payload);
 
     try {
       const token = localStorage.getItem("USERTOKEN");
@@ -405,12 +419,12 @@ const RfqManagement = () => {
       });
 
       const result = await response.json();
-      console.log("Submit Quote  response", result);
+      //console.log("Submit Quote  response", result);
       dispatch(
-        toastSuccess({ detail: "Packages Quote Submitted Successfully.." })
+        toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
       );
     } catch (error) {
-      console.error("Error submitting packages quote:", error);
+      console.error("Error submitting auction quote:", error);
     }
   };
 
@@ -424,21 +438,21 @@ const RfqManagement = () => {
       : rfqs;
 
   const getVendorRank = (rfqId, itemId, vendorId, competingQuotes) => {
-    console.log("rfqId value", rfqId);
-    console.log("itemId value", itemId);
-    console.log("vendorId value", vendorId);
-    console.log("competingQuotes value", competingQuotes);
+    //console.log("rfqId value", rfqId);
+    //console.log("itemId value", itemId);
+    //console.log("vendorId value", vendorId);
+    //console.log("competingQuotes value", competingQuotes);
     const quotes = competingQuotes[`${rfqId}_${itemId}`] || [];
 
-    console.log("quotes value", quotes);
+    //console.log("quotes value", quotes);
 
     const sorted = [...quotes].sort((a, b) => a.quoted_price - b.quoted_price);
-    console.log("sorted value", sorted);
+    //console.log("sorted value", sorted);
     const rank = sorted.findIndex(
       (q) => String(q.vendor_id) === String(vendorId)
     );
 
-    console.log("rank value", rank);
+    //console.log("rank value", rank);
 
     return rank !== -1 ? `L${rank + 1}` : "-";
   };
@@ -574,7 +588,7 @@ const RfqManagement = () => {
         destination_combine
       ).toFixed(2);
 
-      console.log("total charge calculation", row.total_charges);
+      //console.log("total charge calculation", row.total_charges);
 
       updated[rowIndex] = row;
       return {
@@ -613,6 +627,51 @@ const RfqManagement = () => {
     }
   };
 
+  const handleExchangeRateChange = (
+    shipment,
+    shipmentIndex,
+    rowIndex,
+    field,
+    newRate
+  ) => {
+    setExchangeRate(newRate);
+
+    // Clone the full airline data to work on
+    const updatedAirlineData = JSON.parse(JSON.stringify(airlineData));
+
+    // Function to safely convert to number
+    const toNumber = (val) => parseFloat(val) || 0;
+
+    // Loop through all shipments and rows to update totals
+    Object.keys(updatedAirlineData).forEach((shipIndex) => {
+      updatedAirlineData[shipIndex] = updatedAirlineData[shipIndex].map(
+        (row, idx) => {
+          const dapDdp = toNumber(row.dap_ddp_charges);
+          const convertedDapDdp = dapDdp * newRate;
+          const prevTotal = toNumber(row.total_charges);
+          const grandTotalValue = prevTotal + convertedDapDdp;
+
+          return {
+            ...row,
+            totaldapdppcharge: convertedDapDdp,
+            grandTotalValue,
+          };
+        }
+      );
+    });
+
+    // Update the current edited row if needed
+    if (
+      updatedAirlineData[shipmentIndex] &&
+      updatedAirlineData[shipmentIndex][rowIndex]
+    ) {
+      updatedAirlineData[shipmentIndex][rowIndex][field] = newRate;
+    }
+
+    // Finally update the state once
+    setAirlineData(updatedAirlineData);
+  };
+
   const handleCurrencyChange = async (
     shipment,
     shipmentIndex,
@@ -631,21 +690,22 @@ const RfqManagement = () => {
     try {
       setFetchingRateMsg("Fetching latest exchange rate...");
       exchangeRate = await getRates(currency, "INR");
+      row.exchangeRate = exchangeRate;
       setExchangeRate(exchangeRate);
       setFetchingRateMsg(null);
-      console.log("[DEBUG] Fetched exchange rate:", exchangeRate);
+      //console.log("[DEBUG] Fetched exchange rate:", exchangeRate);
     } catch (e) {
-      console.error("Exchange rate error:", e);
+      //console.error("Exchange rate error:", e);
     }
 
     const convertedDapDdp = dapDdp * exchangeRate;
-    console.log("convertedDapDdp value", convertedDapDdp);
+    //console.log("convertedDapDdp value", convertedDapDdp);
 
     const prevTotal = parseFloat(row.total_charges) || 0;
     row.total_charges = prevTotal;
     row.totaldapdppcharge = convertedDapDdp;
     row.grandTotalValue = row.total_charges + convertedDapDdp;
-    console.log("Total Charges", row.total_charges);
+    //console.log("Total Charges", row.total_charges);
 
     prevData[rowIndex] = row;
     setAirlineData((prev) => ({
@@ -722,7 +782,7 @@ const RfqManagement = () => {
   };
 
   const rowExpansionTemplate = (rowData) => {
-    console.log("row data value", rowData);
+    //console.log("row data value", rowData);
     const itemsWithIds = rowData.rfq_items?.map((item, idx) => ({
       ...item,
       item_id: item.item_id ?? idx + 1,
@@ -759,7 +819,7 @@ const RfqManagement = () => {
                       disabled={rowData.status?.toLowerCase() === "accepted"}
                       onChange={(e) => {
                         const value = e.target.value;
-                        console.log("value of item vendor is zero::", value);
+                        //console.log("value of item vendor is zero::", value);
                         setQuotes((prev) => ({
                           ...prev,
                           [itemKey]: value,
@@ -767,8 +827,8 @@ const RfqManagement = () => {
                       }}
                       onBlur={(e) => {
                         const value = parseFloat(e.target.value);
-                        console.log("value of item vendor is one::", value);
-                        console.log("checking quotes value::", quotes);
+                        //console.log("value of item vendor is one::", value);
+                        //console.log("checking quotes value::", quotes);
                         const auctionType = rowData.pickup_by_ff?.toLowerCase();
                         const targetPrice = parseFloat(
                           itemRow.target_price || 0
@@ -808,7 +868,7 @@ const RfqManagement = () => {
                         const itemIndex = rfq.rfq_items.findIndex(
                           (i) => i.item_id === itemRow.item_id
                         );
-                        console.log("value of item vendor is two::", value);
+                        //console.log("value of item vendor is two::", value);
                         if (itemIndex !== -1) {
                           rfq.rfq_items[itemIndex] = {
                             ...rfq.rfq_items[itemIndex],
@@ -818,7 +878,7 @@ const RfqManagement = () => {
                           updatedRfqs[rfqIndex] = rfq;
                           setRfqs(updatedRfqs);
                         }
-                        console.log("value of item vendor is three::", value);
+                        //console.log("value of item vendor is three::", value);
                         setQuotes((prev) => ({
                           ...prev,
                           [itemKey]: value,
@@ -896,7 +956,7 @@ const RfqManagement = () => {
             </DataTable>
           </>
         )}
-        {getVendorStatusFromBuyerStatus(rowData.status) ===
+        {/* {getVendorStatusFromBuyerStatus(rowData.status) ===
           "QUOTE ACCEPTED" && (
           <div className="mt-3 p-3 border-1 surface-border border-round">
             <h5>📦 Delivery & Invoice Submission</h5>
@@ -984,7 +1044,7 @@ const RfqManagement = () => {
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         {rowData.subindustry === "Road Transport" && (
           <>
@@ -1837,14 +1897,14 @@ const RfqManagement = () => {
                       <strong>Delivery Terms:</strong> {shipment.DeliveryTerms}
                     </span>
                     <span className="p-col-4 pl-4">
-                      <strong>FF Pickup:</strong> {shipment["FF Pickup"]}
+                      <strong>FF Pickup:</strong> {shipment.FFPickup}
                     </span>
 
                     <span className="p-col-4 pl-4">
                       <strong>Commodity:</strong> {shipment.Commodity}
                     </span>
                     <span className="p-col-4 pl-4">
-                      <strong>HS Code:</strong> {shipment["HS Code"]}
+                      <strong>HS Code:</strong> {shipment.HSCode}
                     </span>
                     <span className="p-col-4 pl-4">
                       <strong>Consignee:</strong> {shipment.Consignee}
@@ -1882,13 +1942,128 @@ const RfqManagement = () => {
                       <strong>CBM:</strong> {shipment.package_summary?.totalCBM}
                     </span>
 
-                    {negotiationData.last_purchase_price && (
+                    {quoteAcceptedData && quoteAcceptedData.accepted_at && (
+                      <div
+                        className="p-3 mt-5 border-round shadow-2 mb-3 flex align-items-center justify-content-between"
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #d4edda 0%, #c3e6cb 100%)",
+                          borderLeft: "6px solid #28a745",
+                          color: "#155724",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        <div className="flex align-items-center">
+                          <span
+                            role="img"
+                            aria-label="trophy"
+                            style={{
+                              fontSize: "2rem",
+                              marginRight: "12px",
+                              filter: "drop-shadow(1px 1px 2px #999)",
+                            }}
+                          >
+                            🏆
+                          </span>
+                          <div>
+                            <div style={{ fontSize: "1.2rem" }}>
+                              🎉 Your Quote Has Been Accepted!
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "1rem",
+                                opacity: 0.9,
+                                marginTop: "10px",
+                              }}
+                            >
+                              Accepted on:{" "}
+                              {quoteAcceptedData.accepted_at
+                                ? new Date(
+                                    quoteAcceptedData.accepted_at
+                                  ).toLocaleString()
+                                : "N/A"}
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "1rem",
+                                opacity: 0.9,
+                                marginTop: "10px",
+                              }}
+                            >
+                              Accepted Airline:{" "}
+                              {quoteAcceptedData.accepted_airline
+                                ? quoteAcceptedData.accepted_airline
+                                : "N/A"}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* {quoteAcceptedData && quoteAcceptedData?.accepted_at && (
+                      <div
+                        className="p-3 mt-5 border-round shadow-2 mb-3 flex align-items-center justify-content-between"
+                        style={{
+                          background:
+                            "linear-gradient(90deg, #f8d7da 0%, #f5c6cb 100%)", // soft red gradient
+                          borderLeft: "6px solid #dc3545", // red accent
+                          color: "#721c24",
+                          fontWeight: "bold",
+                        }}
+                      >
+                        <div className="flex align-items-center">
+                          <span
+                            role="img"
+                            aria-label="info"
+                            style={{
+                              fontSize: "2rem",
+                              marginRight: "12px",
+                              filter: "drop-shadow(1px 1px 2px #999)",
+                            }}
+                          >
+                            🚫
+                          </span>
+
+                          <div>
+                            <div style={{ fontSize: "1.2rem" }}>
+                              ❗ This Auction Has Been Closed
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "1rem",
+                                opacity: 0.9,
+                                marginTop: "10px",
+                              }}
+                            >
+                              Another vendor’s quote has been accepted for this
+                              auction.
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "1rem",
+                                opacity: 0.9,
+                                marginTop: "10px",
+                              }}
+                            >
+                              We appreciate your participation — stay tuned for
+                              upcoming auctions and future opportunities!
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )} */}
+
+                    {/* {negotiationData.last_purchase_price && (
                       <div className="p-col-12 mt-3">
                         <div className="p-3 border-1 border-round surface-100 shadow-1">
                           <h4 className="m-0 mb-2 text-primary">
                             Negotiation Request Details
                           </h4>
                           <div className="text-sm">
+                            <p className="m-1">
+                              <strong>Airline Name:</strong>{" "}
+                              {negotiationData.airline_name || "N/A"}
+                            </p>
                             <p className="m-1">
                               <strong>
                                 Last Purchase Price (LPP) / Target Price:
@@ -1910,13 +2085,48 @@ const RfqManagement = () => {
                           </div>
                         </div>
                       </div>
-                    )}
+                    )} */}
+
+                    {Array.isArray(negotiationData) &&
+                      negotiationData.length > 0 && (
+                        <div className="grid mt-3">
+                          {negotiationData.map((item, index) => (
+                            <div
+                              key={index}
+                              className="col-12 md:col-6 lg:col-4"
+                            >
+                              <div className="p-3 border-1 border-round surface-100 shadow-1 h-full">
+                                <h5 className="text-primary mb-2">
+                                  {item.airline_name || "Unknown Airline"}
+                                </h5>
+                                <p className="m-1">
+                                  <strong>LPP / Target Price:</strong>{" "}
+                                  {item.last_purchase_price || "N/A"}
+                                </p>
+                                <p className="m-1">
+                                  <strong>Reason:</strong>{" "}
+                                  {item.remarks || "N/A"}
+                                </p>
+                                <p className="m-1">
+                                  <strong>Date:</strong>{" "}
+                                  {item.requested_at
+                                    ? new Date(
+                                        item.requested_at
+                                      ).toLocaleString()
+                                    : "N/A"}
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
 
                     <div className="p-col-12 text-right mt-3">
                       <Button
                         icon="pi pi-send"
                         label="Submit Quote"
                         className="p-button-success mt-3"
+                        disabled={rowData.status == "accepted"}
                         onClick={() =>
                           handlePackageSubmit(shipmentIndex, rowData)
                         }
@@ -1925,6 +2135,7 @@ const RfqManagement = () => {
                         label="Add Airline"
                         icon="pi pi-plus"
                         className="p-button-sm p-button-secondary"
+                        disabled={rowData.status == "accepted"}
                         onClick={() => handleAddAirline(shipmentIndex)}
                       />
                     </div>
@@ -2106,7 +2317,20 @@ const RfqManagement = () => {
 
                       <div className="field col-12 md:col-2">
                         <label>Exchange Rate</label>
-                        <InputNumber value={exchangeRate || 0} readOnly />
+                        <InputNumber
+                          value={row.exchangeRate || 0}
+                          mode="decimal"
+                          minFractionDigits={3}
+                          onValueChange={(e) =>
+                            handleExchangeRateChange(
+                              shipment,
+                              shipmentIndex,
+                              idx,
+                              "exchangeRate",
+                              e.value
+                            )
+                          }
+                        />
                         <span>{fetchingRateMsg}</span>
                       </div>
 
@@ -2480,14 +2704,14 @@ const RfqManagement = () => {
   };
 
   const submitQuote = async (rfqId) => {
-    console.log("quotes on submit", quotes);
+    //console.log("quotes on submit", quotes);
     const rfq = rfqs.find((r) => r.rfq_number === rfqId);
     const vendorId = user.id;
     const itemQuotes = (rfq.rfq_items || []).map((item, index) => {
       const itemKey = `${rfq.rfq_number}_${index + 1}`;
-      console.log("item key value", itemKey);
+      //console.log("item key value", itemKey);
       const quoted_price = parseFloat(quotes[itemKey]);
-      console.log("quoted price value", quoted_price);
+      //console.log("quoted price value", quoted_price);
 
       return {
         item_id: index + 1,
@@ -2502,7 +2726,7 @@ const RfqManagement = () => {
       quotes: itemQuotes,
     };
 
-    console.log("payload value::", payload);
+    //console.log("payload value::", payload);
 
     try {
       const token = localStorage.getItem("USERTOKEN");
@@ -2516,10 +2740,10 @@ const RfqManagement = () => {
       });
 
       const result = await response.json();
-      console.log("Submit Quote  response", result);
+      //console.log("Submit Quote  response", result);
       dispatch(toastSuccess({ detail: "Quote Submitted Successfully.." }));
     } catch (error) {
-      console.error("Error submitting quote:", error);
+      //console.error("Error submitting quote:", error);
     }
   };
 
@@ -2566,7 +2790,7 @@ const RfqManagement = () => {
       road_transport_quotes: quotesPayload,
     };
 
-    console.log("🚛 Road Transport Quote Payload", payload);
+    //console.log("🚛 Road Transport Quote Payload", payload);
 
     try {
       const token = localStorage.getItem("USERTOKEN");
@@ -2580,10 +2804,10 @@ const RfqManagement = () => {
       });
 
       const result = await response.json();
-      console.log("Submit Quote  response", result);
+      //console.log("Submit Quote  response", result);
       dispatch(toastSuccess({ detail: "Quote Submitted Successfully.." }));
     } catch (error) {
-      console.error("Error submitting quote:", error);
+      //console.error("Error submitting quote:", error);
     }
   };
 
@@ -2733,7 +2957,7 @@ const RfqManagement = () => {
             body={(rowData) => formatDate(rowData.close_date_time)}
             header="Submission Deadline"
           />
-          <Column field="rfq_items.length" header="Items Count" />
+          {/* <Column field="rfq_items.length" header="Items Count" /> */}
           <Column
             body={(rowData) =>
               rowData.status

@@ -5,11 +5,13 @@ import { useSelector } from "react-redux";
 import { useDispatch } from "react-redux";
 import { removeCredentials } from "../../store/authSlice";
 
-import { postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 
 import Layout from "../Layout/Layout";
+import { setCredentials } from "../../store/authSlice";
 
 const ProtectedRoute = () => {
+  const { postData } = useApi();
   const dispatch = useDispatch();
 
   const user = useSelector((state) => state.auth.user);
@@ -25,6 +27,8 @@ const ProtectedRoute = () => {
         dispatch(removeCredentials());
         setIsTokenValid(false);
         console.error("Token verification failed");
+      } else {
+        dispatch(setCredentials(response.user));
       }
     });
   }, []);

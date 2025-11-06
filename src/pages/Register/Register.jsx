@@ -8,12 +8,13 @@ import { Password } from "primereact/password";
 import { Dropdown } from "primereact/dropdown";
 //import { useRouter } from 'next/navigation';
 import { Checkbox } from "primereact/checkbox";
-import { postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { setCredentials } from "../../store/authSlice";
 import { toastError, toastSuccess } from "../../store/toastSlice";
 import { validateEmail, validatePassword } from "../../utils/validation";
 
 const Register = ({ onRegisterComplete }) => {
+  const { postData } = useApi();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [checked, setChecked] = useState(Boolean);
@@ -69,7 +70,7 @@ const Register = ({ onRegisterComplete }) => {
       return;
     }
 
-    console.log("userdetails value", userDetails);
+    //console.log("userdetails value", userDetails);
 
     const data = await postData("auth/register", userDetails);
     if (data.isSuccess) {

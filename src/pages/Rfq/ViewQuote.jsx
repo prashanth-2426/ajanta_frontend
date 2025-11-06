@@ -5,9 +5,9 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Panel } from "primereact/panel";
 import { ToggleButton } from "primereact/togglebutton";
-import { getData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { Button } from "primereact/button";
-import { postData } from "../../utils/requests";
+//import { postData } from "../../utils/requests";
 import { toastError, toastSuccess } from "../../store/toastSlice";
 import { Dialog } from "primereact/dialog";
 import { Checkbox } from "primereact/checkbox";
@@ -15,8 +15,10 @@ import { InputNumber } from "primereact/inputnumber";
 import { InputTextarea } from "primereact/inputtextarea";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
+import logoImg from "../../assets/images/ajantha_logo.png";
 
 const ViewQuote = () => {
+  const { postData, getData } = useApi();
   const { rfqNumber } = useParams();
   const [rfq, setRfq] = useState(null);
   const [viewItemLevel, setViewItemLevel] = useState(false);
@@ -32,21 +34,26 @@ const ViewQuote = () => {
   const [invAmount, setInvAmount] = useState(null);
 
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
   const [acceptRemarks, setAcceptRemarks] = useState("");
   const [expandedRows, setExpandedRows] = useState(null);
 
   useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const data = await getData(`quotesummary/quotes-summary/${rfqNumber}`);
-        console.log("RFQ Quote Summary:", data);
-        setRfq(data);
-      } catch (error) {
-        console.error("Failed to fetch quote summary", error);
-      }
-    };
     fetchSummary();
   }, [rfqNumber]);
+
+  //useEffect(() => {
+  const fetchSummary = async () => {
+    try {
+      const data = await getData(`quotesummary/quotes-summary/${rfqNumber}`);
+      //console.log("RFQ Quote Summary:", data);
+      setRfq(data);
+    } catch (error) {
+      //console.error("Failed to fetch quote summary", error);
+    }
+  };
+  //fetchSummary();
+  //}, [rfqNumber]);
 
   const handleAction = async (actionType, rfqNumber) => {
     try {
@@ -54,27 +61,23 @@ const ViewQuote = () => {
         rfq_number: rfqNumber,
         action: actionType,
       });
-      console.log("Action performed:", res);
+      //console.log("Action performed:", res);
       //alert(`RFQ status updated: ${actionType}`);
       dispatch(toastSuccess({ detail: `Done ${actionType} Successfully..` }));
     } catch (err) {
-      console.error("Action failed:", err);
+      //console.error("Action failed:", err);
       alert("Failed to perform action");
     }
   };
 
   const submitNegotiation = async () => {
     try {
-      const negotiations = selectedVendors.map((id) => ({
-        vendor_id: id,
+      const negotiations = selectedVendors.map((v) => ({
+        vendor_id: v.vendor_id,
+        airline_name: v.airline_name,
         last_purchase_price: lastPurchasePrice,
         remarks: negotiationRemarks,
       }));
-
-      console.log("Negotiation Data:", {
-        rfq_number: rfq.rfq_number,
-        negotiations,
-      });
 
       await postData("quotesummary/update-rfq-status", {
         rfq_number: rfq.rfq_number,
@@ -93,7 +96,7 @@ const ViewQuote = () => {
   };
 
   const rankBody = (rowData) => {
-    console.log("Row Data:", rowData.rank);
+    //console.log("Row Data:", rowData.rank);
     const rankColors = {
       L1: "text-green-600 font-bold",
       L2: "text-blue-500 font-semibold",
@@ -103,9 +106,9 @@ const ViewQuote = () => {
     };
 
     const colorClass = rankColors[rowData.rank] || "text-gray-500";
-    console.log("Color Class:", colorClass);
+    //console.log("Color Class:", colorClass);
     const label = `${rowData.rank}`;
-    console.log("label Data:", label);
+    //console.log("label Data:", label);
 
     return <span className={colorClass}>{label}</span>;
   };
@@ -150,7 +153,7 @@ const ViewQuote = () => {
         field="total"
         header="Total Quote (₹)"
         sortable
-        body={(rowData) => rowData.total.toLocaleString("en-IN")}
+        body={(rowData) => rowData.total?.toLocaleString("en-IN")}
       />
       <Column
         header="Quoted Items"
@@ -177,7 +180,7 @@ const ViewQuote = () => {
               </div>
               <div>
                 <strong>Date:</strong>{" "}
-                {new Date(negotiation.requested_at).toLocaleString()}
+                {new Date(negotiation.requested_at)?.toLocaleString()}
               </div>
             </div>
           ) : (
@@ -328,7 +331,7 @@ const ViewQuote = () => {
   };
 
   const packageQuoteL1L2Table = () => {
-    console.log("loaidng package quote details");
+    //console.log("loaidng package quote details");
     if (!rfq?.vendors?.some((v) => v.package_quotes?.length)) return null;
 
     const airlines = ["Air India", "Emirates", "Qatar Airways"];
@@ -380,7 +383,7 @@ const ViewQuote = () => {
     });
 
     const vendorNames = rfq.vendors.map((v) => v.vendor_name);
-    console.log("vendor names", vendorNames);
+    //console.log("vendor names", vendorNames);
 
     return (
       <>
@@ -419,8 +422,15 @@ const ViewQuote = () => {
     );
   };
 
+  const negotiation_value =
+    rfq?.vendors?.find(
+      (v) => v.negotiation && Object.keys(v.negotiation).length > 0
+    )?.negotiation || null;
+  //console.log("negotiation_value", negotiation_value);
+
   const shipmentWiseQuoteTable = () => {
     if (!rfq?.isShipmentBased || !rfq?.shipments?.length) return null;
+    //console.log("latest rfq data", rfq);
 
     return rfq.shipments.map((shipment, index) => {
       const groupedByAirline = {};
@@ -485,9 +495,17 @@ const ViewQuote = () => {
               />
               <Column header="Other" body={(row) => row.other_charges || "-"} />
               <Column
-                header="Total Charges"
+                header="Final Bid Price"
                 body={(row) => (
-                  <strong>₹ {parseFloat(row.total_charges).toFixed(2)}</strong>
+                  <strong>
+                    ₹ {parseFloat(row.grandTotalValue).toFixed(2)}
+                  </strong>
+                )}
+              />
+              <Column
+                header="Last Purchace Price"
+                body={(row) => (
+                  <strong>₹ {row.negotiation?.last_purchase_price}</strong>
                 )}
               />
               <Column
@@ -627,97 +645,242 @@ const ViewQuote = () => {
       );
     };
 
-    const exportToPDF = (allQuotes, rfqNumber) => {
-      const doc = new jsPDF();
+    const exportToPDF = async (auctionDetails = {}, companyDetails = {}) => {
+      const doc = new jsPDF("l", "mm", "a4");
+      const pageWidth = doc.internal.pageSize.getWidth();
 
-      // 🔹 Add Header
-      doc.setFontSize(14);
-      doc.text(`RFQ Summary Report - ${rfqNumber}`, 14, 20);
+      const { totalSaving = "INR 2,00,000.00 (2.71%)" } = companyDetails;
 
-      doc.setFontSize(10);
-      doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 28);
+      const {
+        auctionId = rfq?.rfq_number || "N/A",
+        auctionTitle = rfq?.title || "N/A",
+        auctionType = rfq?.type || "N/A",
+        hideCurrentBid = rfq?.hideCurrentBidPrice || "N/A",
+        testAuction = "No",
+        description = rfq?.description || "N/A",
+        createdDate = rfq?.createdAt || "N/A",
+        openDate = rfq?.openDateTime || "N/A",
+        closeDate = rfq?.closeDateTime || "N/A",
+      } = auctionDetails;
 
-      // 🔹 Generate tables per quote
-      allQuotes.forEach((row, index) => {
-        const routes = [
-          { route: row.route1, schedule: row.flight_schedule1 },
-          { route: row.route2, schedule: row.flight_schedule2 },
-          { route: row.route3, schedule: row.flight_schedule3 },
-        ]
-          .filter((r) => r.route || r.schedule)
-          .map((r) => {
-            const routeText = r.route || "-";
-            const scheduleText = r.schedule
-              ? new Date(r.schedule).toLocaleDateString()
-              : "-";
-            return `${routeText}\n${scheduleText}`; // schedule below route
-          })
-          .join("\n");
+      let currentY = 10; // 🔹 Track current vertical position
 
-        const data = [
-          ["Vendor", row.vendor_name || "-"],
-          ["Airline", row.airline_name || "-"],
-          ["Airport", row.airport || "-"],
-          [
-            "Chargeable Wt",
-            row.chargeable_weight ? `${row.chargeable_weight} kg` : "-",
-          ],
-          ["Freight", row.base_rate || "-"],
-          ["AMS(INR)", row.ams || "-"],
-          ["PAC(INR)", row.pac || "-"],
-          ["AWB(INR)", row.awb || "-"],
-          ["DAP/DDP", row.dap_ddp_charges || "-"],
-          ["Other(INR)", row.other_charges || "-"],
-          [
-            "Total Charges(INR)",
-            `${parseFloat(row.total_charges || 0).toFixed(2)}`,
-          ],
-          ["Transit Days", row.transit_days || "-"],
-          ["Currency", row.currency || "-"],
-          ["Exchange Rate", row.exchange_rate || "-"],
-          ["Flight Details", routes || "-"],
-          ["Remarks", row.remarks || "-"],
+      // =========================
+      // 🔹 Header (Centered Logo)
+      // =========================
+      const addHeader = () => {
+        const logoWidth = 140;
+        const logoHeight = 15;
+        const logoX = (pageWidth - logoWidth) / 2;
+        const logoY = currentY;
+
+        try {
+          doc.addImage(logoImg, "PNG", logoX, logoY, logoWidth, logoHeight);
+        } catch (err) {
+          console.error("Logo load error:", err);
+        }
+
+        currentY = logoY + logoHeight + 10; // move below logo
+      };
+
+      // =========================
+      // 🔹 Auction Details Section
+      // =========================
+      const addAuctionDetails = () => {
+        const lineSpacing = 7;
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const marginLeft = 20;
+        const valueX = 70;
+        const maxTextWidth = pageWidth - valueX - 20; // available width for text
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+
+        const details = [
+          ["Auction ID", auctionId],
+          ["Auction Title", auctionTitle],
+          ["Auction Type", auctionType],
+          ["Hide Current Bid Price", hideCurrentBid],
+          ["Test eAuction", testAuction],
+          ["Description", description],
+          ["Auction Created Date & Time", createdDate],
+          ["Auction Open Date & Time", openDate],
+          ["Auction Close Date & Time", closeDate],
         ];
 
-        doc.autoTable({
-          startY: doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 35, // stack tables
-          body: data,
-          theme: "grid",
-          styles: { fontSize: 8, cellPadding: 2, valign: "top" },
-          headStyles: { fillColor: [22, 160, 133] },
-          columnStyles: {
-            0: { cellWidth: 50, fontStyle: "bold" }, // Labels
-            1: { cellWidth: 130 }, // Values
-          },
-          showHead: "never", // no column headers
+        details.forEach(([label, value]) => {
+          // Wrap long text properly
+          const labelText = `${label}:`;
+          const wrappedValue = doc.splitTextToSize(
+            value?.toString() || "",
+            maxTextWidth
+          );
+
+          // Draw label
+          doc.text(labelText, marginLeft, currentY);
+          // Draw wrapped value, one or multiple lines
+          doc.text(wrappedValue, valueX, currentY);
+
+          // Increase Y position based on text height
+          currentY += lineSpacing * wrappedValue.length;
         });
 
-        // 🔹 Add separator line between vendors
-        if (index < allQuotes.length - 1) {
-          doc.setFontSize(9);
-          doc.text(
-            "----------------------------------------",
-            14,
-            doc.lastAutoTable.finalY + 5
-          );
-        }
-      });
+        // Draw line separator
+        doc.setDrawColor(200);
+        doc.line(20, currentY, pageWidth - 20, currentY);
+        currentY += 10;
 
-      // 🔹 Footer with page numbers
-      const pageCount = doc.internal.getNumberOfPages();
-      for (let i = 1; i <= pageCount; i++) {
+        // Add Total Saving & Summary Title
+        doc.setFont("helvetica", "bold");
+        //doc.text(`Total Saving - ${totalSaving}`, 20, currentY);
+        currentY += 8;
+        doc.text(`Auction Quote Details`, 20, currentY);
+        currentY += 10; // space before next section
+
+        return currentY;
+      };
+
+      const quotedatalatestFinal = (startY) => {
+        let yPos = startY;
+        const topQuotes = allQuotes; // all vendors
+
+        // 🧩 Combine all columns from all 3 tables
+        const allCols = [
+          "Vendor",
+          "Airline",
+          "Airport",
+          "Chargeable Wt (kg)",
+          "Freight / Kg (INR)",
+          "AMS (INR)",
+          "PAC (INR)",
+          "AWB (INR)",
+          "Other (INR)",
+          "Currency",
+          "DAP/DDP (INR)",
+          "Exchange Rate",
+          "Transit Days",
+          "Routing",
+          "Remark / Condition",
+          "Target Price",
+          "Total Charges (INR)",
+          "Total Saving",
+          "Rank",
+        ];
+
+        // 🧠 Helper to build all rows dynamically
+        const buildRows = (cols) =>
+          topQuotes.map((q, index) => {
+            const lastPurchase = q?.negotiation?.last_purchase_price || 0;
+            const finalBid = q.grandTotalValue || 0;
+            const saving = lastPurchase ? lastPurchase - finalBid : 0;
+
+            const routes = [
+              { route: q.route1, schedule: q.flight_schedule1 },
+              { route: q.route2, schedule: q.flight_schedule2 },
+              { route: q.route3, schedule: q.flight_schedule3 },
+            ]
+              .filter((r) => r.route || r.schedule)
+              .map((r) => {
+                const routeText = r.route || "-";
+                const scheduleText = r.schedule
+                  ? new Date(r.schedule).toLocaleDateString()
+                  : "-";
+                return `${routeText}\n${scheduleText}`;
+              })
+              .join("\n");
+
+            const row = {
+              Vendor: q.vendor_name || "-",
+              Airline: q.airline_name || "-",
+              Airport: q.airport || "-",
+              "Chargeable Wt (kg)": q.chargeable_weight || "-",
+              "Freight / Kg (INR)": q.base_rate || "-",
+              "AMS (INR)": q.ams || "-",
+              "PAC (INR)": q.pac || "-",
+              "AWB (INR)": q.awb || "-",
+              "Other (INR)": q.other_charges || "-",
+              Currency: q.currency || "-",
+              "DAP/DDP (INR)": q.dap_ddp_charges || "-",
+              "Exchange Rate": q.exchange_rate || "-",
+              "Transit Days": q.transit_days || "-",
+              Routing: routes || "-",
+              "Remark / Condition": q.remarks || "-",
+              "Target Price": lastPurchase ? lastPurchase : "-",
+              "Total Charges (INR)": finalBid
+                ? parseFloat(finalBid).toFixed(2)
+                : "-",
+              "Total Saving": saving ? saving.toFixed(2) : "-",
+              Rank: `L${index + 1}`,
+            };
+
+            return cols.map((col) => row[col]);
+          });
+
+        // 📄 Draw Combined Table
+        doc.autoTable({
+          startY: yPos,
+          head: [allCols],
+          body: buildRows(allCols),
+          theme: "grid",
+          styles: {
+            fontSize: 8,
+            cellPadding: 2,
+            halign: "center",
+            valign: "middle",
+            lineColor: [200, 200, 200],
+            overflow: "linebreak", // Wrap text
+          },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 10, left: 10, right: 10 },
+          tableWidth: "auto", // Fit table to page width
+          showHead: "firstPage",
+          didParseCell: (data) => {
+            // Highlight top vendor (L1)
+            if (data.cell.raw === "L1") {
+              data.cell.styles.fillColor = [210, 255, 210];
+            }
+          },
+        });
+
+        return doc.lastAutoTable.finalY + 10;
+      };
+
+      // =========================
+      // 🔹 Footer (Page Numbers)
+      // =========================
+      const addFooter = (pageNum, totalPages) => {
+        doc.setFontSize(8);
+        doc.setTextColor(100);
+        doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth / 2, 290, {
+          align: "center",
+        });
+      };
+
+      // =========================
+      // 🔹 Generate PDF Flow
+      // =========================
+      addHeader();
+      currentY = addAuctionDetails();
+      currentY = quotedatalatestFinal(currentY);
+
+      const totalPages = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
-        doc.setFontSize(9);
-        doc.text(
-          `Page ${i} of ${pageCount}`,
-          doc.internal.pageSize.getWidth() - 20,
-          doc.internal.pageSize.getHeight() - 10
-        );
+        addFooter(i, totalPages);
       }
 
-      // 🔹 Save PDF
-      doc.save(`RFQ_${rfqNumber}_Summary.pdf`);
+      doc.save(`Auction_${auctionId}_Details.pdf`);
     };
+
+    const allQuotesWithUniqueId = allQuotes.map((row, index) => ({
+      ...row,
+      uniqueId: `${row.vendor_id}_${index}`, // vendor + index to make unique
+    }));
 
     return (
       <div className="mt-4">
@@ -743,13 +906,13 @@ const ViewQuote = () => {
           />
         </div>
         <DataTable
-          value={allQuotes}
+          value={allQuotesWithUniqueId}
           responsiveLayout="scroll"
           className="p-datatable-sm"
           emptyMessage="No shipment quotes available"
           selection={selectedVendors}
           onSelectionChange={(e) => setSelectedVendors(e.value)}
-          dataKey="vendor_id" // make sure vendor_id is unique in your data
+          dataKey="uniqueId" // make sure vendor_id is unique in your data
           expandedRows={expandedRows}
           onRowToggle={(e) => setExpandedRows(e.data)}
           rowExpansionTemplate={rowExpansionTemplate}
@@ -773,11 +936,79 @@ const ViewQuote = () => {
           <Column header="DAP/DDP" body={(row) => row.dap_ddp_charges || "-"} />
           <Column header="Other" body={(row) => row.other_charges || "-"} />
           <Column
-            header="Total Charges"
+            header="Final Bid Price"
             body={(row) => (
-              <strong>₹ {parseFloat(row.total_charges).toFixed(2)}</strong>
+              <strong>₹ {parseFloat(row.grandTotalValue).toFixed(2)}</strong>
             )}
           />
+          {/* <Column
+            header="Last Purchace Price"
+            body={(row) => (
+              <strong>₹ {row.negotiation?.last_purchase_price}</strong>
+            )}
+          /> */}
+          <Column
+            header="Last Purchase Price"
+            body={(row) => {
+              if (
+                !Array.isArray(row.negotiation) ||
+                row.negotiation.length === 0
+              )
+                return <span>-</span>;
+
+              // Filter negotiation entries that match current row airline_name
+              const matchedNegotiation = row.negotiation.find(
+                (n) =>
+                  n.airline_name?.toLowerCase().trim() ===
+                  row.airline_name?.toLowerCase().trim()
+              );
+
+              if (!matchedNegotiation) return <span>-</span>;
+
+              return (
+                <strong>
+                  ₹ {matchedNegotiation.last_purchase_price || "N/A"}
+                </strong>
+              );
+            }}
+          />
+          {/* <Column
+            header="Total Saving"
+            body={(row) => {
+              const finalBid = row.grandTotalValue || 0;
+              const lastPrice = row.negotiation?.last_purchase_price || 0;
+              const saving = lastPrice ? lastPrice - finalBid : 0;
+              return <strong>₹ {saving.toFixed(2)}</strong>;
+            }}
+          /> */}
+          <Column
+            header="Total Saving"
+            body={(row) => {
+              const finalBid = row.grandTotalValue || 0;
+
+              const matchedNegotiation = Array.isArray(row.negotiation)
+                ? row.negotiation.find(
+                    (n) =>
+                      n.airline_name?.toLowerCase().trim() ===
+                      row.airline_name?.toLowerCase().trim()
+                  )
+                : null;
+
+              if (!matchedNegotiation) return <span>-</span>;
+
+              const lastPrice = matchedNegotiation.last_purchase_price || 0;
+              const saving = lastPrice - finalBid;
+
+              return (
+                <strong
+                  className={saving > 0 ? "text-green-600" : "text-red-500"}
+                >
+                  ₹ {saving.toFixed(2)}
+                </strong>
+              );
+            }}
+          />
+
           <Column header="Percent %" body={(row) => row.percentage || "-"} />
           <Column
             header="Rank"
@@ -788,6 +1019,25 @@ const ViewQuote = () => {
                 </span>
               ) : (
                 row.rank || "-"
+              )
+            }
+          />
+          <Column
+            header="Status"
+            body={(row) =>
+              row.acceptedDetails.accepted_at &&
+              row.acceptedDetails.accepted_airline === row.airline_name ? (
+                <span
+                  style={{
+                    color: "green",
+                    fontWeight: "bold",
+                    fontSize: "1.8rem",
+                  }}
+                >
+                  🏆
+                </span>
+              ) : (
+                "-"
               )
             }
           />
@@ -858,7 +1108,7 @@ const ViewQuote = () => {
         {isFlatView ? shipmentLevelL1L2Table() : shipmentWiseQuoteTable()}
         <div className="mt-4 flex flex-wrap gap-3 justify-content-end">
           <Button
-            label="✅ Accept L1 Quote"
+            label="✅ Accept Quote"
             className="p-button-success p-button-sm"
             //onClick={() => handleAction("accept_l1", rfq.rfq_number)}
             onClick={() => setShowAcceptDialog(true)}
@@ -868,7 +1118,9 @@ const ViewQuote = () => {
             label="✏️ Negotiate"
             className="p-button-warning p-button-sm"
             //onClick={() => handleAction("negotiate", rfq.rfq_number)}
-            onClick={() => setShowNegotiationDialog(true)}
+            onClick={() => setShowNegotiateDialog(true)}
+            //onClick={() => setShowAcceptDialog(true)}
+            disabled={selectedVendors.length === 0}
           />
           {/* <Button
             label="⚖️ Move to Auction"
@@ -883,7 +1135,7 @@ const ViewQuote = () => {
         </div>
       </Panel>
 
-      <Dialog
+      {/* <Dialog
         header="Send Negotiation Request"
         visible={showNegotiationDialog}
         onHide={() => setShowNegotiationDialog(false)}
@@ -909,14 +1161,13 @@ const ViewQuote = () => {
                 checked={selectedVendors.includes(v.vendor_id)}
               />
               <label htmlFor={`vendor-${v.vendor_id}`} className="ml-2">
-                {v.email}
+                {v.vendor_name}
               </label>
             </div>
           ))}
         </div>
-
         <div className="mb-3">
-          <label>Last Purchase Price</label>
+          <label>Target Price</label>
           <InputNumber
             value={lastPurchasePrice}
             onValueChange={(e) => setLastPurchasePrice(e.value)}
@@ -950,9 +1201,9 @@ const ViewQuote = () => {
             onClick={() => setShowNegotiationDialog(false)}
           />
         </div>
-      </Dialog>
+      </Dialog> */}
       <Dialog
-        header="Accept L1 Quote"
+        header="Accept Quote"
         visible={showAcceptDialog}
         onHide={() => setShowAcceptDialog(false)}
         style={{ width: "35vw" }}
@@ -987,20 +1238,90 @@ const ViewQuote = () => {
                 rfq_number: rfq.rfq_number,
                 action: "accept_l1",
                 vendors: selectedVendors.map((v) => v.vendor_id),
+                acceptedAirline: selectedVendors.map((v) => v.airline_name),
                 remarks: acceptRemarks,
               });
               dispatch(
-                toastSuccess({ detail: "Accepted L1 Quote successfully!" })
+                toastSuccess({ detail: "Accepted Quote successfully!" })
               );
               setShowAcceptDialog(false);
               setSelectedVendors([]);
               setAcceptRemarks("");
+              fetchSummary();
             }}
           />
           <Button
             label="Cancel"
             className="p-button-secondary p-button-sm"
             onClick={() => setShowAcceptDialog(false)}
+          />
+        </div>
+      </Dialog>
+      <Dialog
+        header="Send Negotiation Request"
+        visible={showNegotiateDialog}
+        onHide={() => setShowNegotiateDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          <h5>Selected Vendors</h5>
+          {selectedVendors.map((v) => (
+            <div key={v.vendor_id} className="mb-2">
+              <i className="pi pi-user mr-2" />
+              <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"} —{" "}
+              {v.airport || "N/A"}
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-3">
+          <label>Target Price</label>
+          <InputNumber
+            value={lastPurchasePrice}
+            onValueChange={(e) => setLastPurchasePrice(e.value)}
+            mode="decimal"
+            placeholder="Enter price"
+            className="w-full"
+          />
+        </div>
+
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={negotiationRemarks}
+            onChange={(e) => setNegotiationRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Send"
+            className="p-button-sm p-button-success"
+            onClick={async () => {
+              // await postData("quotesummary/update-rfq-status", {
+              //   rfq_number: rfq.rfq_number,
+              //   action: "accept_l1",
+              //   vendors: selectedVendors.map((v) => v.vendor_id),
+              //   acceptedAirline: selectedVendors.map((v) => v.airline_name),
+              //   remarks: acceptRemarks,
+              // });
+              submitNegotiation();
+              dispatch(
+                toastSuccess({ detail: "Negotiated Quote successfully!" })
+              );
+              setShowNegotiateDialog(false);
+              setSelectedVendors([]);
+              setNegotiationRemarks("");
+              fetchSummary();
+            }}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowNegotiateDialog(false)}
           />
         </div>
       </Dialog>

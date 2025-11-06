@@ -2,18 +2,19 @@ import React, { useEffect, useState } from "react";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Panel } from "primereact/panel";
-import { getData, postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 
 const QuoteSummary = () => {
+  const { postData, getData } = useApi();
   const [data, setData] = useState([]);
 
   const fetchQuoteSummary = async () => {
     try {
       const data = await getData("quotesummary/quotes-summary");
-      console.log("Fetched Quotes Summary:", data);
+      //console.log("Fetched Quotes Summary:", data);
       setData(data);
     } catch (error) {
-      console.error("Error fetching Qutoes Summary:", error);
+      //console.error("Error fetching Qutoes Summary:", error);
     }
   };
 

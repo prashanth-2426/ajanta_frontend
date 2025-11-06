@@ -9,7 +9,7 @@ import { Image } from "primereact/image";
 
 import logoImg from "../../assets/images/ajantha_logo.png";
 import loginImage from "../../assets/images/login-side.png"; // Add your image here
-import { postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { setCredentials } from "../../store/authSlice";
 import { fetchVendors } from "../../store/vendorSlice";
 import { toastError, toastSuccess } from "../../store/toastSlice";
@@ -17,6 +17,7 @@ import { validateEmail, validatePassword } from "../../utils/validation";
 import Register from "../Register/Register";
 
 const Login = () => {
+  const { postData } = useApi();
   const navigate = useNavigate();
   const dispatch = useDispatch();
   const [showRegister, setShowRegister] = useState(false);

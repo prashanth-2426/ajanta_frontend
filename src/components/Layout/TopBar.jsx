@@ -11,9 +11,11 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 import avatar from "../../assets/images/avatar/square/avatar-m-1.jpg";
 import { removeCredentials } from "../../store/authSlice";
-import { postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
+//import { postData } from "../../utils/requests";
 
 const TopBar = forwardRef((props, ref) => {
+  const { postData } = useApi();
   const { onMenuToggle, showRightSidebar, showConfigSidebar, isHorizontal } =
     useContext(LayoutContext);
 

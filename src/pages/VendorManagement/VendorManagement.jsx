@@ -3,10 +3,11 @@ import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { FileUpload } from "primereact/fileupload";
 import { FilterMatchMode } from "primereact/api";
-import { getData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { Button } from "primereact/button";
 
 const VendorManagement = () => {
+  const { postData, getData } = useApi();
   const [vendors, setVendors] = useState([]);
   const [filters, setFilters] = useState({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -45,10 +46,10 @@ const VendorManagement = () => {
       });
 
       const result = await response.json();
-      console.log("Upload result:", result);
+      //console.log("Upload result:", result);
       setVendors(result.data);
     } catch (error) {
-      console.error("Error uploading file:", error);
+      //console.error("Error uploading file:", error);
     }
   };
 

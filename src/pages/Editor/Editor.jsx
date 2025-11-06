@@ -58,7 +58,7 @@ const Editor = () => {
   const watchTransportMode = watch("transport_mode");
 
   const onSubmit = (data) => {
-    console.log("Submitting RFQ", data);
+    //console.log("Submitting RFQ", data);
   };
 
   return (

@@ -15,10 +15,10 @@ const AppBreadcrumb = () => {
     if (breadcrumbs.length === 0) return;
     const filteredBreadcrumbs = breadcrumbs?.find((crumb) => {
       const lastPathSegment = crumb?.to?.split("/").pop();
-      console.log("lastPathSegment value", lastPathSegment);
-      console.log("pathname value", pathname);
+      //console.log("lastPathSegment value", lastPathSegment);
+      //console.log("pathname value", pathname);
       const lastRouterSegment = pathname.split("/").pop();
-      console.log("lastRouterSegment value", lastRouterSegment);
+      //console.log("lastRouterSegment value", lastRouterSegment);
       if (
         lastRouterSegment?.startsWith("[") &&
         !isNaN(Number(lastPathSegment))
@@ -30,7 +30,7 @@ const AppBreadcrumb = () => {
       }
       return crumb.to === pathname;
     });
-    console.log("filteredBreadcrumbs value", filteredBreadcrumbs);
+    //console.log("filteredBreadcrumbs value", filteredBreadcrumbs);
     setBreadcrumb(filteredBreadcrumbs);
   }, [pathname, breadcrumbs]);
 

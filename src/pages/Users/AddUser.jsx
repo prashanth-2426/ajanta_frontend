@@ -6,7 +6,7 @@ import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { useDispatch } from "react-redux";
 import { toastError, toastSuccess } from "../../store/toastSlice";
-import { postData, getData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 
 const roleOptions = [
   { label: "Admin", value: "admin" },
@@ -21,10 +21,11 @@ const industryOptions = [
 ];
 
 const AddUser = () => {
+  const { postData, getData } = useApi();
   const dispatch = useDispatch();
   const { userId } = useParams(); // 👈 get userId from URL
   const isEdit = Boolean(userId);
-  console.log("isEdit mode", isEdit);
+  //console.log("isEdit mode", isEdit);
 
   const [form, setForm] = useState({
     name: "",

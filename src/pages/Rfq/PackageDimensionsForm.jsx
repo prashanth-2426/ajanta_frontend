@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { InputNumber } from "primereact/inputnumber";
+import { InputText } from "primereact/inputtext";
 import { Dropdown } from "primereact/dropdown";
 import { Button } from "primereact/button";
 import { Card } from "primereact/card";
-import { getData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import * as XLSX from "xlsx";
 
 const unitOptions = [
@@ -41,8 +42,9 @@ const PackageDimensionsForm = ({
   valueOfShipment,
   shipmentCurrency,
 }) => {
-  console.log("mode value is", mode);
-  console.log("exising pacakge details", existingPackages);
+  const { getData } = useApi();
+  //console.log("mode value is", mode);
+  //console.log("exising pacakge details", existingPackages);
   const usert = useSelector((state) => state.auth.user);
   const role = usert.role;
   const isReadOnly = role === "vendor";
@@ -76,10 +78,10 @@ const PackageDimensionsForm = ({
 
   useEffect(() => {
     if (existingPackages.manual_total_gross_weight) {
-      console.log(
-        "manualGrossWeight value in useEffect:",
-        existingPackages.manual_total_gross_weight
-      );
+      // console.log(
+      //   "manualGrossWeight value in useEffect:",
+      //   existingPackages.manual_total_gross_weight
+      // );
       setManualTotalGrossWeight(existingPackages.manual_total_gross_weight);
     }
   }, [existingPackages.manual_total_gross_weight]);
@@ -306,17 +308,17 @@ const PackageDimensionsForm = ({
 
   useEffect(() => {
     if (country && totalGrossWeight && parseFloat(totalGrossWeight) !== 0) {
-      console.log("selected totalGrossWeight value:", totalGrossWeight);
-      console.log("selected country value is", country);
+      //console.log("selected totalGrossWeight value:", totalGrossWeight);
+      //console.log("selected country value is", country);
       const fetchPreviousAuctions = async () => {
         try {
           const data = await getData(
             `quotesummary/previous-auctions/${country}/${totalGrossWeight}`
           );
-          console.log("Previous Auctions Data:", data);
+          //console.log("Previous Auctions Data:", data);
           setPreviousAuctions(data);
         } catch (error) {
-          console.error("Failed to fetch previous auctions data", error);
+          //console.error("Failed to fetch previous auctions data", error);
         }
       };
       fetchPreviousAuctions();
@@ -368,141 +370,272 @@ const PackageDimensionsForm = ({
 
         {packages.map((pkg, index) => (
           <div className="grid align-items-end mb-3" key={index}>
-            <div className="col-12 md:col-2">
-              <label>Qty & Type</label>
-              <div className="p-inputgroup w-full">
-                <InputNumber
-                  value={pkg.number}
-                  disabled={isReadOnly}
-                  onValueChange={(e) => handleChange(index, "number", e.value)}
-                  placeholder="Qty"
-                  className="w-full"
-                />
-                <Dropdown
-                  value={pkg.type}
-                  options={packageTypes}
-                  onChange={(e) => handleChange(index, "type", e.value)}
-                  placeholder="Type"
-                  className="w-10rem"
-                  disabled={isReadOnly}
-                />
+            <div className="col-12 sm:col-6 md:col-2 lg:col-2">
+              <label className="block mb-2">Qty & Type</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <InputNumber
+                    value={pkg.number}
+                    disabled={isReadOnly}
+                    onValueChange={(e) =>
+                      handleChange(index, "number", e.value)
+                    }
+                    placeholder="Qty"
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <Dropdown
+                    value={pkg.type}
+                    options={packageTypes}
+                    onChange={(e) => handleChange(index, "type", e.value)}
+                    placeholder="Type"
+                    className="w-full"
+                    disabled={isReadOnly}
+                  />
+                </div>
               </div>
             </div>
-            {/* <div className="col-12 md:col-2">
-              <label>Type</label>
-              <Dropdown
-                value={pkg.type}
-                options={packageTypes}
-                onChange={(e) => handleChange(index, "type", e.value)}
-                placeholder="Select"
-                className="w-full"
-              />
-            </div> */}
-            <div className="col-12 md:col-1">
-              <label>L</label>
-              <InputNumber
-                value={pkg.length}
-                disabled={isReadOnly}
-                mode="decimal"
-                minFractionDigits={2}
-                onValueChange={(e) => handleChange(index, "length", e.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="col-12 md:col-1">
-              <label>B</label>
-              <InputNumber
-                value={pkg.breadth}
-                disabled={isReadOnly}
-                mode="decimal"
-                minFractionDigits={2}
-                onValueChange={(e) => handleChange(index, "breadth", e.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="col-12 md:col-1">
-              <label>H</label>
-              <InputNumber
-                value={pkg.height}
-                disabled={isReadOnly}
-                mode="decimal"
-                minFractionDigits={2}
-                onValueChange={(e) => handleChange(index, "height", e.value)}
-                className="w-full"
-              />
-            </div>
-            <div
-              className="col-12"
-              style={{ flexBasis: "8%", flexGrow: 0, flexShrink: 0 }}
-            >
-              <label>Dim Unit</label>
-              <Dropdown
-                value={pkg.dim_unit}
-                options={unitOptions}
-                onChange={(e) => handleChange(index, "dim_unit", e.value)}
-                className="w-full"
-                disabled={isReadOnly}
-              />
-            </div>
-            <div className="col-12 md:col-2">
-              <label>Gross Wt & Unit</label>
-              <div className="p-inputgroup w-full">
-                <InputNumber
-                  value={pkg.gross_weight}
-                  disabled={isReadOnly}
-                  mode="decimal"
-                  minFractionDigits={2}
-                  onValueChange={(e) =>
-                    handleChange(index, "gross_weight", e.value)
-                  }
-                  className="w-full"
-                />
-                <Dropdown
-                  value={pkg.weight_unit}
-                  options={weightUnits}
-                  onChange={(e) => handleChange(index, "weight_unit", e.value)}
-                  className="w-10rem"
-                  disabled={isReadOnly}
-                />
-              </div>
-            </div>
-            <div className="col-12 md:col-1">
-              <label>Vol. Wt</label>
-              <InputNumber
-                disabled={isReadOnly}
-                value={calculateVolumetricWeight(pkg)}
-                readOnly
-                className="w-full"
-              />
-            </div>
-            {/* <div className="col-12 md:col-1">
-              <label>Chargeable Wt</label>
-              <InputNumber
-                value={calculateChargeableWeight(pkg)}
-                readOnly
-                className="w-full"
-              />
-            </div> */}
 
-            {/* <div className="col-12 md:col-2">
-              <label>Air Freight Cost</label>
-              <InputNumber
-                value={calculateAirFreightCost(pkg)}
-                readOnly
-                className="w-full"
-              />
-            </div> */}
-            <div className="col-12 md:col-1">
-              {index > 0 && (
-                <Button
-                  icon="pi pi-trash"
-                  className="p-button-danger"
-                  onClick={() => removePackage(index)}
-                  disabled={isReadOnly}
-                />
-              )}
+            <div className="col-12 sm:col-6 md:col-2 lg:col-1">
+              <label>L</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <InputNumber
+                    value={pkg.length}
+                    disabled={isReadOnly}
+                    mode="decimal"
+                    minFractionDigits={2}
+                    onValueChange={(e) =>
+                      handleChange(index, "length", e.value)
+                    }
+                    className="w-full"
+                    //inputStyle={{ minWidth: "100px", textAlign: "left" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 sm:col-6 md:col-2 lg:col-1">
+              <label>B</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <InputNumber
+                    value={pkg.breadth}
+                    disabled={isReadOnly}
+                    mode="decimal"
+                    minFractionDigits={2}
+                    onValueChange={(e) =>
+                      handleChange(index, "breadth", e.value)
+                    }
+                    className="w-full"
+                    //inputStyle={{ minWidth: "100px", textAlign: "left" }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 sm:col-6 md:col-1 lg:col-1">
+              <label>H</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <InputNumber
+                    value={pkg.height}
+                    disabled={isReadOnly}
+                    mode="decimal"
+                    minFractionDigits={2}
+                    onValueChange={(e) =>
+                      handleChange(index, "height", e.value)
+                    }
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 sm:col-6 md:col-1 lg:col-1">
+              <label>Dim Units</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <Dropdown
+                    value={pkg.dim_unit}
+                    options={unitOptions}
+                    onChange={(e) => handleChange(index, "dim_unit", e.value)}
+                    className="w-full"
+                    disabled={isReadOnly}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 sm:col-6 md:col-2 lg:col-3">
+              <label className="block mb-2">Gross WT & Unit</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <InputNumber
+                    value={pkg.gross_weight}
+                    disabled={isReadOnly}
+                    mode="decimal"
+                    minFractionDigits={2}
+                    onValueChange={(e) =>
+                      handleChange(index, "gross_weight", e.value)
+                    }
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1 min-w-[120px]">
+                  <Dropdown
+                    value={pkg.weight_unit}
+                    options={weightUnits}
+                    onChange={(e) =>
+                      handleChange(index, "weight_unit", e.value)
+                    }
+                    className="w-full"
+                    disabled={isReadOnly}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 sm:col-6 md:col-1 lg:col-1">
+              <label>Vol WT</label>
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  <InputNumber
+                    disabled={isReadOnly}
+                    value={calculateVolumetricWeight(pkg)}
+                    readOnly
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="col-12 sm:col-6 md:col-1 lg:col-1">
+              <div className="p-inputgroup w-full flex flex-wrap">
+                <div className="flex-1 min-w-[70px]">
+                  {index > 0 && (
+                    <Button
+                      icon="pi pi-trash"
+                      className="p-button-danger"
+                      onClick={() => removePackage(index)}
+                      disabled={isReadOnly}
+                    />
+                  )}
+                </div>
+              </div>
             </div>
           </div>
+
+          // <div className="grid align-items-end mb-3" key={index}>
+          //   <div className="col-12 md:col-2">
+          //     <label>Qty & Type</label>
+          //     <div className="p-inputgroup w-full">
+          //       <InputNumber
+          //         value={pkg.number}
+          //         disabled={isReadOnly}
+          //         onValueChange={(e) => handleChange(index, "number", e.value)}
+          //         placeholder="Qty"
+          //         className="w-full"
+          //       />
+          //       <Dropdown
+          //         value={pkg.type}
+          //         options={packageTypes}
+          //         onChange={(e) => handleChange(index, "type", e.value)}
+          //         placeholder="Type"
+          //         className="w-10rem"
+          //         disabled={isReadOnly}
+          //       />
+          //     </div>
+          //   </div>
+          //   <div className="col-12 md:col-1">
+          //     <label>L</label>
+          //     <InputNumber
+          //       value={pkg.length}
+          //       disabled={isReadOnly}
+          //       mode="decimal"
+          //       minFractionDigits={2}
+          //       onValueChange={(e) => handleChange(index, "length", e.value)}
+          //       className="w-full"
+          //     />
+          //   </div>
+          //   <div className="col-12 md:col-1">
+          //     <label>B</label>
+          //     <InputNumber
+          //       value={pkg.breadth}
+          //       disabled={isReadOnly}
+          //       mode="decimal"
+          //       minFractionDigits={2}
+          //       onValueChange={(e) => handleChange(index, "breadth", e.value)}
+          //       className="w-full"
+          //     />
+          //   </div>
+          //   <div className="col-12 md:col-1">
+          //     <label>H</label>
+          //     <InputNumber
+          //       value={pkg.height}
+          //       disabled={isReadOnly}
+          //       mode="decimal"
+          //       minFractionDigits={2}
+          //       onValueChange={(e) => handleChange(index, "height", e.value)}
+          //       className="w-full"
+          //     />
+          //   </div>
+          //   <div
+          //     className="col-12"
+          //     style={{ flexBasis: "8%", flexGrow: 0, flexShrink: 0 }}
+          //   >
+          //     <label>Dim Unit</label>
+          //     <Dropdown
+          //       value={pkg.dim_unit}
+          //       options={unitOptions}
+          //       onChange={(e) => handleChange(index, "dim_unit", e.value)}
+          //       className="w-full"
+          //       disabled={isReadOnly}
+          //     />
+          //   </div>
+          //   <div className="col-12 md:col-2">
+          //     <label>Gross Wt & Unit</label>
+          //     <div className="p-inputgroup w-full">
+          //       <InputNumber
+          //         value={pkg.gross_weight}
+          //         disabled={isReadOnly}
+          //         mode="decimal"
+          //         minFractionDigits={2}
+          //         onValueChange={(e) =>
+          //           handleChange(index, "gross_weight", e.value)
+          //         }
+          //         className="w-full"
+          //       />
+          //       <Dropdown
+          //         value={pkg.weight_unit}
+          //         options={weightUnits}
+          //         onChange={(e) => handleChange(index, "weight_unit", e.value)}
+          //         className="w-10rem"
+          //         disabled={isReadOnly}
+          //       />
+          //     </div>
+          //   </div>
+          //   <div className="col-12 md:col-1">
+          //     <label>Vol. Wt</label>
+          //     <InputNumber
+          //       disabled={isReadOnly}
+          //       value={calculateVolumetricWeight(pkg)}
+          //       readOnly
+          //       className="w-full"
+          //     />
+          //   </div>
+          //   <div className="col-12 md:col-1">
+          //     {index > 0 && (
+          //       <Button
+          //         icon="pi pi-trash"
+          //         className="p-button-danger"
+          //         onClick={() => removePackage(index)}
+          //         disabled={isReadOnly}
+          //       />
+          //     )}
+          //   </div>
+          // </div>
         ))}
 
         <Button
@@ -527,7 +660,7 @@ const PackageDimensionsForm = ({
           </div>
 
           <div className="col-12 md:col-3">
-            <label>Total Gross Weight Auto Calculated</label>
+            <label>Total Gross Weight Auto Calculated(KGS)</label>
             <InputNumber
               disabled={isReadOnly}
               mode="decimal"
@@ -538,7 +671,7 @@ const PackageDimensionsForm = ({
           </div>
 
           <div className="col-12 md:col-4">
-            <label>Manual Total Gross Weight</label>
+            <label>Manual Total Gross Weight (KGS)</label>
             <div className="p-inputgroup w-full">
               <InputNumber
                 disabled={isReadOnly}
@@ -585,6 +718,8 @@ const PackageDimensionsForm = ({
             <InputNumber
               disabled={isReadOnly}
               value={totalCBM}
+              mode="decimal"
+              minFractionDigits={2}
               className="w-full"
             />
           </div>
@@ -619,7 +754,7 @@ const PackageDimensionsForm = ({
       {previousAuctions.length > 0 && (
         <Card title="Previous Auctions (Similar Weight)" className="p-3">
           <div className="flex flex-wrap gap-3">
-            {previousAuctions.map((auction, index) => (
+            {previousAuctions.slice(0, 2).map((auction, index) => (
               <div
                 key={index}
                 className="p-3 border-round shadow-2 surface-card"

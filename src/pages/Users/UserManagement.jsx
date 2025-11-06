@@ -4,12 +4,13 @@ import { Column } from "primereact/column";
 import { Button } from "primereact/button";
 import { InputText } from "primereact/inputtext";
 import { FilterMatchMode } from "primereact/api";
-import { getData, deleteData, postData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { useNavigate } from "react-router-dom";
 import { toastSuccess, toastError } from "../../store/toastSlice";
 import { useDispatch } from "react-redux";
 
 const UserManagement = () => {
+  const { postData, getData } = useApi();
   const [users, setUsers] = useState([]);
   const [expandedRows, setExpandedRows] = useState(null);
   const [filters, setFilters] = useState({

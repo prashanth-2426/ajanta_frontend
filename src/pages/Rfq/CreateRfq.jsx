@@ -25,7 +25,7 @@ import TransportAuctionForm from "./TransportAuctionForm";
 import QuotingChargesBlock from "./QuotingChargesBlock";
 import { toastError, toastSuccess } from "../../store/toastSlice";
 import { useParams, useNavigate } from "react-router-dom";
-import { getData } from "../../utils/requests";
+import { useApi } from "../../utils/requests";
 import { LayoutContext } from "../../store/layoutContext";
 
 const eximModes = [
@@ -41,6 +41,7 @@ const vendorTypeOptions = [
   { label: "Ocean", value: "ocean" },
   { label: "Industry", value: "industry" },
   { label: "Product", value: "product" },
+  { label: "Company", value: "company" },
 ];
 
 const movementTypes = [
@@ -783,8 +784,9 @@ const unitOptions = [
 // ];
 
 const CreateRfq = () => {
+  const { getData } = useApi();
   const usert = useSelector((state) => state.auth.user);
-  console.log("Current User:", usert);
+  //console.log("Current User:", usert);
   const { rfqNumber } = useParams();
   const [isEditMode, setIsEditMode] = useState(false);
   const dispatch = useDispatch();
@@ -796,13 +798,13 @@ const CreateRfq = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const source = queryParams.get("source");
-  console.log("source value", source);
+  //console.log("source value", source);
 
   //const [customFactory, setCustomFactory] = useState("");
   const [customClearance, setCustomClearance] = useState("");
 
   const vendorsdonwloaded = useSelector((state) => state.vendors.data);
-  console.log("vendorsdonwloaded data", vendorsdonwloaded);
+  //console.log("vendorsdonwloaded data", vendorsdonwloaded);
 
   const { setBreadcrumbs } = useContext(LayoutContext);
 
@@ -1029,10 +1031,10 @@ const CreateRfq = () => {
   };
 
   const handleRoadTransportChange = (roadTransportDataWithMetrics) => {
-    console.log(
-      "roadTransportDataWithMetrics values::",
-      roadTransportDataWithMetrics
-    );
+    // console.log(
+    //   "roadTransportDataWithMetrics values::",
+    //   roadTransportDataWithMetrics
+    // );
     setValue("road_transport_summary", roadTransportDataWithMetrics);
   };
 
@@ -1089,12 +1091,14 @@ const CreateRfq = () => {
   const onSubmit =
     (formType = "submitted") =>
     async (data) => {
-      buildParsedDataFromForm();
-      console.log("Form Data:", data);
-      console.log("formType:", formType);
+      const formDataBuilt = buildParsedDataFromForm();
+      //console.log("Form Parsed Data:", formDataBuilt);
+
+      //console.log("Form Data:", data);
+      //console.log("formType:", formType);
       submitSource.current = formType;
       if (submitSource.current === "next") {
-        console.log("Validated current step → going to next step");
+        //console.log("Validated current step → going to next step");
         goNext();
       }
 
@@ -1102,22 +1106,22 @@ const CreateRfq = () => {
         submitSource.current === "submitted" ||
         submitSource.current === "draft"
       ) {
-        console.log("Selected Charges:", selectedCharges);
+        //console.log("Selected Charges:", selectedCharges);
         const generatedRfqNumber = rfqNumber?.trim()
           ? rfqNumber
           : `RFQ_${Math.floor(100000 + Math.random() * 900000)}`;
-        console.log("Generated RFQ Number:", generatedRfqNumber);
-        console.log("source value:", source);
-        console.log(
-          "submitSource value:",
-          ["auction", "reverse", "forward"].includes(source)
-        );
+        //console.log("Generated RFQ Number:", generatedRfqNumber);
+        //console.log("source value:", source);
+        // console.log(
+        //   "submitSource value:",
+        //   ["auction", "reverse", "forward"].includes(source)
+        // );
 
         const abc = ["auction", "reverse", "forward"].includes(source)
           ? generatedRfqNumber.replace(/^RFQ_/, "AUC_")
           : "";
 
-        console.log("Auction Number:", abc);
+        //console.log("Auction Number:", abc);
 
         const rfqJson = {
           ...data,
@@ -1210,21 +1214,21 @@ const CreateRfq = () => {
           attachment_filenames: files.map((f) => f.name),
           buyer: buyer,
           //shipment_details: parsedData,
-          shipment_details: parsedData.length > 0 ? parsedData : formParsedData,
+          shipment_details: parsedData.length > 0 ? parsedData : formDataBuilt,
         };
 
         rfqJson.form_type = formType;
 
-        if (
-          rfqJson.shipment_details[0]?.package_summary &&
-          rfqJson.shipment_details[0]?.package_summary
-            .manual_total_gross_weight == null
-        ) {
-          alert("⚠️ Manual Total Gross Weight is required!");
-          return;
-        }
+        // if (
+        //   rfqJson.shipment_details[0]?.package_summary &&
+        //   rfqJson.shipment_details[0]?.package_summary
+        //     .manual_total_gross_weight == null
+        // ) {
+        //   alert("⚠️ Manual Total Gross Weight is required!");
+        //   return;
+        // }
 
-        console.log("RFQ JSON:", rfqJson);
+        //console.log("RFQ JSON:", rfqJson);
 
         try {
           const token = localStorage.getItem("USERTOKEN");
@@ -1241,7 +1245,7 @@ const CreateRfq = () => {
             formData.append("attachments", file);
           });
 
-          console.log("formData value", formData);
+          //console.log("formData value", formData);
 
           const response = await fetch("/apis/rfqs", {
             method: "POST",
@@ -1253,11 +1257,11 @@ const CreateRfq = () => {
           });
 
           const result = await response.json();
-          console.log("create rfq response", result);
+          //console.log("create rfq response", result);
           dispatch(toastSuccess({ detail: "RFQ Created Successfully.." }));
           navigate("/rfqs");
         } catch (error) {
-          console.error("Error creating rfq:", error);
+          //console.error("Error creating rfq:", error);
         }
       }
     };
@@ -1280,22 +1284,22 @@ const CreateRfq = () => {
 
   const [files, setFiles] = useState([]);
 
-  // const onUpload = (e) => {
-  //   const uploadedFiles = e.files || [];
-  //   setFiles([...files, ...uploadedFiles]);
-  // };
-
   const onUpload = (e) => {
     const uploadedFiles = e.files || [];
-
-    setFiles((prevFiles) => {
-      const allFiles = [...prevFiles, ...uploadedFiles];
-      const uniqueFiles = Array.from(
-        new Map(allFiles.map((f) => [f.name, f])).values()
-      );
-      return uniqueFiles;
-    });
+    setFiles([...files, ...uploadedFiles]);
   };
+
+  // const onUpload = (e) => {
+  //   const uploadedFiles = e.files || [];
+
+  //   setFiles((prevFiles) => {
+  //     const allFiles = [...prevFiles, ...uploadedFiles];
+  //     const uniqueFiles = Array.from(
+  //       new Map(allFiles.map((f) => [f.name, f])).values()
+  //     );
+  //     return uniqueFiles;
+  //   });
+  // };
 
   const removeFile = (name) => {
     setFiles((prev) => prev.filter((f) => f.name !== name));
@@ -1304,6 +1308,7 @@ const CreateRfq = () => {
   const [selectedVendorIds, setSelectedVendorIds] = useState([]);
   const [selectedIndustryFilters, setSelectedIndustryFilters] = useState([]);
   const [selectedProductFilters, setSelectedProductFilters] = useState([]);
+  const [selectedCompanyFilters, setSelectedCompanyFilters] = useState([]);
 
   const vendorsCleaned = Array.from(
     new Map(vendorsdonwloaded.map((v) => [v.name, v])).values()
@@ -1324,6 +1329,9 @@ const CreateRfq = () => {
   const productsfilt = Array.from(
     new Set(vendorsCleaned.map((v) => v.product).filter(Boolean))
   );
+  const companyfilt = Array.from(
+    new Set(vendorsCleaned.map((v) => v.company).filter(Boolean))
+  );
 
   const filteredVendors = vendorsCleaned.filter((vendor) => {
     if (selectedVendorType === "all") return true;
@@ -1343,6 +1351,13 @@ const CreateRfq = () => {
       return (
         selectedProductFilters.length === 0 ||
         selectedProductFilters.includes(vendor.product)
+      );
+    }
+
+    if (selectedVendorType === "company") {
+      return (
+        selectedCompanyFilters.length === 0 ||
+        selectedCompanyFilters.includes(vendor.company)
       );
     }
 
@@ -1409,6 +1424,7 @@ const CreateRfq = () => {
       },
     ];
     setFormParsedData(newData);
+    return newData;
   };
 
   const handleExcelUploadt = (e, export_type) => {
@@ -1513,7 +1529,7 @@ const CreateRfq = () => {
         p.totalCBM = p.totalCBM.toFixed(4);
       });
 
-      console.log("Parsed Shipments:", shipments);
+      //console.log("Parsed Shipments:", shipments);
       setParsedData(shipments);
     };
 
@@ -2380,7 +2396,7 @@ const CreateRfq = () => {
                     />
                   </div>
                 </div>
-                {parsedData.length > 0 ? (
+                {/* {parsedData.length > 0 ? (
                   <DataStepperForm
                     data={parsedData}
                     setData={setParsedData}
@@ -2388,38 +2404,17 @@ const CreateRfq = () => {
                     type={"air"}
                     isReadOnly={isReadOnly}
                   />
-                ) : (
-                  <div className="grid formgrid p-fluid">
-                    {/* <div className="field col-12 md:col-2">
-                      <label>Temp To be Maintained</label>
-                      <Controller
-                        name="temperature"
-                        control={control}
-                        defaultValue={null}
-                        render={({
-                          field: { onChange, onBlur, value, name, ref },
-                        }) => (
-                          <InputText
-                            id={name}
-                            inputRef={ref}
-                            value={value}
-                            onValueChange={(e) => onChange(e.value)}
-                            onBlur={onBlur}
-                            className="w-full"
-                            useGrouping={false}
-                          />
-                        )}
-                      />
-                    </div> */}
-                    <div className="field col-4">
-                      <label>Temp To be Maintained</label>
-                      <InputText
-                        {...register("temperature")}
-                        className="w-full"
-                      />
-                    </div>
-                    <div className="field col-12 md:col-2">
-                      {/* <label>Country</label>
+                ) : ( */}
+                <div className="grid formgrid p-fluid">
+                  <div className="field col-4">
+                    <label>Temp To be Maintained</label>
+                    <InputText
+                      {...register("temperature")}
+                      className="w-full"
+                    />
+                  </div>
+                  <div className="field col-12 md:col-2">
+                    {/* <label>Country</label>
                       <Controller
                         control={control}
                         name="country_exp_air"
@@ -2433,326 +2428,221 @@ const CreateRfq = () => {
                         )}
                       /> */}
 
-                      <label>Country</label>
-                      <Controller
-                        control={control}
-                        name="country_exp_air"
-                        disabled={isReadOnly}
-                        render={({ field }) => (
-                          <Dropdown
-                            {...field}
-                            options={Object.keys(countryCurrencyMap).map(
-                              (country) => ({
-                                label: country,
-                                value: country,
-                              })
-                            )}
-                            placeholder="Select Country"
-                            className="w-full"
-                            filter
-                            filterBy="label"
-                            //showClear
-                          />
-                        )}
-                      />
-                    </div>
-
-                    {/* <div className="field col-12 md:col-2">
-                      <label>Factory Location</label>
-                      <Controller
-                        control={control}
-                        name="factoryLocation"
-                        render={({ field }) => (
-                          <>
-                            <Dropdown
-                              {...field}
-                              options={factoryOptions}
-                              placeholder="Select Factory"
-                              className="w-full mb-2"
-                              onChange={(e) => {
-                                field.onChange(e.value);
-                                if (e.value !== "Others") {
-                                  setCustomFactory("");
-                                }
-                              }}
-                            />
-                            {field.value === "Others" && (
-                              <InputText
-                                value={customFactory}
-                                onChange={(e) => {
-                                  console.log(
-                                    "setting custom factory",
-                                    e.target.value
-                                  );
-                                  setCustomFactory(e.target.value);
-                                }}
-                                onBlur={() => {
-                                  if (customFactory.trim()) {
-                                    field.onChange(customFactory.trim());
-                                  }
-                                }}
-                                placeholder="Enter factory location"
-                                className="w-full"
-                              />
-                            )}
-                          </>
-                        )}
-                      />
-                    </div>
-
-                    <div className="field col-12 md:col-3">
-                      <label>Customs Clearance Location</label>
-                      <InputText
-                        {...register("customs_clearance_location")}
-                        className="w-full"
-                      />
-                    </div> */}
-
-                    <div className="field col-12 md:col-3">
-                      <label>Stuffing Location(s)</label>
-                      <Controller
-                        control={control}
-                        name="factoryLocation"
-                        render={({ field }) => (
-                          <>
-                            <MultiSelect
-                              {...field}
-                              value={
-                                Array.isArray(field.value)
-                                  ? field.value
-                                  : field.value
-                                  ? [field.value]
-                                  : []
-                              }
-                              options={factoryOptions}
-                              placeholder="Select Stuffing Locations"
-                              display="chip"
-                              className="w-full mb-2"
-                              onChange={(e) => {
-                                field.onChange(e.value);
-                                if (!e.value?.includes("Others")) {
-                                  setCustomFactory("");
-                                }
-                              }}
-                            />
-                            {Array.isArray(field.value) &&
-                              field.value.length > 0 && (
-                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {field.value.map((val, idx) => {
-                                    const factory = factoryOptions.find(
-                                      (opt) => opt.value === val
-                                    );
-                                    return (
-                                      <div
-                                        key={idx}
-                                        className="p-2 border rounded shadow-sm bg-gray-50"
-                                      >
-                                        <strong>{factory?.label}:</strong>{" "}
-                                        {factory?.address}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                          </>
-                        )}
-                      />
-                    </div>
-
-                    <div className="field col-12 md:col-3">
-                      <label>Customs Clearance Location(s)</label>
-                      <Controller
-                        control={control}
-                        name="customs_clearance_location"
-                        render={({ field }) => (
-                          <>
-                            {/* <MultiSelect
-                              {...field}
-                              value={
-                                Array.isArray(field.value)
-                                  ? field.value
-                                  : field.value
-                                  ? [field.value]
-                                  : []
-                              }
-                              options={[
-                                { label: "Mumbai", value: "Mumbai" },
-                                { label: "Chennai", value: "Chennai" },
-                                { label: "Delhi", value: "Delhi" },
-                                { label: "Kolkata", value: "Kolkata" },
-                              ]}
-                              placeholder="Select Customs Locations"
-                              display="chip"
-                              className="w-full mb-2"
-                              onChange={(e) => {
-                                field.onChange(e.value);
-                                if (!e.value?.includes("Others")) {
-                                  setCustomClearance("");
-                                }
-                              }}
-                            /> */}
-                            <MultiSelect
-                              {...field}
-                              value={
-                                Array.isArray(field.value)
-                                  ? field.value
-                                  : field.value
-                                  ? [field.value]
-                                  : []
-                              }
-                              options={factoryOptions}
-                              placeholder="Select Customs Locations"
-                              display="chip"
-                              className="w-full mb-2"
-                              onChange={(e) => {
-                                field.onChange(e.value);
-                                if (!e.value?.includes("Others")) {
-                                  setCustomClearance("");
-                                }
-                              }}
-                            />
-                            {Array.isArray(field.value) &&
-                              field.value.length > 0 && (
-                                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
-                                  {field.value.map((val, idx) => {
-                                    const factory = factoryOptions.find(
-                                      (opt) => opt.value === val
-                                    );
-                                    return (
-                                      <div
-                                        key={idx}
-                                        className="p-2 border rounded shadow-sm bg-gray-50"
-                                      >
-                                        <strong>{factory?.label}:</strong>{" "}
-                                        {factory?.address}
-                                      </div>
-                                    );
-                                  })}
-                                </div>
-                              )}
-                          </>
-                        )}
-                      />
-                    </div>
-
-                    {/* <div className="field col-12 md:col-3">
-                      <label>Delivery Terms</label>
-                      <InputText
-                        {...register("delivery_terms")}
-                        className="w-full"
-                      />
-                    </div> */}
-
-                    <div className="field col-12 md:col-3">
-                      <label>Pickup by Freight Forwarder(FF)</label>
-                      {/* <InputText {...register("pickup_by_ff")} className="w-full" /> */}
-                      <div className="flex gap-3">
-                        <Controller
-                          name="pickup_by_ff_exp_air"
-                          control={control}
-                          render={({ field }) => (
-                            <div className="flex gap-3">
-                              {["Yes", "No", "NA"].map((option) => (
-                                <div
-                                  key={option}
-                                  className="flex align-items-center"
-                                >
-                                  <RadioButton
-                                    inputId={`pickup_by_ff_exp_air_${option}`}
-                                    value={option}
-                                    onChange={(e) => field.onChange(e.value)}
-                                    checked={field.value === option}
-                                  />
-                                  <label
-                                    htmlFor={`pickup_by_ff_exp_air_${option}`}
-                                    className="ml-2"
-                                  >
-                                    {option}
-                                  </label>
-                                </div>
-                              ))}
-                            </div>
+                    <label>Country</label>
+                    <Controller
+                      control={control}
+                      name="country_exp_air"
+                      disabled={isReadOnly}
+                      render={({ field }) => (
+                        <Dropdown
+                          {...field}
+                          options={Object.keys(countryCurrencyMap).map(
+                            (country) => ({
+                              label: country,
+                              value: country,
+                            })
                           )}
+                          placeholder="Select Country"
+                          className="w-full"
+                          filter
+                          filterBy="label"
+                          //showClear
                         />
-                      </div>
-                    </div>
-
-                    <div className="field col-12 md:col-3">
-                      <label>Commodity</label>
-                      <Controller
-                        name="commodity"
-                        control={control}
-                        defaultValue=""
-                        render={({ field }) => (
-                          <Dropdown
+                      )}
+                    />
+                  </div>
+                  <div className="field col-12 md:col-3">
+                    <label>Stuffing Location(s)</label>
+                    <Controller
+                      control={control}
+                      name="factoryLocation"
+                      render={({ field }) => (
+                        <>
+                          <MultiSelect
                             {...field}
-                            options={commodityOptions}
-                            placeholder="Select Commodity"
-                            className="w-full"
+                            value={
+                              Array.isArray(field.value)
+                                ? field.value
+                                : field.value
+                                ? [field.value]
+                                : []
+                            }
+                            options={factoryOptions}
+                            placeholder="Select Stuffing Locations"
+                            display="chip"
+                            className="w-full mb-2"
+                            onChange={(e) => {
+                              field.onChange(e.value);
+                              if (!e.value?.includes("Others")) {
+                                setCustomFactory("");
+                              }
+                            }}
                           />
-                        )}
-                      />
-                    </div>
+                          {Array.isArray(field.value) &&
+                            field.value.length > 0 && (
+                              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {field.value.map((val, idx) => {
+                                  const factory = factoryOptions.find(
+                                    (opt) => opt.value === val
+                                  );
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="p-2 border rounded shadow-sm bg-gray-50"
+                                    >
+                                      <strong>{factory?.label}:</strong>{" "}
+                                      {factory?.address}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                        </>
+                      )}
+                    />
+                  </div>
 
-                    <div className="field col-2">
-                      <label>HS Code</label>
-                      <InputText {...register("hs_code")} className="w-full" />
-                    </div>
-
-                    <div className="field col-4">
-                      <label>Door Delivery Address / Consignee Details</label>
-                      <InputText
-                        {...register("door_delivery_address")}
-                        className="w-full"
-                      />
-                    </div>
-
-                    <div className="field col-4">
-                      <label>Incoterm Selection</label>
+                  <div className="field col-12 md:col-3">
+                    <label>Customs Clearance Location(s)</label>
+                    <Controller
+                      control={control}
+                      name="customs_clearance_location"
+                      render={({ field }) => (
+                        <>
+                          <MultiSelect
+                            {...field}
+                            value={
+                              Array.isArray(field.value)
+                                ? field.value
+                                : field.value
+                                ? [field.value]
+                                : []
+                            }
+                            options={factoryOptions}
+                            placeholder="Select Customs Locations"
+                            display="chip"
+                            className="w-full mb-2"
+                            onChange={(e) => {
+                              field.onChange(e.value);
+                              if (!e.value?.includes("Others")) {
+                                setCustomClearance("");
+                              }
+                            }}
+                          />
+                          {Array.isArray(field.value) &&
+                            field.value.length > 0 && (
+                              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {field.value.map((val, idx) => {
+                                  const factory = factoryOptions.find(
+                                    (opt) => opt.value === val
+                                  );
+                                  return (
+                                    <div
+                                      key={idx}
+                                      className="p-2 border rounded shadow-sm bg-gray-50"
+                                    >
+                                      <strong>{factory?.label}:</strong>{" "}
+                                      {factory?.address}
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                        </>
+                      )}
+                    />
+                  </div>
+                  <div className="field col-12 md:col-3">
+                    <label>Pickup by Freight Forwarder(FF)</label>
+                    {/* <InputText {...register("pickup_by_ff")} className="w-full" /> */}
+                    <div className="flex gap-3">
                       <Controller
-                        name="incoterm_exp_air"
+                        name="pickup_by_ff_exp_air"
                         control={control}
-                        defaultValue=""
                         render={({ field }) => (
-                          <Dropdown
-                            value={field.value}
-                            onChange={(e) => field.onChange(e.value)}
-                            options={incotermOptions}
-                            placeholder="Select Incoterm"
-                            className="w-full"
-                          />
+                          <div className="flex gap-3">
+                            {["Yes", "No", "NA"].map((option) => (
+                              <div
+                                key={option}
+                                className="flex align-items-center"
+                              >
+                                <RadioButton
+                                  inputId={`pickup_by_ff_exp_air_${option}`}
+                                  value={option}
+                                  onChange={(e) => field.onChange(e.value)}
+                                  checked={field.value === option}
+                                />
+                                <label
+                                  htmlFor={`pickup_by_ff_exp_air_${option}`}
+                                  className="ml-2"
+                                >
+                                  {option}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
                         )}
-                      />
-                    </div>
-
-                    {/* <div className="field col-12">
-                      <label>Notes</label>
-                      <InputText {...register("notes")} className="w-full" />
-                      <InputTextarea
-                        id="notes"
-                        {...register("notes")}
-                        rows={4}
-                        placeholder=""
-                        className="w-full"
-                      />
-                    </div> */}
-
-                    <div className="field col-12">
-                      <label>Notes</label>
-                      <InputTextarea
-                        {...register("new_notes")}
-                        rows={4}
-                        className="w-full"
                       />
                     </div>
                   </div>
-                )}
-                {/* Removed Vendor fields code */}
-                {/* <Button
-                  label="Generate from Form"
-                  className="p-button-outlined p-button-sm"
-                  onClick={buildParsedDataFromForm}
-                /> */}
+
+                  <div className="field col-12 md:col-3">
+                    <label>Commodity</label>
+                    <Controller
+                      name="commodity"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <Dropdown
+                          {...field}
+                          options={commodityOptions}
+                          placeholder="Select Commodity"
+                          className="w-full"
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className="field col-2">
+                    <label>HS Code</label>
+                    <InputText {...register("hs_code")} className="w-full" />
+                  </div>
+
+                  <div className="field col-4">
+                    <label>Door Delivery Address / Consignee Details</label>
+                    <InputText
+                      {...register("door_delivery_address")}
+                      className="w-full"
+                    />
+                  </div>
+
+                  <div className="field col-4">
+                    <label>Incoterm Selection</label>
+                    <Controller
+                      name="incoterm_exp_air"
+                      control={control}
+                      defaultValue=""
+                      render={({ field }) => (
+                        <Dropdown
+                          value={field.value}
+                          onChange={(e) => field.onChange(e.value)}
+                          options={incotermOptions}
+                          placeholder="Select Incoterm"
+                          className="w-full"
+                        />
+                      )}
+                    />
+                  </div>
+
+                  <div className="field col-12">
+                    <label>Notes</label>
+                    <InputTextarea
+                      {...register("new_notes")}
+                      rows={4}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
               </div>
             )}
 
@@ -3183,32 +3073,26 @@ const CreateRfq = () => {
               </div>
             )}
 
-          {watch("subindustry") === "Air Cargo" &&
-            Array.isArray(parsedData) &&
-            parsedData.length === 0 && (
-              <div className="grid formgrid p-fluid">
-                <fieldset
-                  disabled={isReadOnly}
-                  style={{ border: "none", padding: 0, margin: 0 }}
-                >
-                  <PackageDimensionsForm
-                    mode={watch("transport_mode")}
-                    country={selectedCountry}
-                    onPackagesChange={handlePackagesChange}
-                    existingPackages={watch("package_summary")}
-                    manualGrossWeight={
-                      watch("package_summary")?.manual_total_gross_weight
-                    }
-                    valueOfShipment={
-                      watch("package_summary")?.value_of_shipment
-                    }
-                    shipmentCurrency={
-                      watch("package_summary")?.shipment_currency
-                    }
-                  />
-                </fieldset>
-              </div>
-            )}
+          {watch("subindustry") === "Air Cargo" && (
+            <div className="grid formgrid p-fluid">
+              <fieldset
+                disabled={isReadOnly}
+                style={{ border: "none", padding: 0, margin: 0 }}
+              >
+                <PackageDimensionsForm
+                  mode={watch("transport_mode")}
+                  country={selectedCountry}
+                  onPackagesChange={handlePackagesChange}
+                  existingPackages={watch("package_summary")}
+                  manualGrossWeight={
+                    watch("package_summary")?.manual_total_gross_weight
+                  }
+                  valueOfShipment={watch("package_summary")?.value_of_shipment}
+                  shipmentCurrency={watch("package_summary")?.shipment_currency}
+                />
+              </fieldset>
+            </div>
+          )}
 
           {watch("subindustry") === "Air Cargo" && (
             <fieldset
@@ -4163,7 +4047,9 @@ const CreateRfq = () => {
                       className="flex justify-content-between align-items-center p-2 border-bottom-1 border-gray-300"
                     >
                       <a
-                        href={`/uploads/rfq/${encodeURIComponent(file.name)}`}
+                        href={`http://127.0.0.1:9000/uploads/rfq/${encodeURIComponent(
+                          file.name
+                        )}`}
                         download={file.name}
                         className="text-primary underline cursor-pointer"
                       >
@@ -4200,6 +4086,7 @@ const CreateRfq = () => {
                   setSelectedVendorIds([]);
                   setSelectedIndustryFilters([]);
                   setSelectedProductFilters([]);
+                  setSelectedCompanyFilters([]);
                   if (e.value === "air") {
                     console.log("type of vendor", e.value);
                     setSelectedIndustryFilters(["air"]);
@@ -4207,6 +4094,10 @@ const CreateRfq = () => {
                   if (e.value === "ocean") {
                     console.log("type of vendor", e.value);
                     setSelectedIndustryFilters(["ocean"]);
+                  }
+                  if (e.value === "company") {
+                    console.log("type of vendor", e.value);
+                    //setSelectedCompanyFilters(["company"]);
                   }
                 }}
                 placeholder="Select Type"
@@ -4235,6 +4126,19 @@ const CreateRfq = () => {
                   }))}
                   onChange={(e) => setSelectedProductFilters(e.value)}
                   placeholder="Select Products"
+                  className="w-full md:w-20rem"
+                />
+              )}
+
+              {selectedVendorType === "company" && (
+                <MultiSelect
+                  value={selectedCompanyFilters}
+                  options={companyfilt.map((prod) => ({
+                    label: prod,
+                    value: prod,
+                  }))}
+                  onChange={(e) => setSelectedCompanyFilters(e.value)}
+                  placeholder="Select Company"
                   className="w-full md:w-20rem"
                 />
               )}
