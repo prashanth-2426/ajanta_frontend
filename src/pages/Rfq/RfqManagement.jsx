@@ -40,6 +40,7 @@ const RfqManagement = () => {
   const [roadTransportQuotes, setRoadTransportQuotes] = useState({});
   const [negotiationData, setNetogiationData] = useState({});
   const [quoteAcceptedData, setQuoteAcceptedData] = useState({});
+  const [hodAcceptRequestData, setHodAcceptRequestData] = useState({});
   const [competingQuotes, setCompetingQuotes] = useState({});
   const userRole = "vendor";
   const airlines = ["Air India", "Emirates", "Qatar Airways"];
@@ -90,7 +91,19 @@ const RfqManagement = () => {
         ...r,
         row_id: r.auction_number || r.rfq_number,
       }));
-      setRfqs(enriched);
+      let result = enriched;
+
+      if (role === "hod") {
+        result = enriched.filter(
+          (rfq) =>
+            rfq.status === "requested_hod_approval" ||
+            rfq.status === "hod_approved" ||
+            rfq.status === "hod_rejected"
+        );
+        setRfqs(result);
+      } else {
+        setRfqs(enriched);
+      }
     } catch (error) {
       console.error("Error fetching RFQs:", error);
     }
@@ -115,6 +128,7 @@ const RfqManagement = () => {
     setRoadTransportQuotes({});
     setNetogiationData([]);
     setQuoteAcceptedData({});
+    setHodAcceptRequestData({});
     try {
       const data = await getData(`quotes/${rfqNumber}`);
       const mappedQuotes = {};
@@ -253,6 +267,9 @@ const RfqManagement = () => {
           }
           if (entry.acceptedDetails) {
             setQuoteAcceptedData(entry.acceptedDetails || {});
+          }
+          if (entry.hodAcceptRequestDetails) {
+            setHodAcceptRequestData(entry.hodAcceptRequestDetails || {});
           }
         }
 
@@ -433,7 +450,7 @@ const RfqManagement = () => {
   }, []);
 
   const filteredRfqs =
-    role === "user"
+    role === "user" || role === "hod"
       ? rfqs.filter((rfq) => rfq.form_type?.toLowerCase() !== "draft")
       : rfqs;
 
@@ -474,6 +491,7 @@ const RfqManagement = () => {
           other_charges: "",
           remarks: "",
           rate_validity: "",
+          currency: "INR",
         },
       ],
     }));
@@ -2000,58 +2018,60 @@ const RfqManagement = () => {
                       </div>
                     )}
 
-                    {/* {quoteAcceptedData && quoteAcceptedData?.accepted_at && (
-                      <div
-                        className="p-3 mt-5 border-round shadow-2 mb-3 flex align-items-center justify-content-between"
-                        style={{
-                          background:
-                            "linear-gradient(90deg, #f8d7da 0%, #f5c6cb 100%)", // soft red gradient
-                          borderLeft: "6px solid #dc3545", // red accent
-                          color: "#721c24",
-                          fontWeight: "bold",
-                        }}
-                      >
-                        <div className="flex align-items-center">
-                          <span
-                            role="img"
-                            aria-label="info"
-                            style={{
-                              fontSize: "2rem",
-                              marginRight: "12px",
-                              filter: "drop-shadow(1px 1px 2px #999)",
-                            }}
-                          >
-                            🚫
-                          </span>
+                    {rowData.status === "accepted" &&
+                      quoteAcceptedData.vendor_id !== user.id && (
+                        <div
+                          className="p-3 mt-5 border-round shadow-2 mb-3 flex align-items-center justify-content-between"
+                          style={{
+                            background:
+                              "linear-gradient(90deg, #f8d7da 0%, #f5c6cb 100%)", // soft red gradient
+                            borderLeft: "6px solid #dc3545", // red accent
+                            color: "#721c24",
+                            fontWeight: "bold",
+                          }}
+                        >
+                          <div className="flex align-items-center">
+                            <span
+                              role="img"
+                              aria-label="info"
+                              style={{
+                                fontSize: "2rem",
+                                marginRight: "12px",
+                                filter: "drop-shadow(1px 1px 2px #999)",
+                              }}
+                            >
+                              🚫{quoteAcceptedData.accepted_airline}
+                              {user.id}
+                            </span>
 
-                          <div>
-                            <div style={{ fontSize: "1.2rem" }}>
-                              ❗ This Auction Has Been Closed
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "1rem",
-                                opacity: 0.9,
-                                marginTop: "10px",
-                              }}
-                            >
-                              Another vendor’s quote has been accepted for this
-                              auction.
-                            </div>
-                            <div
-                              style={{
-                                fontSize: "1rem",
-                                opacity: 0.9,
-                                marginTop: "10px",
-                              }}
-                            >
-                              We appreciate your participation — stay tuned for
-                              upcoming auctions and future opportunities!
+                            <div>
+                              <div style={{ fontSize: "1.2rem" }}>
+                                ❗ This Auction Has Been Closed
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "1rem",
+                                  opacity: 0.9,
+                                  marginTop: "10px",
+                                }}
+                              >
+                                Another vendor’s quote has been accepted for
+                                this auction.
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "1rem",
+                                  opacity: 0.9,
+                                  marginTop: "10px",
+                                }}
+                              >
+                                We appreciate your participation — stay tuned
+                                for upcoming auctions and future opportunities!
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    )} */}
+                      )}
 
                     {/* {negotiationData.last_purchase_price && (
                       <div className="p-col-12 mt-3">
@@ -2676,9 +2696,15 @@ const RfqManagement = () => {
         />
       )}
 
-      {["received_quotes", "evaluated", "negotiation", "accepted"].includes(
-        rowData.status
-      ) && (
+      {[
+        "received_quotes",
+        "evaluated",
+        "negotiation",
+        "accepted",
+        "requested_hod_approval",
+        "hod_rejected",
+        "hod_approved",
+      ].includes(rowData.status) && (
         <Button
           label="View Quote"
           icon="pi pi-list"
@@ -2825,7 +2851,7 @@ const RfqManagement = () => {
           />
         </span>
       </div>
-      {role === "user" && (
+      {(role === "user" || role === "hod") && (
         <DataTable
           value={rfqs}
           paginator

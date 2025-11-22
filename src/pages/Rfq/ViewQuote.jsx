@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
+import { Dropdown } from "primereact/dropdown";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
 import { Panel } from "primereact/panel";
@@ -24,7 +25,9 @@ const ViewQuote = () => {
   const [viewItemLevel, setViewItemLevel] = useState(false);
   const [globalFilter, setGlobalFilter] = useState("");
   const dispatch = useDispatch();
-
+  const user = useSelector((state) => state.auth.user);
+  const role = user?.role;
+  console.log("User Role in View Quote:", role);
   const [showNegotiationDialog, setShowNegotiationDialog] = useState(false);
   const [selectedVendors, setSelectedVendors] = useState([]);
   const [lastPurchasePrice, setLastPurchasePrice] = useState("");
@@ -34,9 +37,26 @@ const ViewQuote = () => {
   const [invAmount, setInvAmount] = useState(null);
 
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
+  const [showHodApprovalDialog, setShowHodApprovalDialog] = useState(false);
+
+  const [showHODDecisionDialog, setShowHODDecisionDialog] = useState(false);
   const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
   const [acceptRemarks, setAcceptRemarks] = useState("");
   const [expandedRows, setExpandedRows] = useState(null);
+
+  const [dialogParams, setDialogParams] = useState(null);
+
+  const usersdata = useSelector((state) => state.users.data);
+  const hodUsers = Array.isArray(usersdata.users)
+    ? usersdata.users.filter((u) => u.role === "hod")
+    : [];
+  console.log("hodUsers in View Quote:", hodUsers);
+  const [selectedHod, setSelectedHod] = useState(null);
+
+  const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
+    setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
+    setShowHODDecisionDialog(true);
+  };
 
   useEffect(() => {
     fetchSummary();
@@ -54,6 +74,12 @@ const ViewQuote = () => {
   };
   //fetchSummary();
   //}, [rfqNumber]);
+
+  const hodQuote = rfq?.shipments
+    ?.flatMap((s) => s.quotes) // merge all quotes from all shipments
+    ?.find((q) => q.hodAcceptRequestDetails.status === "hod_rejected");
+
+  console.log("hodQuote", hodQuote);
 
   const handleAction = async (actionType, rfqNumber) => {
     try {
@@ -495,6 +521,12 @@ const ViewQuote = () => {
               />
               <Column header="Other" body={(row) => row.other_charges || "-"} />
               <Column
+                header="First Bid Price"
+                body={(row) => (
+                  <strong>₹ {parseFloat(row.FirstBidPrice).toFixed(2)}</strong>
+                )}
+              />
+              <Column
                 header="Final Bid Price"
                 body={(row) => (
                   <strong>
@@ -503,7 +535,7 @@ const ViewQuote = () => {
                 )}
               />
               <Column
-                header="Last Purchace Price"
+                header="Target Price"
                 body={(row) => (
                   <strong>₹ {row.negotiation?.last_purchase_price}</strong>
                 )}
@@ -608,7 +640,7 @@ const ViewQuote = () => {
               <strong>Transit Days:</strong> {row.transit_days || "-"}
             </div>
             <div className="col-12 md:col-4">
-              <strong>Exchange Rate:</strong> {row.exchange_rate || "-"}
+              <strong>Exchange Rate:</strong> {row.exchangeRate || "-"}
             </div>
 
             {/* Flight Routes + Schedules */}
@@ -658,9 +690,15 @@ const ViewQuote = () => {
         hideCurrentBid = rfq?.hideCurrentBidPrice || "N/A",
         testAuction = "No",
         description = rfq?.description || "N/A",
-        createdDate = rfq?.createdAt || "N/A",
-        openDate = rfq?.openDateTime || "N/A",
-        closeDate = rfq?.closeDateTime || "N/A",
+        createdDate = rfq?.createdDate
+          ? new Date(rfq?.createdDate).toLocaleString()
+          : "N/A",
+        openDate = rfq?.openDateTime
+          ? new Date(rfq?.openDateTime).toLocaleString()
+          : "N/A",
+        closeDate = rfq?.closeDateTime
+          ? new Date(rfq?.closeDateTime).toLocaleString()
+          : "N/A",
       } = auctionDetails;
 
       let currentY = 10; // 🔹 Track current vertical position
@@ -756,7 +794,7 @@ const ViewQuote = () => {
           "AWB (INR)",
           "Other (INR)",
           "Currency",
-          "DAP/DDP (INR)",
+          "DAP/DDP",
           "Exchange Rate",
           "Transit Days",
           "Routing",
@@ -765,14 +803,29 @@ const ViewQuote = () => {
           "Total Charges (INR)",
           "Total Saving",
           "Rank",
+          "isAccepted",
         ];
 
         // 🧠 Helper to build all rows dynamically
         const buildRows = (cols) =>
           topQuotes.map((q, index) => {
-            const lastPurchase = q?.negotiation?.last_purchase_price || 0;
+            console.log("Generating row for quote:", q);
+            const lastNegotiation = Array.isArray(q.negotiation)
+              ? q.negotiation.find(
+                  (n) =>
+                    n.vendor_id === q.vendor_id &&
+                    n.airline_name === q.airline_name
+                )
+              : null;
+
+            const lastPurchase = lastNegotiation?.last_purchase_price || "-";
+            const firstBid = q.FirstBidPrice || 0;
             const finalBid = q.grandTotalValue || 0;
-            const saving = lastPurchase ? lastPurchase - finalBid : 0;
+            const saving = firstBid - finalBid || 0;
+
+            const isAccepted =
+              q.acceptedDetails?.accepted_at &&
+              q.acceptedDetails?.accepted_airline === q.airline_name;
 
             const routes = [
               { route: q.route1, schedule: q.flight_schedule1 },
@@ -800,8 +853,8 @@ const ViewQuote = () => {
               "AWB (INR)": q.awb || "-",
               "Other (INR)": q.other_charges || "-",
               Currency: q.currency || "-",
-              "DAP/DDP (INR)": q.dap_ddp_charges || "-",
-              "Exchange Rate": q.exchange_rate || "-",
+              "DAP/DDP": q.dap_ddp_charges || "-",
+              "Exchange Rate": q.exchangeRate || "-",
               "Transit Days": q.transit_days || "-",
               Routing: routes || "-",
               "Remark / Condition": q.remarks || "-",
@@ -811,6 +864,7 @@ const ViewQuote = () => {
                 : "-",
               "Total Saving": saving ? saving.toFixed(2) : "-",
               Rank: `L${index + 1}`,
+              isAccepted: isAccepted ? "Yes" : "No",
             };
 
             return cols.map((col) => row[col]);
@@ -936,6 +990,12 @@ const ViewQuote = () => {
           <Column header="DAP/DDP" body={(row) => row.dap_ddp_charges || "-"} />
           <Column header="Other" body={(row) => row.other_charges || "-"} />
           <Column
+            header="First Bid Price"
+            body={(row) => (
+              <strong>₹ {parseFloat(row.FirstBidPrice).toFixed(2)}</strong>
+            )}
+          />
+          <Column
             header="Final Bid Price"
             body={(row) => (
               <strong>₹ {parseFloat(row.grandTotalValue).toFixed(2)}</strong>
@@ -948,7 +1008,7 @@ const ViewQuote = () => {
             )}
           /> */}
           <Column
-            header="Last Purchase Price"
+            header="Target Price"
             body={(row) => {
               if (
                 !Array.isArray(row.negotiation) ||
@@ -986,18 +1046,20 @@ const ViewQuote = () => {
             body={(row) => {
               const finalBid = row.grandTotalValue || 0;
 
-              const matchedNegotiation = Array.isArray(row.negotiation)
-                ? row.negotiation.find(
-                    (n) =>
-                      n.airline_name?.toLowerCase().trim() ===
-                      row.airline_name?.toLowerCase().trim()
-                  )
-                : null;
+              // const matchedNegotiation = Array.isArray(row.negotiation)
+              //   ? row.negotiation.find(
+              //       (n) =>
+              //         n.airline_name?.toLowerCase().trim() ===
+              //         row.airline_name?.toLowerCase().trim()
+              //     )
+              //   : null;
 
-              if (!matchedNegotiation) return <span>-</span>;
+              // if (!matchedNegotiation) return <span>-</span>;
 
-              const lastPrice = matchedNegotiation.last_purchase_price || 0;
-              const saving = lastPrice - finalBid;
+              //const lastPrice = matchedNegotiation.last_purchase_price || 0;
+              const saving =
+                parseFloat(row.FirstBidPrice).toFixed(2) -
+                parseFloat(finalBid).toFixed(2);
 
               return (
                 <strong
@@ -1024,22 +1086,132 @@ const ViewQuote = () => {
           />
           <Column
             header="Status"
-            body={(row) =>
-              row.acceptedDetails.accepted_at &&
-              row.acceptedDetails.accepted_airline === row.airline_name ? (
-                <span
-                  style={{
-                    color: "green",
-                    fontWeight: "bold",
-                    fontSize: "1.8rem",
-                  }}
-                >
-                  🏆
-                </span>
-              ) : (
-                "-"
-              )
-            }
+            body={(row) => {
+              // Condition 1: Vendor Accepted by Buyer
+              const isAccepted =
+                row.acceptedDetails?.accepted_at &&
+                row.acceptedDetails?.accepted_airline === row.airline_name;
+
+              // Condition 2: HOD Approval Pending
+              const isHodApprovalPending =
+                row.hodAcceptRequestDetails?.accepted_at &&
+                row.hodAcceptRequestDetails?.requested_airline ===
+                  row.airline_name;
+
+              // Condition 3: HOD Approved
+              const isHodApproved =
+                row.hodAcceptRequestDetails?.hod_approved_on &&
+                row.hodAcceptRequestDetails?.requested_airline ===
+                  row.airline_name;
+
+              // Condition 4: HOD Approved
+              const isHodRejected =
+                row.hodAcceptRequestDetails?.hod_rejected_on &&
+                row.hodAcceptRequestDetails?.requested_airline ===
+                  row.airline_name;
+
+              if (isAccepted) {
+                return (
+                  <span
+                    style={{
+                      color: "green",
+                      fontWeight: "bold",
+                      fontSize: "1.8rem",
+                    }}
+                  >
+                    🏆
+                  </span>
+                );
+              }
+
+              if (
+                isHodApprovalPending &&
+                role === "user" &&
+                !isHodApproved &&
+                !isHodRejected
+              ) {
+                return (
+                  <span
+                    style={{
+                      color: "#e67e22",
+                      fontWeight: "bold",
+                      fontSize: "1.8rem",
+                    }}
+                    title="HOD Approval Pending"
+                  >
+                    ⏳
+                  </span>
+                );
+              }
+
+              if (isHodApproved) {
+                return (
+                  <span
+                    style={{
+                      color: "green",
+                      fontWeight: "bold",
+                      fontSize: "1.8rem",
+                    }}
+                    title="HOD Approved"
+                  >
+                    ✅
+                  </span>
+                );
+              }
+
+              if (isHodRejected) {
+                return (
+                  <span
+                    style={{
+                      color: "red",
+                      fontWeight: "bold",
+                      fontSize: "0.7rem",
+                    }}
+                    title="HOD Rejected"
+                  >
+                    ❌ Rejected
+                  </span>
+                );
+              }
+
+              if (isHodApprovalPending && role === "hod") {
+                return (
+                  <div className="flex gap-2 justify-center">
+                    <Button
+                      icon="pi pi-check"
+                      className="p-button-success p-button-rounded p-button-sm"
+                      tooltip="Approve"
+                      style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
+                      onClick={() =>
+                        openConfirmModal(
+                          "hod_approved",
+                          row.rfq_number || rfq.rfq_number,
+                          row.vendor_id,
+                          row.airline_name
+                        )
+                      }
+                    />
+
+                    <Button
+                      icon="pi pi-times"
+                      className="p-button-danger p-button-rounded p-button-sm"
+                      tooltip="Reject"
+                      style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
+                      onClick={() =>
+                        openConfirmModal(
+                          "hod_rejected",
+                          row.rfq_number || rfq.rfq_number,
+                          row.vendor_id,
+                          row.airline_name
+                        )
+                      }
+                    />
+                  </div>
+                );
+              }
+
+              return "-";
+            }}
           />
         </DataTable>
       </div>
@@ -1106,22 +1278,49 @@ const ViewQuote = () => {
 
         {/* {shipmentWiseQuoteTable()} */}
         {isFlatView ? shipmentLevelL1L2Table() : shipmentWiseQuoteTable()}
+
+        {/* {hodQuote && (
+          <div className="p-3 bg-yellow-100 border border-yellow-400 rounded mt-3">
+            <strong>HOD Approval Requested For:</strong>{" "}
+            {hodQuote.hodAcceptRequestDetails.requested_airline}
+            <br />
+            <strong>Requested On:</strong>{" "}
+            {hodQuote.hodAcceptRequestDetails.accepted_at}
+            <br />
+            <strong>Reason:</strong> {hodQuote.hodAcceptRequestDetails.remarks}
+          </div>
+        )} */}
+
         <div className="mt-4 flex flex-wrap gap-3 justify-content-end">
-          <Button
-            label="✅ Accept Quote"
-            className="p-button-success p-button-sm"
-            //onClick={() => handleAction("accept_l1", rfq.rfq_number)}
-            onClick={() => setShowAcceptDialog(true)}
-            disabled={selectedVendors.length === 0}
-          />
-          <Button
-            label="✏️ Negotiate"
-            className="p-button-warning p-button-sm"
-            //onClick={() => handleAction("negotiate", rfq.rfq_number)}
-            onClick={() => setShowNegotiateDialog(true)}
-            //onClick={() => setShowAcceptDialog(true)}
-            disabled={selectedVendors.length === 0}
-          />
+          {role !== "hod" && (
+            <Button
+              label="Send For HOD Approval"
+              className="p-button-info p-button-sm"
+              onClick={() => setShowHodApprovalDialog(true)}
+              disabled={selectedVendors.length === 0}
+            />
+          )}
+
+          {/* {hodQuote && ( */}
+          <div>
+            <Button
+              label="✅ Accept Quote"
+              className="p-button-success p-button-sm"
+              //onClick={() => handleAction("accept_l1", rfq.rfq_number)}
+              onClick={() => setShowAcceptDialog(true)}
+              disabled={selectedVendors.length === 0}
+            />
+            <Button
+              label="✏️ Negotiate"
+              className="p-button-warning p-button-sm"
+              //onClick={() => handleAction("negotiate", rfq.rfq_number)}
+              onClick={() => setShowNegotiateDialog(true)}
+              //onClick={() => setShowAcceptDialog(true)}
+              disabled={selectedVendors.length === 0}
+            />
+          </div>
+          {/* )} */}
+
           {/* <Button
             label="⚖️ Move to Auction"
             className="p-button-info p-button-sm"
@@ -1202,6 +1401,132 @@ const ViewQuote = () => {
           />
         </div>
       </Dialog> */}
+      <Dialog
+        header="HOD Decision"
+        visible={showHODDecisionDialog}
+        onHide={() => setShowHODDecisionDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={acceptRemarks}
+            onChange={(e) => setAcceptRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Submit"
+            className="p-button-sm p-button-success"
+            onClick={async () => {
+              await postData("quotesummary/update-rfq-status", {
+                rfq_number: rfq.rfq_number,
+                action: dialogParams.actionType,
+                vendors: [dialogParams.vendor_id],
+                requestedAirline: [dialogParams.airline_name],
+                hod_msg: acceptRemarks,
+                hod_name: user?.name || "",
+                hod_email: user?.email || "",
+              });
+              dispatch(
+                toastSuccess({
+                  detail: "HOD Approval successfully!",
+                })
+              );
+              setShowHODDecisionDialog(false);
+              //setSelectedVendors([]);
+              setAcceptRemarks("");
+              fetchSummary();
+            }}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowHodApprovalDialog(false)}
+          />
+        </div>
+      </Dialog>
+      <Dialog
+        header="Request HOD Approval"
+        visible={showHodApprovalDialog}
+        onHide={() => setShowHodApprovalDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          <label>
+            <strong>Select HOD</strong>
+          </label>
+          <Dropdown
+            value={selectedHod}
+            options={hodUsers?.map((user) => ({
+              label: `${user.name} (${user.email})`,
+              value: user,
+            }))}
+            onChange={(e) => setSelectedHod(e.value)}
+            placeholder="Select HOD"
+            className="w-full"
+            optionLabel="label"
+            filter
+          />
+        </div>
+
+        <div className="mb-3">
+          <h5>Selected Vendors</h5>
+          {selectedVendors.map((v) => (
+            <div key={v.vendor_id} className="mb-2">
+              <i className="pi pi-user mr-2" />
+              <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={acceptRemarks}
+            onChange={(e) => setAcceptRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Request Approval"
+            className="p-button-sm p-button-success"
+            onClick={async () => {
+              await postData("quotesummary/update-rfq-status", {
+                rfq_number: rfq.rfq_number,
+                action: "requested_hod_approval",
+                vendors: selectedVendors.map((v) => v.vendor_id),
+                requestedAirline: selectedVendors.map((v) => v.airline_name),
+                remarks: acceptRemarks,
+                hod_name: selectedHod?.name || "",
+                hod_email: selectedHod?.email || "",
+              });
+              dispatch(
+                toastSuccess({
+                  detail: "Requested for HOD Approval successfully!",
+                })
+              );
+              setShowHodApprovalDialog(false);
+              setSelectedVendors([]);
+              setAcceptRemarks("");
+              fetchSummary();
+            }}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowHodApprovalDialog(false)}
+          />
+        </div>
+      </Dialog>
       <Dialog
         header="Accept Quote"
         visible={showAcceptDialog}

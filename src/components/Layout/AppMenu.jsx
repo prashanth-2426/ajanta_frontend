@@ -12,6 +12,7 @@ const AppMenu = () => {
   const isAdmin = role === "admin";
   const isVendor = role === "vendor";
   const isBuyer = role === "user";
+  const isHod = role === "hod";
 
   const model = [
     {
@@ -59,7 +60,7 @@ const AppMenu = () => {
             },
           ],
         },
-        ...(isBuyer || isAdmin
+        ...(isBuyer || isAdmin || isHod
           ? [
               {
                 label: "RFQ",
@@ -73,7 +74,7 @@ const AppMenu = () => {
           icon: "pi pi-fw pi-home",
           to: "/rfqs",
         },
-        ...(isBuyer || isAdmin
+        ...(isBuyer || isAdmin || isHod
           ? [
               {
                 label: "Quotes Summary",
@@ -84,7 +85,7 @@ const AppMenu = () => {
           : []),
       ],
     },
-    ...(isBuyer || isAdmin
+    ...(isBuyer || isAdmin || isHod
       ? [
           {
             label: "Auctions",

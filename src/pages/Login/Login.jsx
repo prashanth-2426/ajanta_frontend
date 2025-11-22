@@ -12,6 +12,7 @@ import loginImage from "../../assets/images/login-side.png"; // Add your image h
 import { useApi } from "../../utils/requests";
 import { setCredentials } from "../../store/authSlice";
 import { fetchVendors } from "../../store/vendorSlice";
+import { fetchUsers } from "../../store/userSlice";
 import { toastError, toastSuccess } from "../../store/toastSlice";
 import { validateEmail, validatePassword } from "../../utils/validation";
 import Register from "../Register/Register";
@@ -50,6 +51,7 @@ const Login = () => {
     if (data.isSuccess) {
       dispatch(setCredentials(data.user));
       dispatch(fetchVendors());
+      dispatch(fetchUsers());
       dispatch(toastSuccess({ detail: data.msg }));
       navigate("/", { replace: true });
     } else {
@@ -75,7 +77,7 @@ const Login = () => {
                 E-Auction Platform
               </span>
             </div>
-            <Button
+            {/* <Button
               label="Sign Up"
               className="p-button-outlined p-button-sm border-primary text-primary"
               onClick={() => setShowRegister(!showRegister)}
@@ -84,7 +86,7 @@ const Login = () => {
                 borderColor: "#2563eb",
                 color: "#2563eb",
               }}
-            />
+            /> */}
           </div>
 
           {!showRegister ? (
@@ -130,7 +132,7 @@ const Login = () => {
                 )}
               </div>
 
-              <div className="flex justify-content-between align-items-center mb-5">
+              {/* <div className="flex justify-content-between align-items-center mb-5">
                 <div className="flex align-items-center">
                   <Checkbox
                     inputId="remember"
@@ -148,7 +150,7 @@ const Login = () => {
                 >
                   I forgot my password
                 </a>
-              </div>
+              </div> */}
 
               <Button
                 label="Sign In"

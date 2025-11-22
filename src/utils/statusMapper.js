@@ -7,7 +7,7 @@ export const getVendorStatusFromBuyerStatus = (buyerStatus = "") => {
     received_quotes: "QUOTE SUBMITTED", // Default for vendors until they submit
     evaluated: "UNDER REVIEW",
     negotiation: "NEGOTIATION REQUESTED",
-    accepted: "QUOTE ACCEPTED",
+    accepted: "QUOTE FINALIZED",
     rejected: "REJECTED",
     auctioned: "AUCTION INVITED",
   };

@@ -12,6 +12,7 @@ const roleOptions = [
   { label: "Admin", value: "admin" },
   { label: "Vendor", value: "vendor" },
   { label: "User", value: "user" },
+  { label: "HOD", value: "hod" },
 ];
 
 const industryOptions = [

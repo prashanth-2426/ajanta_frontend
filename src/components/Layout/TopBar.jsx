@@ -1,5 +1,6 @@
 import { InputText } from "primereact/inputtext";
 import { forwardRef, useContext, useImperativeHandle, useRef } from "react";
+import { useSelector } from "react-redux";
 import { LayoutContext } from "../../store/layoutContext";
 import { Button } from "primereact/button";
 import { StyleClass } from "primereact/styleclass";
@@ -25,6 +26,7 @@ const TopBar = forwardRef((props, ref) => {
   const btnRef1 = useRef(null);
   const imgRef = useRef(null);
   const logoutRef = useRef(null);
+  const user = useSelector((state) => state.auth.user);
 
   const onMenuButtonClick = () => {
     onMenuToggle();
@@ -127,7 +129,40 @@ const TopBar = forwardRef((props, ref) => {
                   <Ripple />
                 </a>
               </StyleClass>
-              <ul className="topbar-menu active-topbar-menu p-4 w-15rem z-5 hidden">
+              <ul className="topbar-menu active-topbar-menu p-4 w-22rem z-5 hidden">
+                <li className="mb-3 border-bottom pb-3">
+                  <div className="flex align-items-center">
+                    <i
+                      className="pi pi-user mr-2"
+                      style={{ fontSize: "1.2rem" }}
+                    ></i>
+                    <div className="flex flex-column">
+                      <span className="font-bold text-lg">
+                        {user?.name || "User"}
+                      </span>
+
+                      <span
+                        className="text-sm"
+                        style={{ whiteSpace: "normal" }}
+                      >
+                        {user?.email}
+                      </span>
+
+                      <span
+                        className="text-xs mt-1"
+                        style={{
+                          background: "#eef2ff",
+                          padding: "2px 6px",
+                          borderRadius: "4px",
+                          color: "#4338ca",
+                          width: "fit-content",
+                        }}
+                      >
+                        {user?.role?.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+                </li>
                 <li role="menuitem" className="m-0" onClick={logoutHandler}>
                   <StyleClass
                     nodeRef={logoutRef}

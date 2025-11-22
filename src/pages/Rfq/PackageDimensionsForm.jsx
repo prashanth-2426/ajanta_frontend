@@ -7,6 +7,7 @@ import { Button } from "primereact/button";
 import { Card } from "primereact/card";
 import { useApi } from "../../utils/requests";
 import * as XLSX from "xlsx";
+import { set } from "react-hook-form";
 
 const unitOptions = [
   { label: "CM", value: "cm" },
@@ -50,6 +51,10 @@ const PackageDimensionsForm = ({
   const isReadOnly = role === "vendor";
   const [value_of_shipment, setValueOfShipment] = useState(0);
   const [manual_total_gross_weight, setManualTotalGrossWeight] = useState(null);
+  let [totalCartons, setTotalCartons] = useState(null);
+  let [totalGrossWeight, setTotalGrossWeight] = useState(null);
+  let [totalVolumetricWeight, setTotalVolumetricWeight] = useState(null);
+  let [totalCBM, setTotalCBM] = useState(null);
   //const [total_cartons, setTotalCartons] = useState(null);
   const [shipment_currency, setShipmentCurrency] = useState(null);
   const [previousAuctions, setPreviousAuctions] = useState([]);
@@ -96,6 +101,26 @@ const PackageDimensionsForm = ({
       setShipmentCurrency(existingPackages.shipment_currency);
     }
   }, [existingPackages.shipmentCurrency]);
+  useEffect(() => {
+    if (existingPackages.totalCBM) {
+      setTotalCBM(existingPackages.totalCBM);
+    }
+  }, [existingPackages.totalCBM]);
+  useEffect(() => {
+    if (existingPackages.totalCartons) {
+      setTotalCartons(existingPackages.totalCartons);
+    }
+  }, [existingPackages.totalCartons]);
+  useEffect(() => {
+    if (existingPackages.totalGrossWeight) {
+      setTotalGrossWeight(existingPackages.totalGrossWeight);
+    }
+  }, [existingPackages.totalGrossWeight]);
+  useEffect(() => {
+    if (existingPackages.totalVolumetricWeight) {
+      setTotalVolumetricWeight(existingPackages.totalVolumetricWeight);
+    }
+  }, [existingPackages.totalVolumetricWeight]);
   // useEffect(() => {
   //   if (totalCartons) {
   //     setTotalCartons(totalCartons);
@@ -107,22 +132,35 @@ const PackageDimensionsForm = ({
   const previousPackagesRef = useRef();
 
   useEffect(() => {
-    const totalCBM = packages
-      .reduce((sum, pkg) => sum + parseFloat(calculateCBM(pkg)), 0)
-      .toFixed(4);
+    // totalGrossWeight = totalVolumetricWeight;
+    // totalVolumetricWeight = totalVolumetricWeight;
+    // totalCBM = totalCBM;
+    // totalCartons = totalCartons;
+    if (packages.length >= 1 && packages[0].number != 0) {
+      let totalCBMauto = packages
+        .reduce((sum, pkg) => sum + parseFloat(calculateCBM(pkg)), 0)
+        .toFixed(4);
 
-    const totalVolumetricWeight = packages
-      .reduce((sum, pkg) => sum + parseFloat(calculateVolumetricWeight(pkg)), 0)
-      .toFixed(2);
+      setTotalCBM(totalCBMauto);
 
-    const totalGrossWeight = calculateTotalGrossWeight(packages);
-    const totalCartons = calculateTotalCartons(packages);
+      let totalVolumetricWeightauto = packages
+        .reduce(
+          (sum, pkg) => sum + parseFloat(calculateVolumetricWeight(pkg)),
+          0
+        )
+        .toFixed(2);
+      setTotalVolumetricWeight(totalVolumetricWeightauto);
+      let totalGrossWeightauto = calculateTotalGrossWeight(packages);
+      setTotalGrossWeight(totalGrossWeightauto);
+      let totalCartonsauto = calculateTotalCartons(packages);
+      setTotalCartons(totalCartonsauto);
+    }
 
     const dataToSend = {
       packages,
       value_of_shipment,
       manual_total_gross_weight,
-      //total_cartons,
+      totalCartons,
       shipment_currency,
       totalGrossWeight,
       volumetricFactor,
@@ -138,6 +176,10 @@ const PackageDimensionsForm = ({
   }, [
     packages,
     value_of_shipment,
+    totalCartons,
+    shipment_currency,
+    totalGrossWeight,
+    totalVolumetricWeight,
     manual_total_gross_weight,
     //total_cartons,
     shipment_currency,
@@ -211,16 +253,16 @@ const PackageDimensionsForm = ({
       .toFixed(2);
   };
 
-  const totalCBM = packages
+  const totalCBMauto = packages
     .reduce((sum, pkg) => sum + parseFloat(calculateCBM(pkg)), 0)
     .toFixed(4);
 
-  const totalVolumetricWeight = packages
+  const totalVolumetricWeightauto = packages
     .reduce((sum, pkg) => sum + parseFloat(calculateVolumetricWeight(pkg)), 0)
     .toFixed(2);
 
-  const totalGrossWeight = calculateTotalGrossWeight(packages);
-  const totalCartons = calculateTotalCartons(packages);
+  const totalGrossWeightauto = calculateTotalGrossWeight(packages);
+  const totalCartonsauto = calculateTotalCartons(packages);
 
   const calculateChargeableWeight = (pkg) => {
     const gross = parseFloat(pkg.gross_weight) || 0;
@@ -653,24 +695,25 @@ const PackageDimensionsForm = ({
               <InputNumber
                 disabled={isReadOnly}
                 value={totalCartons}
-                //onValueChange={(e) => setTotalCartons(e.value)}
+                onValueChange={(e) => setTotalCartons(e.value)}
                 className="w-25rem"
               />
             </div>
           </div>
 
           <div className="col-12 md:col-3">
-            <label>Total Gross Weight Auto Calculated(KGS)</label>
+            <label>Total Gross Weight(KGS)</label>
             <InputNumber
               disabled={isReadOnly}
               mode="decimal"
               minFractionDigits={2}
               value={totalGrossWeight}
+              onValueChange={(e) => setTotalGrossWeight(e.value)}
               className="w-full"
             />
           </div>
 
-          <div className="col-12 md:col-4">
+          {/* <div className="col-12 md:col-4">
             <label>Manual Total Gross Weight (KGS)</label>
             <div className="p-inputgroup w-full">
               <InputNumber
@@ -682,7 +725,7 @@ const PackageDimensionsForm = ({
                 className="w-25rem"
               />
             </div>
-          </div>
+          </div> */}
 
           {/* {mode === "air" && ( */}
           <div className="col-12 md:col-3">
@@ -703,6 +746,7 @@ const PackageDimensionsForm = ({
               <InputNumber
                 disabled={isReadOnly}
                 value={totalVolumetricWeight}
+                onValueChange={(e) => setTotalVolumetricWeight(e.value)}
                 mode="decimal"
                 minFractionDigits={2}
                 className="w-full"
@@ -718,6 +762,7 @@ const PackageDimensionsForm = ({
             <InputNumber
               disabled={isReadOnly}
               value={totalCBM}
+              onValueChange={(e) => setTotalCBM(e.value)}
               mode="decimal"
               minFractionDigits={2}
               className="w-full"
