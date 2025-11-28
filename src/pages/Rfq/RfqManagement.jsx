@@ -1911,9 +1911,9 @@ const RfqManagement = () => {
                     <span className="p-col-4 pl-4">
                       <strong>Clearance:</strong> {shipment.Clearance}
                     </span>
-                    <span className="p-col-4 pl-4">
+                    {/* <span className="p-col-4 pl-4">
                       <strong>Delivery Terms:</strong> {shipment.DeliveryTerms}
-                    </span>
+                    </span> */}
                     <span className="p-col-4 pl-4">
                       <strong>FF Pickup:</strong> {shipment.FFPickup}
                     </span>
@@ -2120,7 +2120,7 @@ const RfqManagement = () => {
                                   {item.airline_name || "Unknown Airline"}
                                 </h5>
                                 <p className="m-1">
-                                  <strong>LPP / Target Price:</strong>{" "}
+                                  <strong>Target Price:</strong>{" "}
                                   {item.last_purchase_price || "N/A"}
                                 </p>
                                 <p className="m-1">

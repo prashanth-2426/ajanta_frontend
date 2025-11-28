@@ -683,10 +683,33 @@ const ViewQuote = () => {
 
       const { totalSaving = "INR 2,00,000.00 (2.71%)" } = companyDetails;
 
+      // Get the accepted vendor saving
+      let acceptedSaving = "N/A";
+
+      try {
+        const acceptedRow = allQuotes.find(
+          (q) =>
+            q.acceptedDetails?.accepted_at &&
+            q.acceptedDetails?.accepted_airline === q.airline_name
+        );
+
+        if (acceptedRow) {
+          const firstBid = acceptedRow.FirstBidPrice || 0;
+          const finalBid = acceptedRow.grandTotalValue || 0;
+          const savingValue = firstBid - finalBid;
+
+          acceptedSaving = ` ${savingValue.toLocaleString("en-IN")} `;
+        }
+      } catch (err) {
+        console.error("Saving calc error:", err);
+      }
+
       const {
         auctionId = rfq?.rfq_number || "N/A",
         auctionTitle = rfq?.title || "N/A",
         auctionType = rfq?.type || "N/A",
+        country = rfq?.country || "N/A",
+        subindustry = rfq?.subindustry || "N/A",
         hideCurrentBid = rfq?.hideCurrentBidPrice || "N/A",
         testAuction = "No",
         description = rfq?.description || "N/A",
@@ -701,6 +724,7 @@ const ViewQuote = () => {
           : "N/A",
       } = auctionDetails;
 
+      acceptedSaving = acceptedSaving || "N/A";
       let currentY = 10; // 🔹 Track current vertical position
 
       // =========================
@@ -732,21 +756,32 @@ const ViewQuote = () => {
         const maxTextWidth = pageWidth - valueX - 20; // available width for text
 
         doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
+        //doc.setFont("helvetica", "normal");
 
         const details = [
-          ["Auction ID", auctionId],
-          ["Auction Title", auctionTitle],
+          ["Auction ID", auctionId, true],
+          ["Auction Title", auctionTitle, true],
           ["Auction Type", auctionType],
+          ["Country", country],
+          ["Industry", subindustry],
           ["Hide Current Bid Price", hideCurrentBid],
           ["Test eAuction", testAuction],
           ["Description", description],
+          ["__SPACER__", ""],
           ["Auction Created Date & Time", createdDate],
           ["Auction Open Date & Time", openDate],
           ["Auction Close Date & Time", closeDate],
+          ["__SPACER__", ""],
+          ["Total Saving - INR ", acceptedSaving, true],
+          ["__SPACER__", ""],
         ];
 
-        details.forEach(([label, value]) => {
+        details.forEach(([label, value, isBold]) => {
+          if (label === "__SPACER__") {
+            currentY += 10; // top margin
+            return;
+          }
+
           // Wrap long text properly
           const labelText = `${label}:`;
           const wrappedValue = doc.splitTextToSize(
@@ -754,9 +789,13 @@ const ViewQuote = () => {
             maxTextWidth
           );
 
+          if (isBold) doc.setFont("helvetica", "bold");
+          else doc.setFont("helvetica", "normal");
+
           // Draw label
           doc.text(labelText, marginLeft, currentY);
           // Draw wrapped value, one or multiple lines
+          doc.setFont("helvetica", "normal");
           doc.text(wrappedValue, valueX, currentY);
 
           // Increase Y position based on text height
@@ -904,6 +943,364 @@ const ViewQuote = () => {
         return doc.lastAutoTable.finalY + 10;
       };
 
+      const addSummaryBidSection = (startY) => {
+        let y = startY;
+        const pageWidth = doc.internal.pageSize.getWidth();
+
+        // ==========================
+        //  SECTION: SUMMARY TITLE
+        // ==========================
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Summary Sheet of Bid", 20, y);
+        y += 10;
+
+        // ==========================
+        //  EXTRACT SUMMARY ROWS
+        // ==========================
+        const summaryRows = allQuotes.map((q, i) => {
+          const finalBid = q.grandTotalValue || 0;
+          const firstBid = q.FirstBidPrice || 0;
+          const saving = firstBid - finalBid;
+
+          return {
+            sr_no: i + 1,
+            supplier: q.vendorName || q.vendor_name || q.vendor || "-",
+            airline: q.airline_name || "-",
+            transit: q.transit_days || "-",
+            final_price: finalBid.toFixed(2),
+            saving: saving.toFixed(2),
+            position: q.acceptedDetails?.position || "",
+          };
+        });
+
+        // Sort by savings for L1, L2, L3
+        summaryRows.sort((a, b) => b.saving - a.saving);
+        summaryRows.forEach((r, index) => {
+          r.position = `L${index + 1}`;
+        });
+
+        // ==========================
+        //  SUMMARY TABLE
+        // ==========================
+        doc.autoTable({
+          startY: y,
+          head: [
+            [
+              "Sr No",
+              "Supplier",
+              "Airline",
+              "Transit Time",
+              "Final Bid Price (INR)",
+              "Saving (INR)",
+              "Position",
+            ],
+          ],
+          body: summaryRows.map((r) => [
+            r.sr_no,
+            r.supplier,
+            r.airline,
+            r.transit,
+            r.final_price,
+            r.saving,
+            r.position,
+          ]),
+          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: {
+            halign: "center",
+            fillColor: [230, 230, 230],
+            textColor: 20,
+            fontStyle: "bold",
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 20, right: 20 },
+          didDrawPage: (data) => {
+            y = data.cursor.y + 10;
+          },
+        });
+
+        return y;
+      };
+
+      const generalDetails = {
+        eximMode: rfq?.eximMode || "N/A",
+        movementType: rfq?.movement_type || "N/A",
+        incoterm: rfq?.incoterm_exp_air || "N/A",
+        originAirport: rfq?.origin_airport || "N/A",
+        originAddress: rfq?.origin_address || "N/A",
+        stuffing: rfq?.stuffing_location || "N/A",
+        destinationAirport: rfq?.destination_airport || "N/A",
+        destinationAddress: rfq?.destination_address || "N/A",
+        destuffing: rfq?.destuffing_location || "N/A",
+        totalWeight: rfq?.totalGrossWeight + "KG",
+        totalVolumetric: rfq?.totalVolumetricWeight + "KG",
+        valueShipment: "INR" + rfq?.value_of_shipment || "N/A",
+        cargoType: "N/A",
+        materialType: rfq?.material || "N/A",
+        hsCode: rfq?.hs_code || "N/A",
+        additionalDetails: "N/A",
+        volumetricFactor: rfq?.volumetricFactor || "N/A",
+      };
+
+      const addGeneralDetails = (startY) => {
+        let y = startY;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("General Details", 20, y);
+        y += 8;
+
+        const rows = [
+          [
+            `Exim Mode : ${generalDetails.eximMode || "-"}`,
+            `Movement Type : ${generalDetails.movementType || "-"}`,
+            `Incoterm : ${generalDetails.incoterm || "-"}`,
+          ],
+          [
+            `Origin Airport : ${generalDetails.originAirport || "-"}`,
+            `Origin Address : ${generalDetails.originAddress || "-"}`,
+            `Stuffing Location : ${generalDetails.stuffing || "-"}`,
+          ],
+          [
+            `Destination Airport : ${generalDetails.destinationAirport || "-"}`,
+            `Destination Address : ${generalDetails.destinationAddress || "-"}`,
+            `DeStuffing Location : ${generalDetails.destuffing || "-"}`,
+          ],
+          [
+            `Total Weight ( In Unit ) : ${generalDetails.totalWeight || "-"}`,
+            `Total Volumetric Weight : ${
+              generalDetails.totalVolumetric || "-"
+            }`,
+            `Value of Shipment : ${generalDetails.valueShipment || "-"}`,
+          ],
+          [
+            `Cargo Type : ${generalDetails.cargoType || "-"}`,
+            `Material Type : ${generalDetails.materialType || "-"}`,
+            `HS Code : ${generalDetails.hsCode || "-"}`,
+          ],
+          [
+            {
+              content: `Additional Details : ${
+                generalDetails.additionalDetails || "-"
+              }`,
+              colSpan: 3,
+            },
+          ],
+          [
+            {
+              content: `* Volumetric Weight Factor considered as : : ${
+                generalDetails.volumetricFactor || "-"
+              }`,
+              colSpan: 3,
+            },
+          ],
+        ];
+
+        doc.autoTable({
+          startY: y,
+          head: [],
+          body: rows,
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            valign: "middle",
+            halign: "left",
+            cellPadding: 3,
+          },
+          tableLineColor: [0, 0, 0],
+          tableLineWidth: 0.2,
+          margin: { left: 20, right: 20 },
+          columnStyles: {
+            0: { cellWidth: 180 / 3 },
+            1: { cellWidth: 180 / 3 },
+            2: { cellWidth: 180 / 3 },
+          },
+        });
+
+        return doc.lastAutoTable.finalY + 10;
+      };
+
+      const containerDatat =
+        rfq?.package_summary?.packages?.map((pkg) => ({
+          packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
+          dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${
+            pkg.height || 0
+          } ${pkg.dim_unit?.toUpperCase() || ""}`,
+          gross_weight: `${pkg.gross_weight || 0} ${
+            pkg.weight_unit?.toUpperCase() || ""
+          }`,
+          charges: "Air Freight",
+        })) || [];
+
+      const containerData = [
+        {
+          packages: "12 Cartons",
+          dimension: "37 x 36.5 x 26.5 CM",
+          gross_weight: "13.13 KG",
+          charges: "Air Freight",
+        },
+        {
+          packages: "9 Cartons",
+          dimension: "37 x 36.5 x 26.5 CM",
+          gross_weight: "13.235 KG",
+          charges: "Air Freight",
+        },
+      ];
+
+      const addContainerAndCharges = (currentY, doc, data) => {
+        // Section Title
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Container & Charges", 14, currentY);
+        currentY += 8;
+
+        // Table Headers
+        const headers = [
+          "No. of Packages",
+          "Dimension",
+          "Gross Weight / Package",
+          "Charges",
+        ];
+
+        const columnWidths = [50, 70, 60, 40];
+        let x = 14;
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+
+        headers.forEach((h, index) => {
+          doc.text(h, x, currentY);
+          x += columnWidths[index];
+        });
+
+        currentY += 8;
+        doc.setLineWidth(0.5);
+
+        // Draw header line
+        doc.line(14, currentY, 200, currentY);
+
+        // Table Rows
+        doc.setFont("helvetica", "normal");
+
+        data.forEach((row) => {
+          let xPos = 14;
+          currentY += 8;
+
+          doc.text(row.packages, xPos, currentY); // No. of Packages
+          xPos += columnWidths[0];
+
+          doc.text(row.dimension, xPos, currentY); // Dimension
+          xPos += columnWidths[1];
+
+          doc.text(row.gross_weight, xPos, currentY); // Gross Weight / Package
+          xPos += columnWidths[2];
+
+          doc.text(row.charges, xPos, currentY); // Charges
+
+          // Row underline
+          currentY += 3;
+          doc.line(14, currentY, 200, currentY);
+        });
+
+        return currentY + 10;
+      };
+
+      const quotedatalatestFinalNew = (startY) => {
+        let yPos = startY;
+        const topQuotes = allQuotes; // all vendors
+
+        // 🧩 Combine all columns from all 3 tables
+        const allCols = [
+          "Vendor",
+          "Airline",
+          "Transit Days",
+          "Final Bid Price",
+          "Total Saving",
+          "Position",
+        ];
+
+        // 🧠 Helper to build all rows dynamically
+        const buildRows = (cols) =>
+          topQuotes.map((q, index) => {
+            console.log("Generating row for quote:", q);
+            const lastNegotiation = Array.isArray(q.negotiation)
+              ? q.negotiation.find(
+                  (n) =>
+                    n.vendor_id === q.vendor_id &&
+                    n.airline_name === q.airline_name
+                )
+              : null;
+
+            const lastPurchase = lastNegotiation?.last_purchase_price || "-";
+            const firstBid = q.FirstBidPrice || 0;
+            const finalBid = q.grandTotalValue || 0;
+            const saving = firstBid - finalBid || 0;
+
+            const isAccepted =
+              q.acceptedDetails?.accepted_at &&
+              q.acceptedDetails?.accepted_airline === q.airline_name;
+
+            const routes = [
+              { route: q.route1, schedule: q.flight_schedule1 },
+              { route: q.route2, schedule: q.flight_schedule2 },
+              { route: q.route3, schedule: q.flight_schedule3 },
+            ]
+              .filter((r) => r.route || r.schedule)
+              .map((r) => {
+                const routeText = r.route || "-";
+                const scheduleText = r.schedule
+                  ? new Date(r.schedule).toLocaleDateString()
+                  : "-";
+                return `${routeText}\n${scheduleText}`;
+              })
+              .join("\n");
+
+            const row = {
+              Vendor: q.vendor_name || "-",
+              Airline: q.airline_name || "-",
+              "Transit Days": q.transit_days || "-",
+              "Final Bid Price": finalBid,
+              "Total Saving": saving ? saving.toFixed(2) : "-",
+              Position: `L${index + 1}`,
+            };
+
+            return cols.map((col) => row[col]);
+          });
+
+        // 📄 Draw Combined Table
+        doc.autoTable({
+          startY: yPos,
+          head: [allCols],
+          body: buildRows(allCols),
+          theme: "grid",
+          styles: {
+            fontSize: 8,
+            cellPadding: 2,
+            halign: "center",
+            valign: "middle",
+            lineColor: [200, 200, 200],
+            overflow: "linebreak", // Wrap text
+          },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 10, left: 10, right: 10 },
+          tableWidth: "auto", // Fit table to page width
+          showHead: "firstPage",
+          didParseCell: (data) => {
+            // Highlight top vendor (L1)
+            if (data.cell.raw === "L1") {
+              data.cell.styles.fillColor = [210, 255, 210];
+            }
+          },
+        });
+
+        return doc.lastAutoTable.finalY + 10;
+      };
+
       // =========================
       // 🔹 Footer (Page Numbers)
       // =========================
@@ -920,7 +1317,11 @@ const ViewQuote = () => {
       // =========================
       addHeader();
       currentY = addAuctionDetails();
+      currentY = addSummaryBidSection(currentY);
+      currentY = addGeneralDetails(currentY);
+      currentY = addContainerAndCharges(currentY, doc, containerDatat);
       currentY = quotedatalatestFinal(currentY);
+      currentY = quotedatalatestFinalNew(currentY);
 
       const totalPages = doc.internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {

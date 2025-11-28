@@ -2351,6 +2351,23 @@ const CreateRfq = () => {
                       className="w-full"
                     />
                   </div>
+                  <div className="field col-12 md:col-4">
+                    <label htmlFor="material">Material</label>
+                    <Controller
+                      name="material"
+                      control={control}
+                      render={({ field }) => (
+                        <Dropdown
+                          id="material"
+                          {...field}
+                          options={materials}
+                          placeholder="Select Material"
+                          className="w-full"
+                          disabled={isReadOnly}
+                        />
+                      )}
+                    />
+                  </div>
                 </div>
               </Card>
             </fieldset>
@@ -2428,7 +2445,7 @@ const CreateRfq = () => {
                         )}
                       /> */}
 
-                    <label>Country</label>
+                    {/* <label>Country</label>
                     <Controller
                       control={control}
                       name="country_exp_air"
@@ -2449,7 +2466,7 @@ const CreateRfq = () => {
                           //showClear
                         />
                       )}
-                    />
+                    /> */}
                   </div>
                   <div className="field col-12 md:col-3">
                     <label>Stuffing Location(s)</label>
@@ -2616,7 +2633,7 @@ const CreateRfq = () => {
                     />
                   </div>
 
-                  <div className="field col-4">
+                  {/* <div className="field col-4">
                     <label>Incoterm Selection</label>
                     <Controller
                       name="incoterm_exp_air"
@@ -2641,7 +2658,7 @@ const CreateRfq = () => {
                       rows={4}
                       className="w-full"
                     />
-                  </div>
+                  </div> */}
                 </div>
               </div>
             )}
@@ -3205,7 +3222,7 @@ const CreateRfq = () => {
                     />
                   </div>
 
-                  <div className="col-12 md:col-2">
+                  {/* <div className="col-12 md:col-2">
                     <label className="mr-2">Notes</label>
                     <InputTextarea
                       id="req_quote_notes"
@@ -3214,7 +3231,7 @@ const CreateRfq = () => {
                       placeholder="Write Note"
                       className="w-full"
                     />
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* <div className="mt-3 text-right">
@@ -3666,7 +3683,7 @@ const CreateRfq = () => {
                     />
                   </div>
 
-                  <div className="col-12 md:col-2">
+                  {/* <div className="col-12 md:col-2">
                     <label className="mr-2">Notes</label>
                     <InputTextarea
                       id="notes"
@@ -3675,7 +3692,7 @@ const CreateRfq = () => {
                       placeholder="Write Note"
                       className="w-full"
                     />
-                  </div>
+                  </div> */}
                 </div>
 
                 {/* <div className="mt-3 text-right">
@@ -3823,7 +3840,7 @@ const CreateRfq = () => {
             </fieldset>
           )}
 
-          {(watch("subindustry") === "Air Cargo" ||
+          {/* {(watch("subindustry") === "Air Cargo" ||
             watch("subindustry") === "Ocean Freight") && (
             <fieldset
               disabled={isReadOnly}
@@ -3890,7 +3907,7 @@ const CreateRfq = () => {
                 </div>
               </Card>
             </fieldset>
-          )}
+          )} */}
 
           {watch("subindustry") === "Road Transport" && (
             <div className="grid formgrid p-fluid">
