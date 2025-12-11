@@ -13,6 +13,7 @@ const roleOptions = [
   { label: "Vendor", value: "vendor" },
   { label: "User", value: "user" },
   { label: "HOD", value: "hod" },
+  { label: "Marketing", value: "marketing" },
 ];
 
 const industryOptions = [

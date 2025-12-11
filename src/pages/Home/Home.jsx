@@ -125,7 +125,7 @@ const Home = () => {
     labels: vendorWeeklyActivity?.labels || [],
     datasets: [
       {
-        label: "RFQs Created",
+        label: "RFQs Received",
         backgroundColor: "#3B82F6",
         data: vendorWeeklyActivity?.data || [],
       },

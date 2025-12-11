@@ -17,6 +17,9 @@ import { InputTextarea } from "primereact/inputtextarea";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
 import logoImg from "../../assets/images/ajantha_logo.png";
+import { all } from "axios";
+import { Card } from "primereact/card";
+import { formatDate } from "../../utils/local";
 
 const ViewQuote = () => {
   const { postData, getData } = useApi();
@@ -39,19 +42,32 @@ const ViewQuote = () => {
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showHodApprovalDialog, setShowHodApprovalDialog] = useState(false);
 
+  const [showShareToMarketTeamDialog, setShowShareToMarketTeamDialog] =
+    useState(false);
+
   const [showHODDecisionDialog, setShowHODDecisionDialog] = useState(false);
   const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
   const [acceptRemarks, setAcceptRemarks] = useState("");
   const [expandedRows, setExpandedRows] = useState(null);
 
+  const [hodAttachment, setHodAttachment] = useState(null);
+
   const [dialogParams, setDialogParams] = useState(null);
+
+  const [attachment, setAttachment] = useState(null);
 
   const usersdata = useSelector((state) => state.users.data);
   const hodUsers = Array.isArray(usersdata.users)
     ? usersdata.users.filter((u) => u.role === "hod")
     : [];
-  console.log("hodUsers in View Quote:", hodUsers);
+  const marketingUsers = Array.isArray(usersdata.users)
+    ? usersdata.users.filter((u) => u.role === "marketing")
+    : [];
+  //console.log("hodUsers in View Quote:", hodUsers);
   const [selectedHod, setSelectedHod] = useState(null);
+  const [marketingHead, setMarketingHead] = useState(null);
+  const [marketingRemarks, setMarketingRemarks] = useState("");
+  const [marketingReviewStatus, setMarketingReviewStatus] = useState(false);
 
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
@@ -61,6 +77,16 @@ const ViewQuote = () => {
   useEffect(() => {
     fetchSummary();
   }, [rfqNumber]);
+
+  useEffect(() => {
+    if (rfq?.shipments) {
+      const sum = rfq.shipments
+        .flatMap((s) => s.quotes || [])
+        .reduce((total, q) => total + Number(q.grandTotalValue || 0), 0);
+
+      setInvAmount(sum);
+    }
+  }, [rfq]);
 
   //useEffect(() => {
   const fetchSummary = async () => {
@@ -115,6 +141,9 @@ const ViewQuote = () => {
         toastSuccess({ detail: "Negotiation request sent successfully!" })
       );
       setShowNegotiationDialog(false);
+      setSelectedVendors([]);
+      setNegotiationRemarks("");
+      fetchSummary();
     } catch (err) {
       console.error("Negotiation failed:", err);
       dispatch(toastError({ detail: "Failed to send negotiation request." }));
@@ -612,11 +641,11 @@ const ViewQuote = () => {
       rfq?.shipments?.flatMap((shipment) => {
         return (
           shipment.quotes?.map((quote) => {
-            const total = parseFloat(quote.total_charges || quote.total || 0);
+            const total = parseFloat(quote.grandTotalValue || 0);
             const percent = invAmount ? (total / invAmount) * 100 : null;
             return {
               ...quote,
-              percentage: percent?.toFixed(2),
+              percentage: Math.round(percent),
             };
           }) || []
         );
@@ -704,6 +733,24 @@ const ViewQuote = () => {
         console.error("Saving calc error:", err);
       }
 
+      const l1Quote = [...allQuotes]
+        .map((q) => {
+          const firstBid = q.FirstBidPrice || 0;
+          const finalBid = q.grandTotalValue || 0;
+          const saving = firstBid - finalBid;
+
+          return {
+            vendor_name: q.vendor_name,
+            finalBid,
+            saving,
+          };
+        })
+        .sort((a, b) => a.finalBid - b.finalBid)[0]; // Smallest Final Bid = L1
+
+      const L1TotalSavings = l1Quote ? l1Quote.saving.toFixed(2) : "N/A";
+
+      //console.log("l1TotalSavings", L1TotalSavings);
+
       const {
         auctionId = rfq?.rfq_number || "N/A",
         auctionTitle = rfq?.title || "N/A",
@@ -771,9 +818,7 @@ const ViewQuote = () => {
           ["Auction Created Date & Time", createdDate],
           ["Auction Open Date & Time", openDate],
           ["Auction Close Date & Time", closeDate],
-          ["__SPACER__", ""],
-          ["Total Saving - INR ", acceptedSaving, true],
-          ["__SPACER__", ""],
+          ["Total Saving - INR ", L1TotalSavings, true],
         ];
 
         details.forEach(([label, value, isBold]) => {
@@ -1215,6 +1260,7 @@ const ViewQuote = () => {
           "Airline",
           "Transit Days",
           "Final Bid Price",
+          "Percent %",
           "Total Saving",
           "Position",
         ];
@@ -1260,6 +1306,8 @@ const ViewQuote = () => {
               Airline: q.airline_name || "-",
               "Transit Days": q.transit_days || "-",
               "Final Bid Price": finalBid,
+              "Percent %":
+                q.percentage !== undefined ? `${q.percentage}%` : "-",
               "Total Saving": saving ? saving.toFixed(2) : "-",
               Position: `L${index + 1}`,
             };
@@ -1317,11 +1365,11 @@ const ViewQuote = () => {
       // =========================
       addHeader();
       currentY = addAuctionDetails();
-      currentY = addSummaryBidSection(currentY);
+      currentY = quotedatalatestFinalNew(currentY);
+      //currentY = addSummaryBidSection(currentY);
       currentY = addGeneralDetails(currentY);
       currentY = addContainerAndCharges(currentY, doc, containerDatat);
       currentY = quotedatalatestFinal(currentY);
-      currentY = quotedatalatestFinalNew(currentY);
 
       const totalPages = doc.internal.getNumberOfPages();
       for (let i = 1; i <= totalPages; i++) {
@@ -1335,7 +1383,52 @@ const ViewQuote = () => {
     const allQuotesWithUniqueId = allQuotes.map((row, index) => ({
       ...row,
       uniqueId: `${row.vendor_id}_${index}`, // vendor + index to make unique
+      attachedFile: row.hodAcceptRequestDetails?.attached_file || null,
+      marketingAttachedFile:
+        row.sharedtoMarketingTeamDetails?.attached_file || null,
+      marketingTeamDataRemarks:
+        row.sharedtoMarketingTeamDetails?.remarks || null,
+      marketingTeamDataDate:
+        row.sharedtoMarketingTeamDetails?.accepted_at || null,
+      hodApprovalDataRemarks: row.hodAcceptRequestDetails?.remarks || null,
+      hodApprovalDataDate: row.hodAcceptRequestDetails?.accepted_at || null,
     }));
+
+    const attachedFileName =
+      allQuotesWithUniqueId.find((row) => row.attachedFile)?.attachedFile ||
+      null;
+
+    const marketingTeamReviewFileName =
+      allQuotesWithUniqueId.find((row) => row.marketingAttachedFile)
+        ?.marketingAttachedFile || null;
+
+    //console.log("marketingTeamReviewFileName", marketingTeamReviewFileName);
+
+    const marketingTeamReviewDataRemarks =
+      allQuotesWithUniqueId.find((row) => row.marketingTeamDataRemarks)
+        ?.marketingTeamDataRemarks || null;
+
+    const marketingTeamReviewDataDate =
+      allQuotesWithUniqueId.find((row) => row.marketingTeamDataDate)
+        ?.marketingTeamDataDate || null;
+
+    //console.log("fullMarketingTeamReviewData", fullMarketingTeamReviewData);
+
+    const hodApprovalDataRemarks =
+      allQuotesWithUniqueId.find((row) => row.hodApprovalDataRemarks)
+        ?.hodApprovalDataRemarks || null;
+
+    const hodApprovalDataDate =
+      allQuotesWithUniqueId.find((row) => row.hodApprovalDataDate)
+        ?.hodApprovalDataDate || null;
+
+    const quoteWithAttachment = allQuotesWithUniqueId.find(
+      (row) => row.attachedFile && row.status === "requested_hod_approval"
+    );
+
+    const approvalMessage =
+      quoteWithAttachment?.hodAcceptRequestDetails?.remarks ||
+      "Exports team requested for approval";
 
     return (
       <div className="mt-4">
@@ -1359,7 +1452,90 @@ const ViewQuote = () => {
             className="p-button-sm p-button-success"
             onClick={() => exportToPDF(allQuotes, rfq?.rfq_number)}
           />
+          {}
         </div>
+
+        {attachedFileName && (
+          <div className="p-3 mb-3 border-round bg-yellow-100 text-yellow-900 shadow-2">
+            <div className="flex align-items-center gap-3">
+              {/* ⏳ Icon on the LEFT */}
+              <span
+                style={{
+                  color: "#e67e22",
+                  fontWeight: "bold",
+                  fontSize: "2rem",
+                  flexShrink: 0,
+                }}
+                title="HOD Approval Pending"
+              >
+                ⏳
+              </span>
+
+              <div>
+                <strong>Requested HOD Approval:</strong>
+                <br />
+                <strong>Reason: {hodApprovalDataRemarks}</strong>
+                <br />
+                <br />
+                <strong>Requested On: {formatDate(hodApprovalDataDate)}</strong>
+                <br />
+                <strong>Attachment: </strong>
+                <a
+                  href={`http://127.0.0.1:9000/uploads/rfq/${encodeURIComponent(
+                    attachedFileName
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 underline"
+                >
+                  {attachedFileName}
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {marketingTeamReviewFileName && (
+          <div className="p-3 mb-3 border-round bg-yellow-100 text-yellow-900 shadow-2">
+            <div className="flex align-items-center gap-3">
+              {/* ⏳ Icon on the LEFT */}
+              <span
+                style={{
+                  color: "#e67e22",
+                  fontWeight: "bold",
+                  fontSize: "2rem",
+                  flexShrink: 0,
+                }}
+                title="Marketing Team Review Pending"
+              >
+                ⏳
+              </span>
+
+              <div>
+                <strong>Requested Marketing Team Review:</strong>
+                <br />
+                <strong>Reason: {marketingTeamReviewDataRemarks}</strong>
+                <br />
+                <strong>
+                  Requested On: {formatDate(marketingTeamReviewDataDate)}
+                </strong>
+                <br />
+                <strong>Attachment: </strong>
+                <a
+                  href={`http://127.0.0.1:9000/uploads/rfq/${encodeURIComponent(
+                    marketingTeamReviewFileName
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-700 underline"
+                >
+                  {marketingTeamReviewFileName}
+                </a>
+              </div>
+            </div>
+          </div>
+        )}
+
         <DataTable
           value={allQuotesWithUniqueId}
           responsiveLayout="scroll"
@@ -1472,7 +1648,10 @@ const ViewQuote = () => {
             }}
           />
 
-          <Column header="Percent %" body={(row) => row.percentage || "-"} />
+          <Column
+            header="Percent %"
+            body={(row) => row.percentage + "%" || "-"}
+          />
           <Column
             header="Rank"
             body={(row) =>
@@ -1496,8 +1675,7 @@ const ViewQuote = () => {
               // Condition 2: HOD Approval Pending
               const isHodApprovalPending =
                 row.hodAcceptRequestDetails?.accepted_at &&
-                row.hodAcceptRequestDetails?.requested_airline ===
-                  row.airline_name;
+                row.hodAcceptRequestDetails?.attached_file;
 
               // Condition 3: HOD Approved
               const isHodApproved =
@@ -1525,25 +1703,25 @@ const ViewQuote = () => {
                 );
               }
 
-              if (
-                isHodApprovalPending &&
-                role === "user" &&
-                !isHodApproved &&
-                !isHodRejected
-              ) {
-                return (
-                  <span
-                    style={{
-                      color: "#e67e22",
-                      fontWeight: "bold",
-                      fontSize: "1.8rem",
-                    }}
-                    title="HOD Approval Pending"
-                  >
-                    ⏳
-                  </span>
-                );
-              }
+              // if (
+              //   isHodApprovalPending &&
+              //   role === "user" &&
+              //   !isHodApproved &&
+              //   !isHodRejected
+              // ) {
+              //   return (
+              //     <span
+              //       style={{
+              //         color: "#e67e22",
+              //         fontWeight: "bold",
+              //         fontSize: "1.8rem",
+              //       }}
+              //       title="HOD Approval Pending"
+              //     >
+              //       ⏳
+              //     </span>
+              //   );
+              // }
 
               if (isHodApproved) {
                 return (
@@ -1575,7 +1753,7 @@ const ViewQuote = () => {
                 );
               }
 
-              if (isHodApprovalPending && role === "hod") {
+              if (attachedFileName && role === "hod") {
                 return (
                   <div className="flex gap-2 justify-center">
                     <Button
@@ -1617,6 +1795,78 @@ const ViewQuote = () => {
         </DataTable>
       </div>
     );
+  };
+
+  const handleHodApprovalSubmit = async () => {
+    try {
+      const form = new FormData();
+      form.append("rfq_number", rfq.rfq_number);
+      form.append("action", "requested_hod_approval");
+      form.append("remarks", acceptRemarks || "");
+      form.append("hod_name", selectedHod?.name || "");
+      form.append("hod_email", selectedHod?.email || "");
+
+      if (attachment) {
+        form.append("attachment", attachment);
+      }
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("/quotesummary/update-rfq-status", form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      dispatch(
+        toastSuccess({ detail: "Requested for HOD Approval successfully!" })
+      );
+
+      setShowHodApprovalDialog(false);
+      setAttachment(null);
+      setAcceptRemarks("");
+      fetchSummary();
+    } catch (error) {
+      console.error("HOD Approval Error:", error);
+      dispatch(toastError({ detail: "Error sending approval request." }));
+    }
+  };
+
+  const handleShareToMarketingTeam = async () => {
+    try {
+      const form = new FormData();
+      form.append("rfq_number", rfq.rfq_number);
+      form.append("action", "shared_to_marketing_team");
+      form.append("remarks", marketingRemarks || "");
+      form.append("marketing_name", marketingHead?.name || "");
+      form.append("marketing_email", marketingHead?.email || "");
+
+      if (attachment) {
+        form.append("attachment", attachment);
+      }
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("/quotesummary/update-rfq-status", form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      dispatch(
+        toastSuccess({ detail: "Shared with Marketing Team successfully!" })
+      );
+
+      setShowShareToMarketTeamDialog(false);
+      setAttachment(null);
+      setMarketingRemarks("");
+      fetchSummary();
+    } catch (error) {
+      console.error("Marketing Team Share Error:", error);
+      dispatch(toastError({ detail: "Error sharing to marketing team." }));
+    }
   };
 
   return (
@@ -1693,32 +1943,45 @@ const ViewQuote = () => {
         )} */}
 
         <div className="mt-4 flex flex-wrap gap-3 justify-content-end">
+          {role === "user" && (
+            <Button
+              label="Share To Marketing Team"
+              icon="pi pi-download"
+              className="p-button-sm p-button-success"
+              onClick={() => setShowShareToMarketTeamDialog(true)}
+            />
+          )}
           {role !== "hod" && (
             <Button
               label="Send For HOD Approval"
               className="p-button-info p-button-sm"
               onClick={() => setShowHodApprovalDialog(true)}
-              disabled={selectedVendors.length === 0}
+              //disabled={selectedVendors.length === 0}
             />
           )}
 
           {/* {hodQuote && ( */}
           <div>
-            <Button
-              label="✅ Accept Quote"
-              className="p-button-success p-button-sm"
-              //onClick={() => handleAction("accept_l1", rfq.rfq_number)}
-              onClick={() => setShowAcceptDialog(true)}
-              disabled={selectedVendors.length === 0}
-            />
-            <Button
-              label="✏️ Negotiate"
-              className="p-button-warning p-button-sm"
-              //onClick={() => handleAction("negotiate", rfq.rfq_number)}
-              onClick={() => setShowNegotiateDialog(true)}
-              //onClick={() => setShowAcceptDialog(true)}
-              disabled={selectedVendors.length === 0}
-            />
+            {role === "hod" && (
+              <Button
+                label="✅ Accept Quote"
+                className="p-button-success p-button-sm"
+                //onClick={() => handleAction("accept_l1", rfq.rfq_number)}
+                onClick={() => setShowAcceptDialog(true)}
+                disabled={selectedVendors.length === 0}
+              />
+            )}
+
+            {role === "user" && (
+              <Button
+                label="✏️ Negotiate"
+                className="p-button-warning p-button-sm"
+                //onClick={() => handleAction("negotiate", rfq.rfq_number)}
+                onClick={() => setShowNegotiateDialog(true)}
+                //onClick={() => setShowAcceptDialog(true)}
+                disabled={selectedVendors.length === 0}
+              />
+            )}
           </div>
           {/* )} */}
 
@@ -1875,7 +2138,7 @@ const ViewQuote = () => {
           />
         </div>
 
-        <div className="mb-3">
+        {/* <div className="mb-3">
           <h5>Selected Vendors</h5>
           {selectedVendors.map((v) => (
             <div key={v.vendor_id} className="mb-2">
@@ -1883,6 +2146,17 @@ const ViewQuote = () => {
               <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
             </div>
           ))}
+        </div> */}
+
+        <div className="mb-3">
+          <label>
+            <strong>Attach File</strong>
+          </label>
+          <input
+            type="file"
+            className="p-inputtext w-full"
+            onChange={(e) => setAttachment(e.target.files[0])}
+          />
         </div>
 
         <div className="mb-3">
@@ -1900,26 +2174,7 @@ const ViewQuote = () => {
           <Button
             label="Request Approval"
             className="p-button-sm p-button-success"
-            onClick={async () => {
-              await postData("quotesummary/update-rfq-status", {
-                rfq_number: rfq.rfq_number,
-                action: "requested_hod_approval",
-                vendors: selectedVendors.map((v) => v.vendor_id),
-                requestedAirline: selectedVendors.map((v) => v.airline_name),
-                remarks: acceptRemarks,
-                hod_name: selectedHod?.name || "",
-                hod_email: selectedHod?.email || "",
-              });
-              dispatch(
-                toastSuccess({
-                  detail: "Requested for HOD Approval successfully!",
-                })
-              );
-              setShowHodApprovalDialog(false);
-              setSelectedVendors([]);
-              setAcceptRemarks("");
-              fetchSummary();
-            }}
+            onClick={handleHodApprovalSubmit}
           />
           <Button
             label="Cancel"
@@ -1928,6 +2183,77 @@ const ViewQuote = () => {
           />
         </div>
       </Dialog>
+
+      <Dialog
+        header="Share To Marketing Team"
+        visible={showShareToMarketTeamDialog}
+        onHide={() => setShowShareToMarketTeamDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          <label>
+            <strong>Select Marketing Team</strong>
+          </label>
+          <Dropdown
+            value={marketingHead}
+            options={marketingUsers?.map((user) => ({
+              label: `${user.name} (${user.email})`,
+              value: user,
+            }))}
+            onChange={(e) => setMarketingHead(e.value)}
+            placeholder="Select Marketing Team"
+            className="w-full"
+            optionLabel="label"
+            filter
+          />
+        </div>
+
+        {/* <div className="mb-3">
+          <h5>Selected Vendors</h5>
+          {selectedVendors.map((v) => (
+            <div key={v.vendor_id} className="mb-2">
+              <i className="pi pi-user mr-2" />
+              <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
+            </div>
+          ))}
+        </div> */}
+
+        <div className="mb-3">
+          <label>
+            <strong>Attach File</strong>
+          </label>
+          <input
+            type="file"
+            className="p-inputtext w-full"
+            onChange={(e) => setAttachment(e.target.files[0])}
+          />
+        </div>
+
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={marketingRemarks}
+            onChange={(e) => setMarketingRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Share Now"
+            className="p-button-sm p-button-success"
+            onClick={handleShareToMarketingTeam}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowShareToMarketTeamDialog(false)}
+          />
+        </div>
+      </Dialog>
+
       <Dialog
         header="Accept Quote"
         visible={showAcceptDialog}
@@ -2027,21 +2353,8 @@ const ViewQuote = () => {
             label="Send"
             className="p-button-sm p-button-success"
             onClick={async () => {
-              // await postData("quotesummary/update-rfq-status", {
-              //   rfq_number: rfq.rfq_number,
-              //   action: "accept_l1",
-              //   vendors: selectedVendors.map((v) => v.vendor_id),
-              //   acceptedAirline: selectedVendors.map((v) => v.airline_name),
-              //   remarks: acceptRemarks,
-              // });
               submitNegotiation();
-              dispatch(
-                toastSuccess({ detail: "Negotiated Quote successfully!" })
-              );
               setShowNegotiateDialog(false);
-              setSelectedVendors([]);
-              setNegotiationRemarks("");
-              fetchSummary();
             }}
           />
           <Button

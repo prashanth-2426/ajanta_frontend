@@ -266,6 +266,7 @@ const countryCurrencyMap = {
 // ];
 
 const currencyOptions = [
+  { label: "None", value: "" },
   { label: "AED - United Arab Emirates Dirham د.إ", value: "AED" },
   { label: "AS - Asia", value: "AS" },
   { label: "AF - Africa", value: "AF" },
@@ -784,7 +785,7 @@ const unitOptions = [
 // ];
 
 const CreateRfq = () => {
-  const { getData } = useApi();
+  const { postData, getData } = useApi();
   const usert = useSelector((state) => state.auth.user);
   //console.log("Current User:", usert);
   const { rfqNumber } = useParams();
@@ -1247,19 +1248,18 @@ const CreateRfq = () => {
 
           //console.log("formData value", formData);
 
-          const response = await fetch("/apis/rfqs", {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              //"Content-Type": "application/json",
-            },
-            body: formData,
-          });
+          try {
+            const result = await postData("rfqs", formData);
 
-          const result = await response.json();
-          //console.log("create rfq response", result);
-          dispatch(toastSuccess({ detail: "RFQ Created Successfully.." }));
-          navigate("/rfqs");
+            if (!result?.isSuccess && result?.msg) {
+              return dispatch(toastError({ detail: result.msg }));
+            }
+
+            dispatch(toastSuccess({ detail: "RFQ Created Successfully.." }));
+            navigate("/rfqs");
+          } catch (err) {
+            console.error("Error creating RFQ:", err);
+          }
         } catch (error) {
           //console.error("Error creating rfq:", error);
         }
@@ -1799,7 +1799,7 @@ const CreateRfq = () => {
                           //disabled={true} // Make read-only
                           filter
                           filterBy="label"
-                          //showClear
+                          showClear
                         />
                       )}
                     />
@@ -3192,7 +3192,7 @@ const CreateRfq = () => {
                     />
                   </div>
 
-                  <div className="col-12 md:col-2">
+                  {/* <div className="col-12 md:col-2">
                     <label className="mr-2">DAP</label>
                     <Controller
                       control={control}
@@ -3205,7 +3205,7 @@ const CreateRfq = () => {
                         />
                       )}
                     />
-                  </div>
+                  </div> */}
 
                   <div className="col-12 md:col-2">
                     <label className="mr-2">Others</label>

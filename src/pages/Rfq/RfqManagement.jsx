@@ -356,7 +356,34 @@ const RfqManagement = () => {
 
     const airlineQuotesForShipment = airlineData[shipmentIndex] || [];
 
-    //console.log("airlineQuotesForShipment details", airlineQuotesForShipment);
+    // ❌ If no airline rows added — block submit
+    if (airlineQuotesForShipment.length === 0) {
+      dispatch(
+        toastError({
+          detail:
+            "Please add at least one airline before submitting the quote.",
+        })
+      );
+      return; // Stop execution
+    }
+
+    // ❌ Validate each airline row (required fields)
+    const requiredFields = ["airline_name"];
+
+    for (let i = 0; i < airlineQuotesForShipment.length; i++) {
+      const airline = airlineQuotesForShipment[i];
+
+      for (let field of requiredFields) {
+        if (!airline[field] || airline[field] === "") {
+          dispatch(
+            toastError({
+              detail: `Please fill Airline Details`,
+            })
+          );
+          return; // Stop execution
+        }
+      }
+    }
 
     const payload = {
       rfq_id: rfqId,
@@ -372,33 +399,32 @@ const RfqManagement = () => {
     };
 
     //console.log("payload data", payload);
-
     try {
-      const token = localStorage.getItem("USERTOKEN");
-      const response = await fetch("/apis/quotes", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+      const result = await postData("quotes", payload);
 
-      const result = await response.json();
-      //console.log("Submit Quote  response", result);
-      if (!result.isSuccess) {
+      console.log("Submit Quote response", result);
+
+      if (!result?.isSuccess) {
         dispatch(
           toastError({
-            detail: result.message,
+            detail: result?.msg || "Something went wrong",
           })
         );
       } else {
         dispatch(
-          toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
+          toastSuccess({
+            detail: "Auction Quote Submitted Successfully..",
+          })
         );
       }
     } catch (error) {
       console.error("Error submitting auction quote:", error);
+
+      dispatch(
+        toastError({
+          detail: "Error submitting auction quote",
+        })
+      );
     }
   };
 
@@ -424,19 +450,29 @@ const RfqManagement = () => {
 
     //console.log("payload data", payload);
 
-    try {
-      const token = localStorage.getItem("USERTOKEN");
-      const response = await fetch("/apis/quotes", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+    // try {
+    //   const token = localStorage.getItem("USERTOKEN");
+    //   const response = await fetch("/apis/quotes", {
+    //     method: "POST",
+    //     headers: {
+    //       Authorization: `Bearer ${token}`,
+    //       "Content-Type": "application/json",
+    //     },
+    //     body: JSON.stringify(payload),
+    //   });
 
-      const result = await response.json();
-      //console.log("Submit Quote  response", result);
+    //   const result = await response.json();
+    //   //console.log("Submit Quote  response", result);
+    //   dispatch(
+    //     toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
+    //   );
+    // } catch (error) {
+    //   console.error("Error submitting auction quote:", error);
+    // }
+    try {
+      const result = await postData("quotes", payload);
+      console.log("Submit Quote  response", result);
+
       dispatch(
         toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
       );
@@ -1902,7 +1938,7 @@ const RfqManagement = () => {
                       <strong>Temp:</strong> {shipment.Temp}°C
                     </span>
                     <span className="p-col-4 pl-4">
-                      <strong>Country:</strong> {shipment.Country}
+                      <strong>Country:</strong> {rowData.country}
                     </span>
                     <span className="p-col-4 pl-4">
                       <strong>Factory:</strong> {shipment.Factory}
@@ -1929,7 +1965,7 @@ const RfqManagement = () => {
                     </span>
 
                     <span className="p-col-4 pl-4">
-                      <strong>Incoterm:</strong> {shipment.Incoterm}
+                      <strong>Incoterm:</strong> {rowData.incoterm}
                     </span>
                     <span className="p-col-4 pl-4">
                       <strong>Notes:</strong> {shipment.Notes}
@@ -2040,8 +2076,7 @@ const RfqManagement = () => {
                                 filter: "drop-shadow(1px 1px 2px #999)",
                               }}
                             >
-                              🚫{quoteAcceptedData.accepted_airline}
-                              {user.id}
+                              🚫
                             </span>
 
                             <div>
@@ -2146,7 +2181,11 @@ const RfqManagement = () => {
                         icon="pi pi-send"
                         label="Submit Quote"
                         className="p-button-success mt-3"
-                        disabled={rowData.status == "accepted"}
+                        disabled={
+                          rowData.status === "accepted" ||
+                          !airlineData[shipmentIndex] ||
+                          airlineData[shipmentIndex].length === 0
+                        }
                         onClick={() =>
                           handlePackageSubmit(shipmentIndex, rowData)
                         }
@@ -2318,67 +2357,76 @@ const RfqManagement = () => {
                         />
                       </div>
 
-                      <div className="field col-12 md:col-2">
-                        <label>Currency</label>
-                        <Dropdown
-                          value={row.currency || "INR"}
-                          options={["INR", "USD", "EUR"]}
-                          onChange={(e) =>
-                            handleCurrencyChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "currency",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
+                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
+                        <div className="field col-12 md:col-2">
+                          <label>Currency</label>
+                          <Dropdown
+                            value={row.currency || "INR"}
+                            options={["INR", "USD", "EUR"]}
+                            onChange={(e) =>
+                              handleCurrencyChange(
+                                shipment,
+                                shipmentIndex,
+                                idx,
+                                "currency",
+                                e.value
+                              )
+                            }
+                          />
+                        </div>
+                      )}
 
-                      <div className="field col-12 md:col-2">
-                        <label>Exchange Rate</label>
-                        <InputNumber
-                          value={row.exchangeRate || 0}
-                          mode="decimal"
-                          minFractionDigits={3}
-                          onValueChange={(e) =>
-                            handleExchangeRateChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "exchangeRate",
-                              e.value
-                            )
-                          }
-                        />
-                        <span>{fetchingRateMsg}</span>
-                      </div>
+                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
+                        <div className="field col-12 md:col-2">
+                          <label>Exchange Rate</label>
+                          <InputNumber
+                            value={row.exchangeRate || 0}
+                            mode="decimal"
+                            minFractionDigits={3}
+                            onValueChange={(e) =>
+                              handleExchangeRateChange(
+                                shipment,
+                                shipmentIndex,
+                                idx,
+                                "exchangeRate",
+                                e.value
+                              )
+                            }
+                          />
+                          <span>{fetchingRateMsg}</span>
+                        </div>
+                      )}
 
-                      <div className="field col-12 md:col-4">
-                        <label>DAP/DDP</label>
-                        <InputNumber
-                          value={row.dap_ddp_charges || 0}
-                          onValueChange={(e) =>
-                            handleDapDdpChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "dap_ddp_charges",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
+                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
+                        <div className="field col-12 md:col-4">
+                          <label>DAP/DDP {rowData.dapCurrency}</label>
 
-                      <div className="field col-12 md:col-4">
-                        <label>
-                          <b>Total DAP/DPP Charge</b>
-                        </label>
-                        <InputNumber
-                          value={row.totaldapdppcharge || 0}
-                          readOnly
-                        />
-                      </div>
+                          <InputNumber
+                            value={row.dap_ddp_charges || 0}
+                            onValueChange={(e) =>
+                              handleDapDdpChange(
+                                shipment,
+                                shipmentIndex,
+                                idx,
+                                "dap_ddp_charges",
+                                e.value
+                              )
+                            }
+                          />
+                        </div>
+                      )}
+
+                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
+                        <div className="field col-12 md:col-4">
+                          <label>
+                            <b>Total DAP/DPP Charge</b>
+                          </label>
+                          <InputNumber
+                            value={row.totaldapdppcharge || 0}
+                            readOnly
+                          />
+                        </div>
+                      )}
 
                       <div className="field col-12 md:col-4 ml-auto">
                         <label>
@@ -2704,6 +2752,7 @@ const RfqManagement = () => {
         "requested_hod_approval",
         "hod_rejected",
         "hod_approved",
+        "shared_to_marketing_team",
       ].includes(rowData.status) && (
         <Button
           label="View Quote"

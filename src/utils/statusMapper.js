@@ -10,6 +10,7 @@ export const getVendorStatusFromBuyerStatus = (buyerStatus = "") => {
     accepted: "QUOTE FINALIZED",
     rejected: "REJECTED",
     auctioned: "AUCTION INVITED",
+    requested_hod_approval: "Under Review",
   };
 
   const normalized = buyerStatus?.toLowerCase();
