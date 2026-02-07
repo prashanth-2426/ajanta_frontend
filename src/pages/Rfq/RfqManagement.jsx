@@ -16,6 +16,10 @@ import { Calendar } from "primereact/calendar";
 import { InputTextarea } from "primereact/inputtextarea";
 import { getRates } from "../../utils/exchangeRates";
 import { set } from "react-hook-form";
+import VendorBiddingPanel from "./VendorBiddingPanel";
+import { Dialog } from "primereact/dialog";
+import { v4 as uuidv4 } from "uuid";
+import { setAuctions } from "../../store/auctionSlice";
 
 const RfqManagement = () => {
   const { postData, getData } = useApi();
@@ -62,6 +66,10 @@ const RfqManagement = () => {
   const [deliveryDetails, setDeliveryDetails] = useState({});
   const [invoiceFiles, setInvoiceFiles] = useState({});
 
+  const [showVendorAuctionDialog, setShowVendorAuctionDialog] = useState(false);
+  const [userId, setUserId] = useState(uuidv4().slice(0, 8));
+  const [auctionData, setAuctionData] = useState(null);
+
   const toggleMoreInfo = (shipmentIndex, rowIndex) => {
     setExpandedModalRows((prev) => ({
       ...prev,
@@ -86,6 +94,22 @@ const RfqManagement = () => {
         : `rfqs`;
       //console.log("Fetching RFQs from URL:", url);
       const data = await getData(url);
+
+      // RFQs that contain auction_data with an id
+      const rfqsWithAuction = data.filter(
+        (rfq) => rfq.auction_data && rfq.auction_data.id,
+      );
+
+      // Extract only auction_data (normalized)
+      const auctions = rfqsWithAuction.map((rfq) => ({
+        ...rfq.auction_data,
+        rfq_number: rfq.rfq_number,
+        title: rfq.title,
+      }));
+
+      dispatch(setAuctions(auctions));
+      console.log("Fetched Auctions:", auctions);
+
       //console.log("Fetched RFQs:", data);
       const enriched = data.map((r) => ({
         ...r,
@@ -98,7 +122,7 @@ const RfqManagement = () => {
           (rfq) =>
             rfq.status === "requested_hod_approval" ||
             rfq.status === "hod_approved" ||
-            rfq.status === "hod_rejected"
+            rfq.status === "hod_rejected",
         );
         setRfqs(result);
       } else {
@@ -109,10 +133,18 @@ const RfqManagement = () => {
     }
   };
 
+  const fetchAuctionDataById = async (rfqNumber) => {
+    try {
+      const response = await getData(`rfqs/${rfqNumber}`, {});
+      setAuctionData(response?.rfqRecord?.data?.auction_data || null);
+    } catch (error) {}
+  };
+
   const handleRowExpand = (e) => {
     const key = e.data.row_id;
     setExpandedRows({ [key]: true });
     fetchQuotesById(e.data.rfq_number);
+    fetchAuctionDataById(e.data.rfq_number);
   };
 
   const handleRowCollapse = (e) => {
@@ -313,7 +345,7 @@ const RfqManagement = () => {
 
     if (!delivery?.deliveryDate || !file) {
       dispatch(
-        toastError({ detail: "Please provide delivery date and invoice." })
+        toastError({ detail: "Please provide delivery date and invoice." }),
       );
       return;
     }
@@ -339,7 +371,7 @@ const RfqManagement = () => {
       const result = await response.json();
       if (result.isSuccess) {
         dispatch(
-          toastSuccess({ detail: "Delivery details submitted successfully!" })
+          toastSuccess({ detail: "Delivery details submitted successfully!" }),
         );
       } else {
         dispatch(toastError({ detail: result.msg || "Submission failed" }));
@@ -362,7 +394,7 @@ const RfqManagement = () => {
         toastError({
           detail:
             "Please add at least one airline before submitting the quote.",
-        })
+        }),
       );
       return; // Stop execution
     }
@@ -378,7 +410,7 @@ const RfqManagement = () => {
           dispatch(
             toastError({
               detail: `Please fill Airline Details`,
-            })
+            }),
           );
           return; // Stop execution
         }
@@ -408,13 +440,13 @@ const RfqManagement = () => {
         dispatch(
           toastError({
             detail: result?.msg || "Something went wrong",
-          })
+          }),
         );
       } else {
         dispatch(
           toastSuccess({
             detail: "Auction Quote Submitted Successfully..",
-          })
+          }),
         );
       }
     } catch (error) {
@@ -423,7 +455,7 @@ const RfqManagement = () => {
       dispatch(
         toastError({
           detail: "Error submitting auction quote",
-        })
+        }),
       );
     }
   };
@@ -474,7 +506,7 @@ const RfqManagement = () => {
       console.log("Submit Quote  response", result);
 
       dispatch(
-        toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
+        toastSuccess({ detail: "Auction Quote Submitted Successfully.." }),
       );
     } catch (error) {
       console.error("Error submitting auction quote:", error);
@@ -502,7 +534,7 @@ const RfqManagement = () => {
     const sorted = [...quotes].sort((a, b) => a.quoted_price - b.quoted_price);
     //console.log("sorted value", sorted);
     const rank = sorted.findIndex(
-      (q) => String(q.vendor_id) === String(vendorId)
+      (q) => String(q.vendor_id) === String(vendorId),
     );
 
     //console.log("rank value", rank);
@@ -583,7 +615,7 @@ const RfqManagement = () => {
     shipmentIndex,
     rowIndex,
     field,
-    value
+    value,
   ) => {
     setShiplineData((prev) => {
       const updated = [...(prev[shipmentIndex] || [])];
@@ -657,7 +689,7 @@ const RfqManagement = () => {
     shipmentIndex,
     rowIndex,
     field,
-    value
+    value,
   ) => {
     const toNumber = (val) => parseFloat(val) || 0;
     const prevData = [...(airlineData[shipmentIndex] || [])];
@@ -686,7 +718,7 @@ const RfqManagement = () => {
     shipmentIndex,
     rowIndex,
     field,
-    newRate
+    newRate,
   ) => {
     setExchangeRate(newRate);
 
@@ -710,7 +742,7 @@ const RfqManagement = () => {
             totaldapdppcharge: convertedDapDdp,
             grandTotalValue,
           };
-        }
+        },
       );
     });
 
@@ -731,7 +763,7 @@ const RfqManagement = () => {
     shipmentIndex,
     rowIndex,
     field,
-    value
+    value,
   ) => {
     const toNumber = (val) => parseFloat(val) || 0;
     const prevData = [...(airlineData[shipmentIndex] || [])];
@@ -773,7 +805,7 @@ const RfqManagement = () => {
     shipmentIndex,
     rowIndex,
     field,
-    value
+    value,
   ) => {
     const toNumber = (val) => parseFloat(val) || 0;
     const prevData = [...(airlineData[shipmentIndex] || [])];
@@ -782,12 +814,12 @@ const RfqManagement = () => {
     const gw = toNumber(
       field === "gross_weight"
         ? value
-        : shipment.package_summary?.totalGrossWeight
+        : shipment.package_summary?.totalGrossWeight,
     );
     const vw = toNumber(
       field === "volume_weight"
         ? value
-        : shipment.package_summary?.totalVolumetricWeight
+        : shipment.package_summary?.totalVolumetricWeight,
     );
     //row.chargeable_weight = Math.max(gw, vw);
 
@@ -885,7 +917,7 @@ const RfqManagement = () => {
                         //console.log("checking quotes value::", quotes);
                         const auctionType = rowData.pickup_by_ff?.toLowerCase();
                         const targetPrice = parseFloat(
-                          itemRow.target_price || 0
+                          itemRow.target_price || 0,
                         );
 
                         if (
@@ -895,7 +927,7 @@ const RfqManagement = () => {
                           dispatch(
                             toastError({
                               detail: `Fixed price auction — you cannot change the quote.`,
-                            })
+                            }),
                           );
                           return;
                         }
@@ -907,20 +939,20 @@ const RfqManagement = () => {
                           dispatch(
                             toastError({
                               detail: `Variable price auction — quote must be less than ₹${targetPrice}.`,
-                            })
+                            }),
                           );
                           return;
                         }
 
                         const rfqIndex = rfqs.findIndex(
-                          (r) => r.rfq_number === rowData.rfq_number
+                          (r) => r.rfq_number === rowData.rfq_number,
                         );
                         if (rfqIndex === -1) return;
 
                         const updatedRfqs = [...rfqs];
                         const rfq = updatedRfqs[rfqIndex];
                         const itemIndex = rfq.rfq_items.findIndex(
-                          (i) => i.item_id === itemRow.item_id
+                          (i) => i.item_id === itemRow.item_id,
                         );
                         //console.log("value of item vendor is two::", value);
                         if (itemIndex !== -1) {
@@ -951,7 +983,7 @@ const RfqManagement = () => {
                     const itemBids = competingQuotes[itemKey] || [];
 
                     const sorted = [...itemBids].sort(
-                      (a, b) => a.quoted_price - b.quoted_price
+                      (a, b) => a.quoted_price - b.quoted_price,
                     );
 
                     return (
@@ -977,7 +1009,7 @@ const RfqManagement = () => {
                       rowData.rfq_number,
                       itemRow.item_id,
                       user.id,
-                      competingQuotes
+                      competingQuotes,
                     );
                     return <span>{rank}</span>;
                   }}
@@ -987,7 +1019,7 @@ const RfqManagement = () => {
                 body={() => (
                   <span>
                     {getVendorStatusFromBuyerStatus(
-                      rowData.status
+                      rowData.status,
                     ).toUpperCase() || "-"}
                   </span>
                 )}
@@ -1156,14 +1188,14 @@ const RfqManagement = () => {
                         const value = parseFloat(e.target.value);
                         const updatedRfqs = [...rfqs];
                         const rfqIndex = updatedRfqs.findIndex(
-                          (r) => r.rfq_number === rowData.rfq_number
+                          (r) => r.rfq_number === rowData.rfq_number,
                         );
                         if (rfqIndex === -1) return;
 
                         const entryIndex = updatedRfqs[
                           rfqIndex
                         ].road_transport_summary.entries.findIndex(
-                          (_, idx) => idx === row.row_id
+                          (_, idx) => idx === row.row_id,
                         );
                         if (entryIndex !== -1) {
                           updatedRfqs[rfqIndex].road_transport_summary.entries[
@@ -1300,7 +1332,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "sealine_name",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1316,7 +1348,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "sea_port",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1333,7 +1365,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "freight_per_container",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1350,7 +1382,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "temperature",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1367,7 +1399,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "dap_ddp",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1384,7 +1416,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "transit_time",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1401,7 +1433,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "freight_per_cbm",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1418,7 +1450,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "origin_charges",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1436,7 +1468,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "destination_charges",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1453,7 +1485,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "remarks",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1470,7 +1502,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "rate_validity",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1487,7 +1519,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "all_in_freight",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1505,7 +1537,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "thc",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1523,7 +1555,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "blFee",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1541,7 +1573,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "ensAcdFee",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1559,7 +1591,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "other_charges",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1577,7 +1609,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "haulage",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1595,7 +1627,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "customs_clearance",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1613,7 +1645,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "isf",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1631,7 +1663,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "dthc",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1649,7 +1681,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "doDdc",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1667,7 +1699,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "hmf",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1685,7 +1717,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "mpe",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1703,7 +1735,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "prePull",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1721,7 +1753,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "other_destination_charges",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1739,7 +1771,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "origin_detention",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1757,7 +1789,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "destination_detention",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1775,7 +1807,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "destination_combine",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1793,7 +1825,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "shipping_line",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1811,7 +1843,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "transit_time",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1829,7 +1861,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "routing",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1847,7 +1879,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "validity",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1865,7 +1897,7 @@ const RfqManagement = () => {
                             shipmentIndex,
                             idx,
                             "total_charges",
-                            e.target.value
+                            e.target.value,
                           )
                         }
                       />
@@ -1915,7 +1947,7 @@ const RfqManagement = () => {
                             handlePackageSubmit(
                               shipmentIndex,
                               rowIndex,
-                              rowData
+                              rowData,
                             )
                           }
                         />
@@ -2033,7 +2065,7 @@ const RfqManagement = () => {
                               Accepted on:{" "}
                               {quoteAcceptedData.accepted_at
                                 ? new Date(
-                                    quoteAcceptedData.accepted_at
+                                    quoteAcceptedData.accepted_at,
                                   ).toLocaleString()
                                 : "N/A"}
                             </div>
@@ -2166,7 +2198,7 @@ const RfqManagement = () => {
                                   <strong>Date:</strong>{" "}
                                   {item.requested_at
                                     ? new Date(
-                                        item.requested_at
+                                        item.requested_at,
                                       ).toLocaleString()
                                     : "N/A"}
                                 </p>
@@ -2177,19 +2209,28 @@ const RfqManagement = () => {
                       )}
 
                     <div className="p-col-12 text-right mt-3">
-                      <Button
+                      {/* <Button
                         icon="pi pi-send"
-                        label="Submit Quote"
-                        className="p-button-success mt-3"
-                        disabled={
-                          rowData.status === "accepted" ||
-                          !airlineData[shipmentIndex] ||
-                          airlineData[shipmentIndex].length === 0
-                        }
-                        onClick={() =>
-                          handlePackageSubmit(shipmentIndex, rowData)
-                        }
-                      />
+                        label="Participate in Auction"
+                        className="p-button-success mt-3 mr-4"
+                        onClick={() => setShowVendorAuctionDialog(true)}
+                      /> */}
+                      {!auctionData && (
+                        <Button
+                          icon="pi pi-send"
+                          label="Submit Quote"
+                          className="p-button-success mt-3 mr-4"
+                          disabled={
+                            rowData.status === "accepted" ||
+                            !airlineData[shipmentIndex] ||
+                            airlineData[shipmentIndex].length === 0
+                          }
+                          onClick={() =>
+                            handlePackageSubmit(shipmentIndex, rowData)
+                          }
+                        />
+                      )}
+
                       <Button
                         label="Add Airline"
                         icon="pi pi-plus"
@@ -2210,233 +2251,268 @@ const RfqManagement = () => {
 
                     {/* Basic Details */}
                     <div className="grid formgrid p-fluid">
-                      <div className="field col-12 md:col-2">
-                        <label>Airline</label>
-                        <InputText
-                          value={row.airline_name}
-                          onChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "airline_name",
-                              e.target.value
-                            )
-                          }
-                        />
+                      <div
+                        className={`col-12 md:col-${
+                          !auctionData?.auction_number ? 12 : 8
+                        }`}
+                      >
+                        <div className="grid formgrid">
+                          <div className="field col-12 md:col-4">
+                            <label>Airline</label>
+                            <InputText
+                              value={row.airline_name}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "airline_name",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>Airport</label>
+                            <InputText
+                              value={row.airport}
+                              onChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "airport",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>Chargeable Weight (KG)</label>
+                            <InputNumber
+                              value={row.chargeable_weight || 0}
+                              onValueChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "chargeable_weight",
+                                  e.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>Freight (Rs/KG)</label>
+                            <InputNumber
+                              value={row.base_rate || 0}
+                              onValueChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "base_rate",
+                                  e.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>AMS (CURRENCY-INR)</label>
+                            <InputNumber
+                              value={row.ams || 0}
+                              onValueChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "ams",
+                                  e.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>PAC (CURRENCY-INR)</label>
+                            <InputNumber
+                              value={row.pac || 0}
+                              onValueChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "pac",
+                                  e.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>AWB (CURRENCY-INR)</label>
+                            <InputNumber
+                              value={row.awb || 0}
+                              onValueChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "awb",
+                                  e.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>Other Charges (CURRENCY-INR)</label>
+                            <InputNumber
+                              value={row.other_charges || 0}
+                              onValueChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "other_charges",
+                                  e.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          <div className="field col-12 md:col-4">
+                            <label>
+                              <b>Total</b>
+                            </label>
+                            <InputNumber
+                              value={row.total_charges || 0}
+                              readOnly
+                              onChange={(e) =>
+                                handleInputChange(
+                                  shipment,
+                                  shipmentIndex,
+                                  idx,
+                                  "total_charges",
+                                  e.target.value,
+                                )
+                              }
+                            />
+                          </div>
+
+                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                            '""' && (
+                            <div className="field col-12 md:col-4">
+                              <label>Currency</label>
+                              <Dropdown
+                                value={row.currency || "INR"}
+                                options={["INR", "USD", "EUR"]}
+                                onChange={(e) =>
+                                  handleCurrencyChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "currency",
+                                    e.value,
+                                  )
+                                }
+                              />
+                            </div>
+                          )}
+
+                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                            '""' && (
+                            <div className="field col-12 md:col-2">
+                              <label>Exchange Rate</label>
+                              <InputNumber
+                                value={row.exchangeRate || 0}
+                                mode="decimal"
+                                minFractionDigits={3}
+                                onValueChange={(e) =>
+                                  handleExchangeRateChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "exchangeRate",
+                                    e.value,
+                                  )
+                                }
+                              />
+                              <span>{fetchingRateMsg}</span>
+                            </div>
+                          )}
+
+                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                            '""' && (
+                            <div className="field col-12 md:col-2">
+                              <label>DAP/DDP {rowData.dapCurrency}</label>
+
+                              <InputNumber
+                                value={row.dap_ddp_charges || 0}
+                                onValueChange={(e) =>
+                                  handleDapDdpChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "dap_ddp_charges",
+                                    e.value,
+                                  )
+                                }
+                              />
+                            </div>
+                          )}
+
+                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                            '""' && (
+                            <div className="field col-12 md:col-4">
+                              <label>
+                                <b>Total DAP/DPP Charge</b>
+                              </label>
+                              <InputNumber
+                                value={row.totaldapdppcharge || 0}
+                                readOnly
+                              />
+                            </div>
+                          )}
+
+                          <div className="field col-12 md:col-4">
+                            <label>
+                              <b>Grand Total</b>
+                            </label>
+                            <InputNumber
+                              value={row.grandTotalValue || 0}
+                              readOnly
+                            />
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="field col-12 md:col-2">
-                        <label>Airport</label>
-                        <InputText
-                          value={row.airport}
-                          onChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "airport",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-2">
-                        <label>Chargeable Weight (KG)</label>
-                        <InputNumber
-                          value={row.chargeable_weight || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "chargeable_weight",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-2">
-                        <label>Freight (Rs/KG)</label>
-                        <InputNumber
-                          value={row.base_rate || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "base_rate",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-2">
-                        <label>AMS (CURRENCY-INR)</label>
-                        <InputNumber
-                          value={row.ams || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "ams",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-2">
-                        <label>PAC (CURRENCY-INR)</label>
-                        <InputNumber
-                          value={row.pac || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "pac",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>AWB (CURRENCY-INR)</label>
-                        <InputNumber
-                          value={row.awb || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "awb",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>Other Charges (CURRENCY-INR)</label>
-                        <InputNumber
-                          value={row.other_charges || 0}
-                          onValueChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "other_charges",
-                              e.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      <div className="field col-12 md:col-4">
-                        <label>
-                          <b>Total</b>
-                        </label>
-                        <InputNumber
-                          value={row.total_charges || 0}
-                          readOnly
-                          onChange={(e) =>
-                            handleInputChange(
-                              shipment,
-                              shipmentIndex,
-                              idx,
-                              "total_charges",
-                              e.target.value
-                            )
-                          }
-                        />
-                      </div>
-
-                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
-                        <div className="field col-12 md:col-2">
-                          <label>Currency</label>
-                          <Dropdown
-                            value={row.currency || "INR"}
-                            options={["INR", "USD", "EUR"]}
-                            onChange={(e) =>
-                              handleCurrencyChange(
-                                shipment,
-                                shipmentIndex,
-                                idx,
-                                "currency",
-                                e.value
-                              )
-                            }
-                          />
+                      {auctionData?.auction_number && (
+                        <div className="col-12 md:col-4">
+                          <div
+                            style={{
+                              border: "1px dashed #cbd5e1",
+                              borderRadius: "10px",
+                              padding: "0rem",
+                              height: "100%",
+                              background: "#f8fafc",
+                            }}
+                          >
+                            <VendorBiddingPanel
+                              userId={userId}
+                              bidValue={row.grandTotalValue}
+                              auctionData={auctionData}
+                              shipmentIndex={shipmentIndex} // 👈 pass index
+                              rowData={rowData} // 👈 pass data
+                              onSubmitBid={handlePackageSubmit} // 👈 pass function
+                            />
+                          </div>
                         </div>
                       )}
-
-                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
-                        <div className="field col-12 md:col-2">
-                          <label>Exchange Rate</label>
-                          <InputNumber
-                            value={row.exchangeRate || 0}
-                            mode="decimal"
-                            minFractionDigits={3}
-                            onValueChange={(e) =>
-                              handleExchangeRateChange(
-                                shipment,
-                                shipmentIndex,
-                                idx,
-                                "exchangeRate",
-                                e.value
-                              )
-                            }
-                          />
-                          <span>{fetchingRateMsg}</span>
-                        </div>
-                      )}
-
-                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
-                        <div className="field col-12 md:col-4">
-                          <label>DAP/DDP {rowData.dapCurrency}</label>
-
-                          <InputNumber
-                            value={row.dap_ddp_charges || 0}
-                            onValueChange={(e) =>
-                              handleDapDdpChange(
-                                shipment,
-                                shipmentIndex,
-                                idx,
-                                "dap_ddp_charges",
-                                e.value
-                              )
-                            }
-                          />
-                        </div>
-                      )}
-
-                      {JSON.stringify(rowData?.dapCurrency ?? "") !== '""' && (
-                        <div className="field col-12 md:col-4">
-                          <label>
-                            <b>Total DAP/DPP Charge</b>
-                          </label>
-                          <InputNumber
-                            value={row.totaldapdppcharge || 0}
-                            readOnly
-                          />
-                        </div>
-                      )}
-
-                      <div className="field col-12 md:col-4 ml-auto">
-                        <label>
-                          <b>Grand Total</b>
-                        </label>
-                        <InputNumber
-                          value={row.grandTotalValue || 0}
-                          readOnly
-                        />
-                      </div>
                     </div>
 
                     {/* More Info Section - Always Visible */}
@@ -2451,7 +2527,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "route1",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                         />
@@ -2471,7 +2547,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "flight_schedule1",
-                              e.value
+                              e.value,
                             )
                           }
                           showIcon
@@ -2490,7 +2566,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "route2",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                         />
@@ -2510,7 +2586,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "flight_schedule2",
-                              e.value
+                              e.value,
                             )
                           }
                           showIcon
@@ -2529,7 +2605,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "route3",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                         />
@@ -2549,7 +2625,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "flight_schedule3",
-                              e.value
+                              e.value,
                             )
                           }
                           showIcon
@@ -2570,7 +2646,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "pickup_date",
-                              e.value
+                              e.value,
                             )
                           }
                           showIcon
@@ -2593,7 +2669,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "clearance_date",
-                              e.value
+                              e.value,
                             )
                           }
                           showIcon
@@ -2611,7 +2687,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "transit_days",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                         />
@@ -2631,7 +2707,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "freight_validity",
-                              e.value
+                              e.value,
                             )
                           }
                           showIcon
@@ -2650,7 +2726,7 @@ const RfqManagement = () => {
                               shipmentIndex,
                               idx,
                               "remarks",
-                              e.target.value
+                              e.target.value,
                             )
                           }
                           rows={2}
@@ -2697,7 +2773,7 @@ const RfqManagement = () => {
                             handlePackageSubmit(
                               shipmentIndex,
                               rowIndex,
-                              rowData
+                              rowData,
                             )
                           }
                         />
@@ -2724,7 +2800,7 @@ const RfqManagement = () => {
           navigate(
             rowData.auction_number
               ? `/rfq/view/${rowData.rfq_number}?source=auction`
-              : `/rfq/view/${rowData.rfq_number}`
+              : `/rfq/view/${rowData.rfq_number}`,
           )
         }
       />
@@ -2744,7 +2820,9 @@ const RfqManagement = () => {
         />
       )}
 
-      {[
+      {/* {[
+        "submitted",
+        "auctioned",
         "received_quotes",
         "evaluated",
         "negotiation",
@@ -2753,14 +2831,14 @@ const RfqManagement = () => {
         "hod_rejected",
         "hod_approved",
         "shared_to_marketing_team",
-      ].includes(rowData.status) && (
-        <Button
-          label="View Quote"
-          icon="pi pi-list"
-          className="p-button-sm p-button-secondary"
-          onClick={() => navigate(`/quote-summary/${rowData.rfq_number}`)}
-        />
-      )}
+      ].includes(rowData.status || rowData.form_type) && ( */}
+      <Button
+        label="View Details"
+        icon="pi pi-list"
+        className="p-button-sm p-button-secondary"
+        onClick={() => navigate(`/quote-summary/${rowData.rfq_number}`)}
+      />
+      {/* )} */}
     </div>
   );
 
@@ -2773,7 +2851,7 @@ const RfqManagement = () => {
       fetchRfqs();
     } else {
       dispatch(
-        toastError({ detail: response?.msg || "Failed to delete RFQ." })
+        toastError({ detail: response?.msg || "Failed to delete RFQ." }),
       );
     }
   };
@@ -2856,7 +2934,7 @@ const RfqManagement = () => {
           vendor_id: vendorId,
           status: "submitted",
         };
-      }
+      },
     );
 
     const payload = {
@@ -3038,12 +3116,12 @@ const RfqManagement = () => {
               rowData.status
                 ? getVendorStatusFromBuyerStatus(rowData.status).toUpperCase()
                 : getVendorStatusFromBuyerStatus(
-                    rowData.form_type
-                  )?.toUpperCase()
-                ? getVendorStatusFromBuyerStatus(
-                    rowData.form_type
-                  ).toUpperCase()
-                : ""
+                      rowData.form_type,
+                    )?.toUpperCase()
+                  ? getVendorStatusFromBuyerStatus(
+                      rowData.form_type,
+                    ).toUpperCase()
+                  : ""
             }
             header="Status"
           />
@@ -3057,7 +3135,7 @@ const RfqManagement = () => {
                   navigate(
                     rowData.auction_number
                       ? `/rfq/view/${rowData.rfq_number}?source=auction`
-                      : `/rfq/view/${rowData.rfq_number}`
+                      : `/rfq/view/${rowData.rfq_number}`,
                   )
                 }
               />

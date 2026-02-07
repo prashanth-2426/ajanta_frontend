@@ -27,6 +27,7 @@ import { toastError, toastSuccess } from "../../store/toastSlice";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApi } from "../../utils/requests";
 import { LayoutContext } from "../../store/layoutContext";
+import { BASE_URL, API_URL } from "../../constants";
 
 const eximModes = [
   { label: "Export", value: "export" },
@@ -858,7 +859,7 @@ const CreateRfq = () => {
     setSelectedCharges((prev) =>
       prev.includes(label)
         ? prev.filter((item) => item !== label)
-        : [...prev, label]
+        : [...prev, label],
     );
   };
 
@@ -866,7 +867,7 @@ const CreateRfq = () => {
     setSelectedAdditionalBidCharges((prev) =>
       prev.includes(label)
         ? prev.filter((item) => item !== label)
-        : [...prev, label]
+        : [...prev, label],
     );
   };
 
@@ -965,7 +966,7 @@ const CreateRfq = () => {
             (r) =>
               r.rfq_number === rfqNumber &&
               r.auction_number &&
-              r.auction_number.trim() !== ""
+              r.auction_number.trim() !== "",
           ) || rfqs.find((r) => r.rfq_number === rfqNumber);
         if (matched) {
           Object.entries(matched).forEach(([key, value]) => {
@@ -1007,7 +1008,7 @@ const CreateRfq = () => {
           setFiles(
             matched.attachment_filenames.map((fileName) => ({
               name: fileName,
-            }))
+            })),
           );
         }
 
@@ -1137,7 +1138,7 @@ const CreateRfq = () => {
                 item.item_name?.trim() ||
                 Number(item.quantity) > 0 ||
                 item.unit?.trim() ||
-                Number(item.target_price) > 0
+                Number(item.target_price) > 0,
             )
               ? data.rfq_items
               : undefined,
@@ -1183,7 +1184,7 @@ const CreateRfq = () => {
                   factory_location: Array.isArray(data.factory_location)
                     ? data.factory_location.map((loc) => {
                         const match = factoryOptions.find(
-                          (f) => f.value === loc
+                          (f) => f.value === loc,
                         );
                         return match
                           ? { city: loc, address: match.address }
@@ -1191,7 +1192,7 @@ const CreateRfq = () => {
                       })
                     : (() => {
                         const match = factoryOptions.find(
-                          (f) => f.value === data.factory_location
+                          (f) => f.value === data.factory_location,
                         );
                         return match
                           ? {
@@ -1311,7 +1312,7 @@ const CreateRfq = () => {
   const [selectedCompanyFilters, setSelectedCompanyFilters] = useState([]);
 
   const vendorsCleaned = Array.from(
-    new Map(vendorsdonwloaded.map((v) => [v.name, v])).values()
+    new Map(vendorsdonwloaded.map((v) => [v.name, v])).values(),
   ).map((v, index) => ({
     id: v.id,
     name: v.name,
@@ -1324,13 +1325,13 @@ const CreateRfq = () => {
   }));
 
   const industriesfilt = Array.from(
-    new Set(vendorsCleaned.map((v) => v.industry).filter(Boolean))
+    new Set(vendorsCleaned.map((v) => v.industry).filter(Boolean)),
   );
   const productsfilt = Array.from(
-    new Set(vendorsCleaned.map((v) => v.product).filter(Boolean))
+    new Set(vendorsCleaned.map((v) => v.product).filter(Boolean)),
   );
   const companyfilt = Array.from(
-    new Set(vendorsCleaned.map((v) => v.company).filter(Boolean))
+    new Set(vendorsCleaned.map((v) => v.company).filter(Boolean)),
   );
 
   const filteredVendors = vendorsCleaned.filter((vendor) => {
@@ -1365,7 +1366,7 @@ const CreateRfq = () => {
   });
 
   const selectedVendors = filteredVendors.filter((v) =>
-    selectedVendorIds.includes(v.id)
+    selectedVendorIds.includes(v.id),
   );
 
   useEffect(() => {
@@ -1517,7 +1518,7 @@ const CreateRfq = () => {
           summary.chargeableWeight = Math.max(
             summary.chargeableWeight,
             gross_weight,
-            volWeight
+            volWeight,
           );
         }
       });
@@ -1666,7 +1667,7 @@ const CreateRfq = () => {
                             !(
                               watch("type")?.toLowerCase() === "forward" &&
                               key?.toLowerCase() === "logistics"
-                            )
+                            ),
                         )
                         .map((key) => ({
                           label: key
@@ -1748,7 +1749,7 @@ const CreateRfq = () => {
                         (country) => ({
                           label: country,
                           value: country,
-                        })
+                        }),
                       )}
                       placeholder="Select Country"
                       className="w-full"
@@ -1869,7 +1870,7 @@ const CreateRfq = () => {
                                 {option}
                               </label>
                             </div>
-                          )
+                          ),
                         )}
                       </div>
                     )}
@@ -2481,8 +2482,8 @@ const CreateRfq = () => {
                               Array.isArray(field.value)
                                 ? field.value
                                 : field.value
-                                ? [field.value]
-                                : []
+                                  ? [field.value]
+                                  : []
                             }
                             options={factoryOptions}
                             placeholder="Select Stuffing Locations"
@@ -2500,7 +2501,7 @@ const CreateRfq = () => {
                               <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {field.value.map((val, idx) => {
                                   const factory = factoryOptions.find(
-                                    (opt) => opt.value === val
+                                    (opt) => opt.value === val,
                                   );
                                   return (
                                     <div
@@ -2532,8 +2533,8 @@ const CreateRfq = () => {
                               Array.isArray(field.value)
                                 ? field.value
                                 : field.value
-                                ? [field.value]
-                                : []
+                                  ? [field.value]
+                                  : []
                             }
                             options={factoryOptions}
                             placeholder="Select Customs Locations"
@@ -2551,7 +2552,7 @@ const CreateRfq = () => {
                               <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-4">
                                 {field.value.map((val, idx) => {
                                   const factory = factoryOptions.find(
-                                    (opt) => opt.value === val
+                                    (opt) => opt.value === val,
                                   );
                                   return (
                                     <div
@@ -4064,8 +4065,8 @@ const CreateRfq = () => {
                       className="flex justify-content-between align-items-center p-2 border-bottom-1 border-gray-300"
                     >
                       <a
-                        href={`http://127.0.0.1:9000/uploads/rfq/${encodeURIComponent(
-                          file.name
+                        href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
+                          file.name,
                         )}`}
                         download={file.name}
                         className="text-primary underline cursor-pointer"

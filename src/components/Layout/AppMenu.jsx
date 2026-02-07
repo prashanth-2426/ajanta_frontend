@@ -24,42 +24,42 @@ const AppMenu = () => {
           icon: "pi pi-fw pi-home",
           to: "/",
         },
-        {
-          label: "Analytics",
-          icon: "pi pi-fw pi-image",
-          items: [
-            {
-              label: "RFQ Analytics",
-              icon: "pi pi-fw pi-image",
-              to: "/media/list",
-            },
-            {
-              label: "Auction Analytics",
-              icon: "pi pi-fw pi-list",
-              to: "/media/detail",
-            },
-            {
-              label: "Road Transport Analytics",
-              icon: "pi pi-fw pi-pencil",
-              to: "/media/edit",
-            },
-            {
-              label: "Ocean Freight Analytics",
-              icon: "pi pi-fw pi-image",
-              to: "/media/list",
-            },
-            {
-              label: "Air Freight Analytics",
-              icon: "pi pi-fw pi-list",
-              to: "/media/detail",
-            },
-            {
-              label: "Export as PDF",
-              icon: "pi pi-fw pi-pencil",
-              to: "/media/edit",
-            },
-          ],
-        },
+        // {
+        //   label: "Analytics",
+        //   icon: "pi pi-fw pi-image",
+        //   items: [
+        //     {
+        //       label: "RFQ Analytics",
+        //       icon: "pi pi-fw pi-image",
+        //       to: "/media/list",
+        //     },
+        //     {
+        //       label: "Auction Analytics",
+        //       icon: "pi pi-fw pi-list",
+        //       to: "/media/detail",
+        //     },
+        //     {
+        //       label: "Road Transport Analytics",
+        //       icon: "pi pi-fw pi-pencil",
+        //       to: "/media/edit",
+        //     },
+        //     {
+        //       label: "Ocean Freight Analytics",
+        //       icon: "pi pi-fw pi-image",
+        //       to: "/media/list",
+        //     },
+        //     {
+        //       label: "Air Freight Analytics",
+        //       icon: "pi pi-fw pi-list",
+        //       to: "/media/detail",
+        //     },
+        //     {
+        //       label: "Export as PDF",
+        //       icon: "pi pi-fw pi-pencil",
+        //       to: "/media/edit",
+        //     },
+        //   ],
+        // },
         ...(isBuyer || isAdmin || isHod
           ? [
               {
@@ -76,11 +76,11 @@ const AppMenu = () => {
         },
         ...(isBuyer || isAdmin || isHod
           ? [
-              {
-                label: "Quotes Summary",
-                icon: "pi pi-fw pi-home",
-                to: "/quotesummary",
-              },
+              // {
+              //   label: "Quotes Summary",
+              //   icon: "pi pi-fw pi-home",
+              //   to: "/quotesummary",
+              // },
             ]
           : []),
       ],

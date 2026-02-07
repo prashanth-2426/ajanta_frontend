@@ -132,7 +132,7 @@ const Login = () => {
                 )}
               </div>
 
-              {/* <div className="flex justify-content-between align-items-center mb-5">
+              <div className="flex justify-content-between align-items-center mb-5">
                 <div className="flex align-items-center">
                   <Checkbox
                     inputId="remember"
@@ -144,13 +144,13 @@ const Login = () => {
                     Remember me
                   </label>
                 </div>
-                <a
-                  href="#"
-                  className="text-sm text-primary hover:underline cursor-pointer"
+                <Link
+                  to="/forget-password"
+                  className="font-medium text-sm text-300 mt-3"
                 >
-                  I forgot my password
-                </a>
-              </div> */}
+                  Forgot password?
+                </Link>
+              </div>
 
               <Button
                 label="Sign In"

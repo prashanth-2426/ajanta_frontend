@@ -5,7 +5,10 @@ import { Toast } from "primereact/toast";
 import ProtectedRoute from "../components/ProtectedRoute/ProtectedRoute";
 
 import Login from "../pages/Login/Login";
+import Password from "../pages/ForgetPassword/Password";
+import ResetPassword from "../pages/NewPassword/ResetPassword";
 import Register from "../pages/Register/Register";
+import RegistrationDisabled from "../pages/Register/RegistrationDisabled";
 import Home from "../pages/Home/Home";
 import Conference from "../pages/Conference/Conference";
 import Streaming from "../pages/Streaming/Streaming";
@@ -36,7 +39,9 @@ const Router = () => {
       <Suspense>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/Register" element={<Register />} />
+          <Route path="/forget-password" element={<Password />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
+          <Route path="/Register" element={<RegistrationDisabled />} />
           <Route path="/" element={<ProtectedRoute />}>
             <Route index element={<Home />} />
             <Route path="vc" element={<Conference />} />

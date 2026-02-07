@@ -20,6 +20,12 @@ import logoImg from "../../assets/images/ajantha_logo.png";
 import { all } from "axios";
 import { Card } from "primereact/card";
 import { formatDate } from "../../utils/local";
+import Buyer from "./Buyer";
+import { v4 as uuidv4 } from "uuid";
+import { FilterMatchMode } from "primereact/api";
+import { ColumnGroup } from "primereact/columngroup";
+import { Row } from "primereact/row";
+import { BASE_URL, API_URL } from "../../constants";
 
 const ViewQuote = () => {
   const { postData, getData } = useApi();
@@ -36,8 +42,10 @@ const ViewQuote = () => {
   const [lastPurchasePrice, setLastPurchasePrice] = useState("");
   const [negotiationRemarks, setNegotiationRemarks] = useState("");
 
-  const [isFlatView, setIsFlatView] = useState(false);
+  const [isFlatView, setIsFlatView] = useState(true);
   const [invAmount, setInvAmount] = useState(null);
+  const [exchangeRate, setExchangeRate] = useState(null);
+  const [shipmentValue, setShipmentValue] = useState(null);
 
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showHodApprovalDialog, setShowHodApprovalDialog] = useState(false);
@@ -47,6 +55,7 @@ const ViewQuote = () => {
 
   const [showHODDecisionDialog, setShowHODDecisionDialog] = useState(false);
   const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
+  const [showAuctionDialog, setShowAuctionDialog] = useState(false);
   const [acceptRemarks, setAcceptRemarks] = useState("");
   const [expandedRows, setExpandedRows] = useState(null);
 
@@ -69,6 +78,14 @@ const ViewQuote = () => {
   const [marketingRemarks, setMarketingRemarks] = useState("");
   const [marketingReviewStatus, setMarketingReviewStatus] = useState(false);
 
+  const [rolesckt, setRole] = useState(null);
+  const [userId, setUserId] = useState(uuidv4().slice(0, 8));
+
+  const [filteredQuotes, setFilteredQuotes] = useState(null);
+  const [visibleRows, setVisibleRows] = useState([]);
+
+  const [auctionData, setAuctionData] = useState(null);
+
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
     setShowHODDecisionDialog(true);
@@ -76,17 +93,94 @@ const ViewQuote = () => {
 
   useEffect(() => {
     fetchSummary();
+    fetchAuctionData();
   }, [rfqNumber]);
 
   useEffect(() => {
-    if (rfq?.shipments) {
-      const sum = rfq.shipments
-        .flatMap((s) => s.quotes || [])
-        .reduce((total, q) => total + Number(q.grandTotalValue || 0), 0);
-
-      setInvAmount(sum);
+    if (rfq?.value_of_shipment != null && shipmentValue === null) {
+      setShipmentValue(Number(rfq.value_of_shipment));
     }
   }, [rfq]);
+
+  const footerGroup = (
+    <ColumnGroup>
+      <Row>
+        {/* Empty columns to align Invoice under Final Bid Price */}
+        <Column footer="" colSpan={12} />
+
+        <Column
+          footer={
+            <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
+              Total:
+            </strong>
+          }
+          footerStyle={{ textAlign: "right" }}
+        />
+
+        <Column
+          footer={
+            <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
+              ₹ {invAmount?.toFixed(2)}
+            </strong>
+          }
+          footerStyle={{ textAlign: "right" }}
+        />
+
+        {/* Remaining columns (Target, Saving, %, Rank etc.) */}
+        <Column footer="" colSpan={8} />
+      </Row>
+    </ColumnGroup>
+  );
+
+  useEffect(() => {
+    if (!rfq?.shipments) return;
+
+    console.log("visibleRows changed:", visibleRows);
+
+    // 🔹 Case 1: Table has visible rows (filters / sorting applied)
+    if (Array.isArray(visibleRows) && visibleRows.length > 0) {
+      visibleRows.map((row) => {
+        if (Array.isArray(visibleRows) && visibleRows.length > 0) {
+          const hasExchangeRate = !!exchangeRate;
+
+          const total = visibleRows.reduce((sum, row) => {
+            const computedGrandTotal =
+              Number(row.chargeable_weight || 0) * Number(row.base_rate || 0) +
+              Number(row.ams || 0) +
+              Number(row.pac || 0) +
+              Number(row.awb || 0) +
+              Number(row.other_charges || 0) +
+              Number(row.dap_ddp_charges || 0) * Number(exchangeRate);
+
+            const finalGrandTotal = hasExchangeRate
+              ? computedGrandTotal
+              : Number(row.grandTotalValue || 0);
+
+            return sum + finalGrandTotal;
+          }, 0);
+
+          console.log("Calculated invAmount with filters:", total);
+          setInvAmount(total);
+          return; // ⛔ stop further execution
+        }
+      });
+
+      // const total = visibleRows.reduce(
+      //   (sum, row) => sum + Number(row.grandTotalValue || 0),
+      //   0
+      // );
+      // console.log("Calculated invAmount with filters:", total);
+      // setInvAmount(total);
+      // return; // ⛔ stop here
+    } else {
+      // 🔹 Case 2: No filters → full data
+      const total = rfq.shipments
+        .flatMap((s) => s.quotes || [])
+        .reduce((sum, q) => sum + Number(q.grandTotalValue || 0), 0);
+
+      setInvAmount(total);
+    }
+  }, [rfq, exchangeRate, visibleRows]);
 
   //useEffect(() => {
   const fetchSummary = async () => {
@@ -101,11 +195,45 @@ const ViewQuote = () => {
   //fetchSummary();
   //}, [rfqNumber]);
 
+  const fetchAuctionData = async () => {
+    try {
+      const response = await getData(`rfqs/${rfqNumber}`, {});
+      setAuctionData(response?.rfqRecord?.data?.auction_data || null);
+    } catch (error) {}
+  };
+
+  const now = new Date();
+
+  const isScheduledAuction =
+    auctionData?.startTime && new Date(auctionData.startTime) > now;
+
+  const handleAuctionUpdated = () => {
+    setTimeout(() => {
+      fetchSummary();
+    }, 8000);
+  };
+
+  const isAuctionEnded = React.useMemo(() => {
+    if (!auctionData?.endTime) return false;
+
+    return Date.now() > new Date(auctionData.endTime).getTime();
+  }, [auctionData]);
+
+  const auctionActionLabel = React.useMemo(() => {
+    if (!auctionData) return "🏆 Conduct Auction";
+    if (isAuctionEnded) return "📊 Auction Details";
+    return "Auction Details";
+  }, [auctionData, isAuctionEnded]);
+
   const hodQuote = rfq?.shipments
     ?.flatMap((s) => s.quotes) // merge all quotes from all shipments
     ?.find((q) => q.hodAcceptRequestDetails.status === "hod_rejected");
 
   console.log("hodQuote", hodQuote);
+
+  const [filters, setFilters] = useState({
+    airline_name: { value: null, matchMode: FilterMatchMode.EQUALS },
+  });
 
   const handleAction = async (actionType, rfqNumber) => {
     try {
@@ -138,7 +266,7 @@ const ViewQuote = () => {
       });
 
       dispatch(
-        toastSuccess({ detail: "Negotiation request sent successfully!" })
+        toastSuccess({ detail: "Negotiation request sent successfully!" }),
       );
       setShowNegotiationDialog(false);
       setSelectedVendors([]);
@@ -286,8 +414,8 @@ const ViewQuote = () => {
                 quote.rank === "L1"
                   ? "text-green-600 font-bold"
                   : quote.rank === "L2"
-                  ? "text-blue-600 font-semibold"
-                  : "text-gray-600";
+                    ? "text-blue-600 font-semibold"
+                    : "text-gray-600";
               return (
                 <span className={colorClass}>
                   ₹{quote.quoted_price} ({quote.rank})
@@ -371,8 +499,8 @@ const ViewQuote = () => {
                 quote.rank === "L1"
                   ? "text-green-600 font-bold"
                   : quote.rank === "L2"
-                  ? "text-blue-600 font-semibold"
-                  : "text-gray-600";
+                    ? "text-blue-600 font-semibold"
+                    : "text-gray-600";
               return (
                 <span className={colorClass}>
                   ₹{quote.quoted_price} ({quote.rank})
@@ -398,7 +526,7 @@ const ViewQuote = () => {
       airlines.forEach((airline) => {
         const vendorQuotes = rfq.vendors.map((vendor) => {
           const pkg = vendor.package_quotes?.find(
-            (pq) => pq.item_name === pkgType
+            (pq) => pq.item_name === pkgType,
           );
           const quote = pkg?.quotes?.find((q) => q.airline === airline);
           return {
@@ -415,7 +543,7 @@ const ViewQuote = () => {
         // Assign rank
         const ranked = vendorQuotes.map((v) => {
           const rankIndex = sorted.findIndex(
-            (s) => s.vendor_name === v.vendor_name
+            (s) => s.vendor_name === v.vendor_name,
           );
           return {
             ...v,
@@ -431,7 +559,7 @@ const ViewQuote = () => {
             ranked.map((r) => [
               r.vendor_name,
               r.quoted_price !== null ? `₹${r.quoted_price} (${r.rank})` : "-",
-            ])
+            ]),
           ),
         });
       });
@@ -479,7 +607,7 @@ const ViewQuote = () => {
 
   const negotiation_value =
     rfq?.vendors?.find(
-      (v) => v.negotiation && Object.keys(v.negotiation).length > 0
+      (v) => v.negotiation && Object.keys(v.negotiation).length > 0,
     )?.negotiation || null;
   //console.log("negotiation_value", negotiation_value);
 
@@ -509,7 +637,7 @@ const ViewQuote = () => {
             };
           });
           return result;
-        }
+        },
       );
 
       const vendorIds = [
@@ -637,15 +765,38 @@ const ViewQuote = () => {
   const shipmentLevelL1L2Table = () => {
     const INV_AMOUNT = 10000;
 
+    const computedInvoiceAmount = 0;
+
     const allQuotes =
       rfq?.shipments?.flatMap((shipment) => {
         return (
           shipment.quotes?.map((quote) => {
-            const total = parseFloat(quote.grandTotalValue || 0);
-            const percent = invAmount ? (total / invAmount) * 100 : null;
+            const hasExchangeRate = !!exchangeRate;
+            const hasShipmentValue = !!shipmentValue;
+
+            const computedGrandTotal =
+              Number(quote.chargeable_weight || 0) *
+                Number(quote.base_rate || 0) +
+              Number(quote.ams || 0) +
+              Number(quote.pac || 0) +
+              Number(quote.awb || 0) +
+              Number(quote.other_charges || 0) +
+              Number(quote.dap_ddp_charges || 0) * Number(exchangeRate);
+
+            const finalGrandTotal = hasExchangeRate
+              ? computedGrandTotal
+              : Number(quote.grandTotalValue || 0);
+
+            const baseAmount = hasShipmentValue ? shipmentValue : invAmount;
+
+            const percent = baseAmount
+              ? (finalGrandTotal / baseAmount) * 100
+              : null;
+
             return {
               ...quote,
-              percentage: Math.round(percent),
+              ...(hasExchangeRate && { grandTotalValue: finalGrandTotal }), // 🔥 ONLY when exchangeRate exists
+              percentage: percent ? Math.round(percent) : null,
             };
           }) || []
         );
@@ -719,7 +870,7 @@ const ViewQuote = () => {
         const acceptedRow = allQuotes.find(
           (q) =>
             q.acceptedDetails?.accepted_at &&
-            q.acceptedDetails?.accepted_airline === q.airline_name
+            q.acceptedDetails?.accepted_airline === q.airline_name,
         );
 
         if (acceptedRow) {
@@ -831,7 +982,7 @@ const ViewQuote = () => {
           const labelText = `${label}:`;
           const wrappedValue = doc.splitTextToSize(
             value?.toString() || "",
-            maxTextWidth
+            maxTextWidth,
           );
 
           if (isBold) doc.setFont("helvetica", "bold");
@@ -898,7 +1049,7 @@ const ViewQuote = () => {
               ? q.negotiation.find(
                   (n) =>
                     n.vendor_id === q.vendor_id &&
-                    n.airline_name === q.airline_name
+                    n.airline_name === q.airline_name,
                 )
               : null;
 
@@ -1063,6 +1214,168 @@ const ViewQuote = () => {
             y = data.cursor.y + 10;
           },
         });
+
+        return y;
+      };
+
+      const extractAuctionActivity = (auctionData = {}) => {
+        const invited = Array.isArray(auctionData.invited)
+          ? auctionData.invited
+          : [];
+
+        const users = auctionData.users ? Object.values(auctionData.users) : [];
+
+        const vendors = users.filter((u) => u.role === "vendor");
+
+        const bids = auctionData.bids || {};
+        const ranks = auctionData.ranks || {};
+
+        const participated = vendors.filter((v) => bids[v.id]);
+
+        const winnerId = Object.entries(ranks).find(
+          ([, rank]) => rank === 1,
+        )?.[0];
+
+        return {
+          invited,
+          participated,
+          bids,
+          ranks,
+          winnerId,
+        };
+      };
+
+      const addAuctionActivitySection = (startY, auctionData) => {
+        let y = startY;
+
+        const { invited, participated, bids, ranks, winnerId } =
+          extractAuctionActivity(auctionData);
+
+        // ==========================
+        // 🔹 Section Title
+        // ==========================
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Auction Activity Summary", 20, y);
+        y += 10;
+
+        // ==========================
+        // 📅 Auction Timeline
+        // ==========================
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "normal");
+
+        doc.text(
+          `Auction Number : ${auctionData?.auction_number || "N/A"}`,
+          20,
+          y,
+        );
+        y += 6;
+
+        doc.text(
+          `Auction Mode : ${(auctionData?.mode || "").toUpperCase()}`,
+          20,
+          y,
+        );
+        y += 6;
+
+        doc.text(
+          `Start Time : ${new Date(auctionData.startTime).toLocaleString()}`,
+          20,
+          y,
+        );
+        y += 6;
+
+        doc.text(
+          `End Time : ${new Date(auctionData.endTime).toLocaleString()}`,
+          20,
+          y,
+        );
+        y += 10;
+
+        // ==========================
+        // 📨 Invited Vendors Table
+        // ==========================
+        doc.setFont("helvetica", "bold");
+        doc.text("Invited Vendors", 20, y);
+        y += 6;
+
+        doc.autoTable({
+          startY: y,
+          head: [["Email"]],
+          body: invited.map((email) => [email]),
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 3 },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        // ==========================
+        // ✅ Participated Vendors
+        // ==========================
+        doc.setFont("helvetica", "bold");
+        doc.text("Participated Vendors", 20, y);
+        y += 6;
+
+        doc.autoTable({
+          startY: y,
+          head: [["Vendor Name", "Company", "Bid Amount", "Bid Time", "Rank"]],
+          body: participated.map((v) => [
+            v.name || "-",
+            v.company || "-",
+            bids[v.id]?.bid ?? "-",
+            bids[v.id]?.time ? new Date(bids[v.id].time).toLocaleString() : "-",
+            ranks[v.id] ? `L${ranks[v.id]}` : "-",
+          ]),
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            halign: "center",
+          },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { left: 20, right: 20 },
+          didParseCell: (data) => {
+            if (data.cell.raw === "L1") {
+              data.cell.styles.fillColor = [210, 255, 210];
+            }
+          },
+        });
+
+        y = doc.lastAutoTable.finalY + 10;
+
+        // ==========================
+        // 🏆 Winner Summary
+        // ==========================
+        if (winnerId) {
+          const winner = participated.find((v) => v.id === winnerId);
+
+          doc.setFont("helvetica", "bold");
+          doc.text("Auction Winner", 20, y);
+          y += 6;
+
+          doc.setFont("helvetica", "normal");
+          doc.text(
+            `Winner : ${winner?.name || "-"} (${winner?.company || "-"})`,
+            20,
+            y,
+          );
+          y += 6;
+
+          doc.text(`Winning Bid : ${bids[winnerId]?.bid ?? "-"}`, 20, y);
+          y += 10;
+        }
 
         return y;
       };
@@ -1273,7 +1586,7 @@ const ViewQuote = () => {
               ? q.negotiation.find(
                   (n) =>
                     n.vendor_id === q.vendor_id &&
-                    n.airline_name === q.airline_name
+                    n.airline_name === q.airline_name,
                 )
               : null;
 
@@ -1365,6 +1678,7 @@ const ViewQuote = () => {
       // =========================
       addHeader();
       currentY = addAuctionDetails();
+      currentY = addAuctionActivitySection(currentY, auctionData);
       currentY = quotedatalatestFinalNew(currentY);
       //currentY = addSummaryBidSection(currentY);
       currentY = addGeneralDetails(currentY);
@@ -1423,7 +1737,7 @@ const ViewQuote = () => {
         ?.hodApprovalDataDate || null;
 
     const quoteWithAttachment = allQuotesWithUniqueId.find(
-      (row) => row.attachedFile && row.status === "requested_hod_approval"
+      (row) => row.attachedFile && row.status === "requested_hod_approval",
     );
 
     const approvalMessage =
@@ -1433,17 +1747,32 @@ const ViewQuote = () => {
     return (
       <div className="mt-4">
         <h4 className="mb-3">✈️ All Shipment Quotes (Flat View)</h4>
-        <div className="mb-3">
-          <label htmlFor="invAmount">Invoice Amount (₹): </label>
-          <input
-            id="invAmount"
-            type="number"
-            value={invAmount || ""}
-            onChange={(e) => setInvAmount(Number(e.target.value))}
-            className="p-inputtext p-component"
-            placeholder="Enter invoice amount"
-          />
+        <div className="grid">
+          <div className="col-12 md:col-3">
+            <label htmlFor="exchangeRate">Exchange Rate</label>
+            <input
+              id="exchangeRate"
+              type="number"
+              value={exchangeRate || ""}
+              onChange={(e) => setExchangeRate(Number(e.target.value))}
+              className="p-inputtext p-component w-full"
+              placeholder="Enter Exchange Rate"
+            />
+          </div>
+
+          <div className="col-12 md:col-3">
+            <label htmlFor="shipmentValue">Value of Shipment</label>
+            <input
+              id="shipmentValue"
+              type="number"
+              value={shipmentValue || ""}
+              onChange={(e) => setShipmentValue(Number(e.target.value))}
+              className="p-inputtext p-component w-full"
+              placeholder="Enter Shipment Value"
+            />
+          </div>
         </div>
+
         <div className="flex justify-content-between align-items-center mb-3">
           <h3>RFQ Quotes Summary</h3>
           <Button
@@ -1451,6 +1780,7 @@ const ViewQuote = () => {
             icon="pi pi-download"
             className="p-button-sm p-button-success"
             onClick={() => exportToPDF(allQuotes, rfq?.rfq_number)}
+            disabled={allQuotes.length === 0}
           />
           {}
         </div>
@@ -1481,8 +1811,8 @@ const ViewQuote = () => {
                 <br />
                 <strong>Attachment: </strong>
                 <a
-                  href={`http://127.0.0.1:9000/uploads/rfq/${encodeURIComponent(
-                    attachedFileName
+                  href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
+                    attachedFileName,
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1522,8 +1852,8 @@ const ViewQuote = () => {
                 <br />
                 <strong>Attachment: </strong>
                 <a
-                  href={`http://127.0.0.1:9000/uploads/rfq/${encodeURIComponent(
-                    marketingTeamReviewFileName
+                  href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
+                    marketingTeamReviewFileName,
                   )}`}
                   target="_blank"
                   rel="noopener noreferrer"
@@ -1547,11 +1877,57 @@ const ViewQuote = () => {
           expandedRows={expandedRows}
           onRowToggle={(e) => setExpandedRows(e.data)}
           rowExpansionTemplate={rowExpansionTemplate}
+          filterDisplay="row"
+          onValueChange={(e) => {
+            console.log("DataTable onValueChange triggered", e);
+            setVisibleRows(e || []);
+            const total = e?.reduce(
+              (sum, row) => sum + Number(row.grandTotalValue || 0),
+              0,
+            );
+            setInvAmount(total); // 🔥 calculated INSIDE DataTable
+          }}
+          footerColumnGroup={footerGroup}
         >
           <Column expander style={{ width: "3rem" }} />
           <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
           <Column header="Vendor" body={(row) => row.vendor_name} />
-          <Column header="Airline" body={(row) => row.airline_name || "-"} />
+          <Column
+            field="airline_name"
+            header="Airline"
+            body={(row) => row.airline_name || "-"}
+            filter
+            showFilterMenu={false}
+            filterElement={(options) => (
+              <Dropdown
+                value={options.value ?? null}
+                options={[
+                  ...new Set(
+                    allQuotesWithUniqueId
+                      .map((q) => q.airline_name)
+                      .filter(Boolean),
+                  ),
+                ]}
+                onChange={(e) => {
+                  // 1️⃣ Update PrimeReact internal filter
+                  options.filterApplyCallback(e.value);
+
+                  // 2️⃣ Update your controlled filter state
+                  setFilters((prev) => ({
+                    ...prev,
+                    airline_name: {
+                      ...prev.airline_name,
+                      value: e.value,
+                    },
+                  }));
+                }}
+                placeholder="Select Airline"
+                showClear
+                className="p-column-filter"
+              />
+            )}
+          />
+
           <Column header="Airport" body={(row) => row.airport || "-"} />
           <Column
             header="Chargeable Wt"
@@ -1564,7 +1940,13 @@ const ViewQuote = () => {
           <Column header="AMS" body={(row) => row.ams || "-"} />
           <Column header="PAC" body={(row) => row.pac || "-"} />
           <Column header="AWB" body={(row) => row.awb || "-"} />
-          <Column header="DAP/DDP" body={(row) => row.dap_ddp_charges || "-"} />
+          <Column
+            header="DAP/DDP"
+            body={(row) =>
+              row.dap_ddp_charges + " (" + row.currency + ") " || "-"
+            }
+          />
+          <Column header="Ex Rate" body={(row) => row.exchangeRate || "-"} />
           <Column header="Other" body={(row) => row.other_charges || "-"} />
           <Column
             header="First Bid Price"
@@ -1577,13 +1959,16 @@ const ViewQuote = () => {
             body={(row) => (
               <strong>₹ {parseFloat(row.grandTotalValue).toFixed(2)}</strong>
             )}
+            style={{ minWidth: "120px" }}
+            headerStyle={{ minWidth: "120px", textAlign: "center" }}
+            bodyStyle={{ textAlign: "center" }}
+            // footer={
+            //   <strong style={{ color: "#0f5132", fontSize: "1rem" }}>
+            //     Exchange Invoice Amount: ₹ {invAmount?.toFixed(2)}
+            //   </strong>
+            // }
+            // footerStyle={{ textAlign: "right" }}
           />
-          {/* <Column
-            header="Last Purchace Price"
-            body={(row) => (
-              <strong>₹ {row.negotiation?.last_purchase_price}</strong>
-            )}
-          /> */}
           <Column
             header="Target Price"
             body={(row) => {
@@ -1597,7 +1982,7 @@ const ViewQuote = () => {
               const matchedNegotiation = row.negotiation.find(
                 (n) =>
                   n.airline_name?.toLowerCase().trim() ===
-                  row.airline_name?.toLowerCase().trim()
+                  row.airline_name?.toLowerCase().trim(),
               );
 
               if (!matchedNegotiation) return <span>-</span>;
@@ -1609,31 +1994,10 @@ const ViewQuote = () => {
               );
             }}
           />
-          {/* <Column
-            header="Total Saving"
-            body={(row) => {
-              const finalBid = row.grandTotalValue || 0;
-              const lastPrice = row.negotiation?.last_purchase_price || 0;
-              const saving = lastPrice ? lastPrice - finalBid : 0;
-              return <strong>₹ {saving.toFixed(2)}</strong>;
-            }}
-          /> */}
           <Column
             header="Total Saving"
             body={(row) => {
               const finalBid = row.grandTotalValue || 0;
-
-              // const matchedNegotiation = Array.isArray(row.negotiation)
-              //   ? row.negotiation.find(
-              //       (n) =>
-              //         n.airline_name?.toLowerCase().trim() ===
-              //         row.airline_name?.toLowerCase().trim()
-              //     )
-              //   : null;
-
-              // if (!matchedNegotiation) return <span>-</span>;
-
-              //const lastPrice = matchedNegotiation.last_purchase_price || 0;
               const saving =
                 parseFloat(row.FirstBidPrice).toFixed(2) -
                 parseFloat(finalBid).toFixed(2);
@@ -1703,26 +2067,6 @@ const ViewQuote = () => {
                 );
               }
 
-              // if (
-              //   isHodApprovalPending &&
-              //   role === "user" &&
-              //   !isHodApproved &&
-              //   !isHodRejected
-              // ) {
-              //   return (
-              //     <span
-              //       style={{
-              //         color: "#e67e22",
-              //         fontWeight: "bold",
-              //         fontSize: "1.8rem",
-              //       }}
-              //       title="HOD Approval Pending"
-              //     >
-              //       ⏳
-              //     </span>
-              //   );
-              // }
-
               if (isHodApproved) {
                 return (
                   <span
@@ -1766,7 +2110,7 @@ const ViewQuote = () => {
                           "hod_approved",
                           row.rfq_number || rfq.rfq_number,
                           row.vendor_id,
-                          row.airline_name
+                          row.airline_name,
                         )
                       }
                     />
@@ -1781,7 +2125,7 @@ const ViewQuote = () => {
                           "hod_rejected",
                           row.rfq_number || rfq.rfq_number,
                           row.vendor_id,
-                          row.airline_name
+                          row.airline_name,
                         )
                       }
                     />
@@ -1820,7 +2164,7 @@ const ViewQuote = () => {
       });
 
       dispatch(
-        toastSuccess({ detail: "Requested for HOD Approval successfully!" })
+        toastSuccess({ detail: "Requested for HOD Approval successfully!" }),
       );
 
       setShowHodApprovalDialog(false);
@@ -1856,7 +2200,7 @@ const ViewQuote = () => {
       });
 
       dispatch(
-        toastSuccess({ detail: "Shared with Marketing Team successfully!" })
+        toastSuccess({ detail: "Shared with Marketing Team successfully!" }),
       );
 
       setShowShareToMarketTeamDialog(false);
@@ -1869,6 +2213,14 @@ const ViewQuote = () => {
     }
   };
 
+  const RoleSelection = (
+    <div style={{ padding: 20 }}>
+      <h2>Live Auction Platform</h2>
+      <button onClick={() => setRole("buyer")}>Buyer</button>
+      <button onClick={() => setRole("vendor")}>Vendor</button>
+    </div>
+  );
+
   return (
     <div className="p-4">
       <h3 className="mb-2">
@@ -1877,7 +2229,7 @@ const ViewQuote = () => {
       </h3>
 
       <div className="flex justify-content-between align-items-center mb-3">
-        <ToggleButton
+        {/* <ToggleButton
           onLabel="Per Item L1/L2 View"
           offLabel="Total L1/L2 View"
           onIcon="pi pi-eye"
@@ -1895,7 +2247,7 @@ const ViewQuote = () => {
           icon="pi pi-exchange"
           onClick={() => setIsFlatView((prev) => !prev)}
           className="mb-3"
-        />
+        /> */}
 
         <span className="p-input-icon-left">
           <i className="pi pi-search" />
@@ -1919,10 +2271,10 @@ const ViewQuote = () => {
         {!rfq?.isShipmentBased && (
           <>
             {!viewItemLevel
-              ? vendorTable
+              ? "" //vendorTable
               : rfq.rfq_items?.length
-              ? itemLevelL1L2Table()
-              : roadTransportL1L2Table()}
+                ? itemLevelL1L2Table()
+                : roadTransportL1L2Table()}
             {packageQuoteL1L2Table()}
           </>
         )}
@@ -1972,16 +2324,33 @@ const ViewQuote = () => {
               />
             )}
 
-            {role === "user" && (
-              <Button
-                label="✏️ Negotiate"
-                className="p-button-warning p-button-sm"
-                //onClick={() => handleAction("negotiate", rfq.rfq_number)}
-                onClick={() => setShowNegotiateDialog(true)}
-                //onClick={() => setShowAcceptDialog(true)}
-                disabled={selectedVendors.length === 0}
-              />
-            )}
+            <div style={{ display: "flex", gap: "10px" }}>
+              {role === "user" && (
+                <>
+                  <Button
+                    label="✏️ Negotiate"
+                    className="p-button-warning p-button-sm"
+                    onClick={() => setShowNegotiateDialog(true)}
+                    disabled={selectedVendors.length === 0}
+                  />
+
+                  {/* <Button
+                    label={
+                      auctionData ? "✏️ Edit Auction" : "🏆 Conduct Auction"
+                    }
+                    className="p-button-success p-button-sm"
+                    onClick={() => setShowAuctionDialog(true)}
+                    disabled={!auctionData && selectedVendors.length === 0}
+                  /> */}
+                  <Button
+                    label={auctionActionLabel}
+                    className="p-button-success p-button-sm"
+                    onClick={() => setShowAuctionDialog(true)}
+                    //disabled={!auctionData && selectedVendors.length === 0}
+                  />
+                </>
+              )}
+            </div>
           </div>
           {/* )} */}
 
@@ -1996,6 +2365,17 @@ const ViewQuote = () => {
             onClick={() => handleAction("reject", rfq.rfq_number)}
           /> */}
         </div>
+        <hr />
+        <Buyer
+          userId={userId}
+          vendors={selectedVendors}
+          existingAuction={auctionData}
+          onAuctionCreated={() => {
+            setShowAuctionDialog(false);
+            fetchAuctionData();
+          }}
+          onAuctionUpdated={handleAuctionUpdated}
+        />
       </Panel>
 
       {/* <Dialog
@@ -2099,7 +2479,7 @@ const ViewQuote = () => {
               dispatch(
                 toastSuccess({
                   detail: "HOD Approval successfully!",
-                })
+                }),
               );
               setShowHODDecisionDialog(false);
               //setSelectedVendors([]);
@@ -2294,7 +2674,7 @@ const ViewQuote = () => {
                 remarks: acceptRemarks,
               });
               dispatch(
-                toastSuccess({ detail: "Accepted Quote successfully!" })
+                toastSuccess({ detail: "Accepted Quote successfully!" }),
               );
               setShowAcceptDialog(false);
               setSelectedVendors([]);
@@ -2363,6 +2743,34 @@ const ViewQuote = () => {
             onClick={() => setShowNegotiateDialog(false)}
           />
         </div>
+      </Dialog>
+
+      {/* <Dialog
+        header="Negotiate with Vendors"
+        visible={showNegotiateDialog}
+        style={{ width: "50vw" }}
+        onHide={() => setShowNegotiateDialog(false)}
+      >
+
+      </Dialog> */}
+
+      {/* Conduct Auction Dialog */}
+      <Dialog
+        header={auctionActionLabel}
+        visible={showAuctionDialog}
+        style={{ width: "80vw", height: "80vh" }}
+        maximizable
+        onHide={() => setShowAuctionDialog(false)}
+      >
+        <Buyer
+          userId={userId}
+          vendors={selectedVendors}
+          existingAuction={auctionData}
+          onAuctionCreated={() => {
+            setShowAuctionDialog(false);
+            fetchAuctionData();
+          }}
+        />
       </Dialog>
     </div>
   );
