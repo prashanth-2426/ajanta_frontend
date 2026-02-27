@@ -69,6 +69,8 @@ const RfqManagement = () => {
   const [showVendorAuctionDialog, setShowVendorAuctionDialog] = useState(false);
   const [userId, setUserId] = useState(uuidv4().slice(0, 8));
   const [auctionData, setAuctionData] = useState(null);
+  const [quoteRankingBeforeAuction, setQuoteRankingBeforeAuction] =
+    useState(null);
 
   const toggleMoreInfo = (shipmentIndex, rowIndex) => {
     setExpandedModalRows((prev) => ({
@@ -140,11 +142,58 @@ const RfqManagement = () => {
     } catch (error) {}
   };
 
+  const fetchQuoteSummary = async (rfqNumber) => {
+    try {
+      const response = await getData(
+        `quotesummary/quotes-summary/${rfqNumber}`,
+      );
+
+      const rfqNo = response?.rfq_number;
+
+      const formattedData =
+        response?.shipments?.flatMap((shipment, shipmentIndex) =>
+          shipment?.quotes
+            //?.filter((quote) => quote.vendor_id === user.id) // 🔥 FILTER HERE
+            ?.map((quote) => ({
+              rfq_number: rfqNo,
+              shipment_index: shipmentIndex,
+              vendor_id: quote.vendor_id,
+              vendor_name: quote.vendor_name,
+              airline: quote.airline_name,
+              airport: quote.airport,
+              rank: quote.rank,
+              email: quote.vendor_email,
+            })),
+        ) || [];
+
+      setQuoteRankingBeforeAuction(formattedData);
+    } catch (error) {
+      console.error("Error fetching quote summary:", error);
+    }
+  };
+
+  const getRankForRow = (shipmentIndex, airlineName) => {
+    return (
+      quoteRankingBeforeAuction?.find(
+        (r) =>
+          r.vendor_id === user.id &&
+          r.shipment_index === shipmentIndex &&
+          r.airline === airlineName,
+      )?.rank || null
+    );
+  };
+
+  useEffect(() => {
+    // this runs IMMEDIATELY after state updates & re-render
+    console.log("Ranks updated:", quoteRankingBeforeAuction);
+  }, [quoteRankingBeforeAuction]);
+
   const handleRowExpand = (e) => {
     const key = e.data.row_id;
     setExpandedRows({ [key]: true });
     fetchQuotesById(e.data.rfq_number);
     fetchAuctionDataById(e.data.rfq_number);
+    fetchQuoteSummary(e.data.rfq_number);
   };
 
   const handleRowCollapse = (e) => {
@@ -382,6 +431,13 @@ const RfqManagement = () => {
     }
   };
 
+  const handleAuctionDataRankUpdate = (updatedRanking) => {
+    console.log("Received updated ranking from auction data:", updatedRanking);
+    if (updatedRanking && Array.isArray(updatedRanking)) {
+      setQuoteRankingBeforeAuction(updatedRanking);
+    }
+  };
+
   const handlePackageSubmit = async (shipmentIndex, rowData) => {
     const rfqId = rowData.rfq_number;
     const vendorId = user.id;
@@ -448,6 +504,7 @@ const RfqManagement = () => {
             detail: "Auction Quote Submitted Successfully..",
           }),
         );
+        await fetchQuoteSummary(rfqId);
       }
     } catch (error) {
       console.error("Error submitting auction quote:", error);
@@ -2253,7 +2310,7 @@ const RfqManagement = () => {
                     <div className="grid formgrid p-fluid">
                       <div
                         className={`col-12 md:col-${
-                          !auctionData?.auction_number ? 12 : 8
+                          !auctionData?.auction_number ? 8 : 8
                         }`}
                       >
                         <div className="grid formgrid">
@@ -2491,28 +2548,35 @@ const RfqManagement = () => {
                         </div>
                       </div>
 
-                      {auctionData?.auction_number && (
-                        <div className="col-12 md:col-4">
-                          <div
-                            style={{
-                              border: "1px dashed #cbd5e1",
-                              borderRadius: "10px",
-                              padding: "0rem",
-                              height: "100%",
-                              background: "#f8fafc",
-                            }}
-                          >
-                            <VendorBiddingPanel
-                              userId={userId}
-                              bidValue={row.grandTotalValue}
-                              auctionData={auctionData}
-                              shipmentIndex={shipmentIndex} // 👈 pass index
-                              rowData={rowData} // 👈 pass data
-                              onSubmitBid={handlePackageSubmit} // 👈 pass function
-                            />
-                          </div>
+                      {/* {auctionData?.auction_number && ( */}
+                      <div className="col-12 md:col-4">
+                        <div
+                          style={{
+                            border: "1px dashed #cbd5e1",
+                            borderRadius: "10px",
+                            padding: "0rem",
+                            height: "100%",
+                            background: "#f8fafc",
+                          }}
+                        >
+                          <VendorBiddingPanel
+                            userId={userId}
+                            bidValue={row.grandTotalValue}
+                            auctionData={auctionData}
+                            shipmentIndex={shipmentIndex}
+                            rowData={rowData}
+                            rfqQuoteRank={getRankForRow(
+                              shipmentIndex,
+                              row.airline_name,
+                            )}
+                            onSubmitBid={handlePackageSubmit}
+                            onAuctionDataRankUpdate={
+                              handleAuctionDataRankUpdate
+                            }
+                          />
                         </div>
-                      )}
+                      </div>
+                      {/* )} */}
                     </div>
 
                     {/* More Info Section - Always Visible */}
@@ -2820,25 +2884,14 @@ const RfqManagement = () => {
         />
       )}
 
-      {/* {[
-        "submitted",
-        "auctioned",
-        "received_quotes",
-        "evaluated",
-        "negotiation",
-        "accepted",
-        "requested_hod_approval",
-        "hod_rejected",
-        "hod_approved",
-        "shared_to_marketing_team",
-      ].includes(rowData.status || rowData.form_type) && ( */}
-      <Button
-        label="View Details"
-        icon="pi pi-list"
-        className="p-button-sm p-button-secondary"
-        onClick={() => navigate(`/quote-summary/${rowData.rfq_number}`)}
-      />
-      {/* )} */}
+      {rowData.form_type !== "draft" && (
+        <Button
+          label="View Details"
+          icon="pi pi-list"
+          className="p-button-sm p-button-secondary"
+          onClick={() => navigate(`/quote-summary/${rowData.rfq_number}`)}
+        />
+      )}
     </div>
   );
 

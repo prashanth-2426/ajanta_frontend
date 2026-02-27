@@ -66,7 +66,7 @@ const AppBreadcrumb = () => {
             })
           ) : (
             <>
-              {pathname === "/" && <li key={"home"}>Ajantha Home Dashbaord</li>}
+              {pathname === "/" && <li key={"home"}>Ajanta Home Dashbaord</li>}
             </>
           )}
         </ol>

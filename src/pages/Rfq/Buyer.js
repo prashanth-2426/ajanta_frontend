@@ -78,6 +78,22 @@ export default function Buyer({
   }, [existingAuction]);
 
   useEffect(() => {
+    if (!existingAuction) return;
+    if (existingAuction.buyerId !== "") return;
+
+    createAuction({
+      title: existingAuction.title,
+      buyerId: userId,
+      invited: existingAuction.invited,
+      mode: existingAuction.mode,
+      startTime: existingAuction.startTime,
+      endTime: existingAuction.endTime,
+      rfqNumber,
+      auctionId: existingAuction?.id,
+    });
+  }, [existingAuction]);
+
+  useEffect(() => {
     if (!existingAuction?.startTime) return;
 
     const checkAuctionPhase = () => {
@@ -219,7 +235,68 @@ export default function Buyer({
     });
   };
 
-  async function createAuction() {
+  async function createAuction(dataOverride = null) {
+    //const invited = invites.split(",").map((v) => v.email.trim());
+
+    const conflicts = getTimeConflicts(startTime, endTime);
+
+    if (conflicts.length > 0) {
+      const conflictText = conflicts
+        .map(
+          (a) =>
+            `• ${a.auction_number || a.id}
+          (${new Date(a.startTime).toLocaleString()} → ${new Date(
+            a.endTime,
+          ).toLocaleString()})`,
+        )
+        .join("\n");
+
+      dispatch(
+        toastError({
+          summary: "⛔ Schedule Conflict",
+          detail: `Auction already scheduled in this time range:\n${conflictText}`,
+          life: 6000,
+        }),
+      );
+      return; // ⛔ STOP API CALL
+    }
+
+    const invited = invites;
+
+    const payload = dataOverride || {
+      title,
+      buyerId: userId,
+      invited: invites,
+      mode,
+      startTime,
+      endTime,
+      rfqNumber,
+      auctionId: existingAuction?.id,
+    };
+
+    console.log("Creating Auction with Payload:", payload);
+
+    try {
+      const res = await fetch(`${SERVER}/socks/auction`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+      setAuction(data.auction);
+      if (data) {
+        dispatch(toastSuccess({ detail: "Auction Invite sent successfully!" }));
+        onAuctionCreated();
+      } else {
+        dispatch(toastError({ detail: "Auction creation failed" }));
+      }
+    } catch (error) {
+      dispatch(toastError({ detail: "Something went wrong" }));
+    }
+  }
+
+  async function createAuctionFromRfq() {
     //const invited = invites.split(",").map((v) => v.email.trim());
 
     const conflicts = getTimeConflicts(startTime, endTime);
@@ -266,7 +343,7 @@ export default function Buyer({
       const data = await res.json();
       setAuction(data.auction);
       if (data) {
-        dispatch(toastSuccess({ detail: "Auction created successfully!" }));
+        dispatch(toastSuccess({ detail: "Auction Invite sent successfully!" }));
         onAuctionCreated();
       } else {
         dispatch(toastError({ detail: "Auction creation failed" }));
@@ -413,6 +490,19 @@ export default function Buyer({
     pdf.save(`Auction_${existingAuction.auction_number}_Activity.pdf`);
   };
 
+  const addMinutes = (date, minutes) => {
+    if (!date) return null;
+    return new Date(date.getTime() + minutes * 60000);
+  };
+
+  useEffect(() => {
+    if (!startTime || !endTime) return;
+
+    if (endTime <= startTime) {
+      setEndTime(addMinutes(startTime, 30));
+    }
+  }, [startTime]);
+
   return (
     <div
       style={{
@@ -471,7 +561,11 @@ export default function Buyer({
                 <Calendar
                   showTime
                   value={startTime}
-                  onChange={(e) => setStartTime(e.value)}
+                  onChange={(e) => {
+                    const selectedStart = e.value;
+                    setStartTime(selectedStart);
+                    setEndTime(addMinutes(selectedStart, 30));
+                  }}
                   monthNavigator
                   yearNavigator
                   yearRange="2020:2035"
@@ -511,7 +605,11 @@ export default function Buyer({
               </div>
 
               <div className="field col-12">
-                <Button label="Send Auction Invite" onClick={createAuction} />
+                <Button
+                  label="Send Auction Invite"
+                  disabled={invites.length === 0}
+                  onClick={createAuctionFromRfq}
+                />
               </div>
             </div>
           </Card>
@@ -634,7 +732,7 @@ export default function Buyer({
                   body={(row) => <strong>{row.vendorName}</strong>}
                 />
 
-                <Column
+                {/* <Column
                   field="bid"
                   header="Bid"
                   body={(row) =>
@@ -663,7 +761,7 @@ export default function Buyer({
                       "-"
                     )
                   }
-                />
+                /> */}
 
                 <Column field="time" header="Time" />
               </DataTable>
@@ -746,7 +844,7 @@ export default function Buyer({
                 })}
               </div>
             </Panel>
-            {isAuctionEnded && (
+            {/* {isAuctionEnded && (
               <TabView>
                 <TabPanel header="Activity">
                   {!existingAuction ? (
@@ -819,18 +917,6 @@ export default function Buyer({
                         )}
                       </Card>
 
-                      {/* {nonParticipatedVendors.length > 0 && (
-                        <Card
-                          title="❌ Invited but Not Participated"
-                          className="mb-3"
-                        >
-                          <ul className="pl-3">
-                            {nonParticipatedVendors.map((email) => (
-                              <li key={email}>{email}</li>
-                            ))}
-                          </ul>
-                        </Card>
-                      )} */}
 
                       {existingAuction.ranks && (
                         <Card title="🏆 Auction Result">
@@ -854,7 +940,7 @@ export default function Buyer({
                   )}
                 </TabPanel>
               </TabView>
-            )}
+            )} */}
           </div>
         </>
       )}

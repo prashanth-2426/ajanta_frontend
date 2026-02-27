@@ -86,6 +86,8 @@ const ViewQuote = () => {
 
   const [auctionData, setAuctionData] = useState(null);
 
+  const [auctionPulse, setAuctionPulse] = useState(null);
+
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
     setShowHODDecisionDialog(true);
@@ -207,10 +209,25 @@ const ViewQuote = () => {
   const isScheduledAuction =
     auctionData?.startTime && new Date(auctionData.startTime) > now;
 
-  const handleAuctionUpdated = () => {
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+  const handleAuctionUpdated = async () => {
+    // 1️⃣ wait 8 seconds
+    await sleep(8000);
+
+    // 2️⃣ fetch updated summary
+    await fetchSummary();
+
+    // 3️⃣ trigger animation AFTER fetchSummary finishes
+    setAuctionPulse({
+      emoji: "⚡",
+      text: "Auction Update Received",
+    });
+
+    // 4️⃣ auto hide after 2s
     setTimeout(() => {
-      fetchSummary();
-    }, 8000);
+      setAuctionPulse(null);
+    }, 2000);
   };
 
   const isAuctionEnded = React.useMemo(() => {
@@ -1746,6 +1763,12 @@ const ViewQuote = () => {
 
     return (
       <div className="mt-4">
+        {auctionPulse && (
+          <div className="auction-pulse">
+            <span className="emoji">{auctionPulse.emoji}</span>
+            <span className="text">{auctionPulse.text}</span>
+          </div>
+        )}
         <h4 className="mb-3">✈️ All Shipment Quotes (Flat View)</h4>
         <div className="grid">
           <div className="col-12 md:col-3">
@@ -1943,10 +1966,12 @@ const ViewQuote = () => {
           <Column
             header="DAP/DDP"
             body={(row) =>
-              row.dap_ddp_charges + " (" + row.currency + ") " || "-"
+              row.dap_ddp_charges
+                ? row.dap_ddp_charges + " (" + row.currency + ") "
+                : "-"
             }
           />
-          <Column header="Ex Rate" body={(row) => row.exchangeRate || "-"} />
+          {/* <Column header="Ex Rate" body={(row) => row.exchangeRate || "-"} /> */}
           <Column header="Other" body={(row) => row.other_charges || "-"} />
           <Column
             header="First Bid Price"
@@ -2342,12 +2367,12 @@ const ViewQuote = () => {
                     onClick={() => setShowAuctionDialog(true)}
                     disabled={!auctionData && selectedVendors.length === 0}
                   /> */}
-                  <Button
+                  {/* <Button
                     label={auctionActionLabel}
                     className="p-button-success p-button-sm"
                     onClick={() => setShowAuctionDialog(true)}
                     //disabled={!auctionData && selectedVendors.length === 0}
-                  />
+                  /> */}
                 </>
               )}
             </div>

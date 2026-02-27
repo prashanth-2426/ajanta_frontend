@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import io from "socket.io-client";
 
@@ -8,6 +8,8 @@ import { Button } from "primereact/button";
 import { Divider } from "primereact/divider";
 import { Panel } from "primereact/panel";
 import { BASE_URL, API_URL } from "../../constants";
+import { useApi } from "../../utils/requests";
+import { toastError, toastSuccess } from "../../store/toastSlice";
 
 const SERVER = API_URL;
 
@@ -17,8 +19,12 @@ export default function Vendor({
   auctionData,
   shipmentIndex,
   rowData,
+  rfqQuoteRank,
   onSubmitBid,
+  onAuctionDataRankUpdate,
 }) {
+  //console.log("RFQ Quote Rank:", rfqQuoteRank);
+  const { postData, getData } = useApi();
   const [auctionId, setAuctionId] = useState("");
   const [socket, setSocket] = useState(null);
   const [myBid, setMyBid] = useState(bidValue);
@@ -27,7 +33,9 @@ export default function Vendor({
   const [endTime, setEndTime] = useState("");
   const [bidCount, setBidCount] = useState(0);
   const user = useSelector((state) => state.auth.user);
-  console.log("User Details:", user);
+  //console.log("User Details:", user);
+  const dispatch = useDispatch();
+  const hasSentResult = useRef(false);
 
   const [countdownLabel, setCountdownLabel] = useState("");
   const [showScheduledCard, setShowScheduledCard] = useState(false);
@@ -43,6 +51,9 @@ export default function Vendor({
   const [unreadCount, setUnreadCount] = useState(0);
   const chatEndRef = useRef(null);
 
+  const [quoteRankingAfterAuction, setQuoteRankingAfterAuction] =
+    useState(null);
+
   useEffect(() => {
     if (bidValue !== undefined && bidValue !== null) {
       setMyBid(bidValue);
@@ -55,32 +66,130 @@ export default function Vendor({
     }
   }, [showChat]);
 
-  const userst = auctionData?.users ? Object.values(auctionData?.users) : [];
+  // const userst = auctionData?.users ? Object.values(auctionData?.users) : [];
 
-  const winnerEntry = auctionData?.ranks
-    ? Object.entries(auctionData.ranks).find(([, rank]) => rank === 1)
+  // const winnerEntry = auctionData?.ranks
+  //   ? Object.entries(auctionData.ranks).find(([, rank]) => rank === 1)
+  //   : null;
+
+  // const winnerVendorId = winnerEntry?.[0];
+
+  // const winnerVendor = userst?.find(
+  //   (u) => String(u.id) === String(winnerVendorId),
+  // );
+
+  // const isWinner =
+  //   user?.role === "vendor" &&
+  //   winnerVendor?.email &&
+  //   user?.email === winnerVendor.email;
+
+  // const myVendorEntry = auctionData?.ranks
+  //   ? Object.entries(auctionData.ranks).find(([vendorId]) =>
+  //       userst?.find(
+  //         (u) => String(u.id) === String(vendorId) && u.email === user?.email,
+  //       ),
+  //     )
+  //   : null;
+
+  // const myRank = myVendorEntry?.[1];
+
+  const myEmail = user.email;
+
+  // 🔥 Winner = rank L1 (per shipment / airline if needed)
+  const winnerEntry = quoteRankingAfterAuction?.find((r) => r.rank === "L1");
+  const nonWinners = quoteRankingAfterAuction?.filter((r) => r.rank !== "L1");
+
+  // 🔥 My rank entry
+  const myEntry = quoteRankingAfterAuction?.find((r) => r.email === myEmail);
+
+  // derived states
+  const winnerVendor = winnerEntry
+    ? {
+        id: winnerEntry.vendor_id,
+        name: winnerEntry.vendor_name,
+        company: auctionData?.vendors?.[winnerEntry.vendor_id]?.company,
+        airline: winnerEntry.airline,
+      }
     : null;
 
-  const winnerVendorId = winnerEntry?.[0];
+  const winnerVendorId = winnerEntry?.vendor_id || null;
+  const myRank = myEntry?.rank || null;
 
-  const winnerVendor = userst?.find(
-    (u) => String(u.id) === String(winnerVendorId),
-  );
+  // flags
+  const isAuctionEnded = Date.now() >= new Date(auctionData?.endTime).getTime();
 
-  const isWinner =
-    user?.role === "vendor" &&
-    winnerVendor?.email &&
-    user?.email === winnerVendor.email;
+  const isWinner = isAuctionEnded && myEntry && myEntry.rank === "L1";
 
-  const myVendorEntry = auctionData?.ranks
-    ? Object.entries(auctionData.ranks).find(([vendorId]) =>
-        userst?.find(
-          (u) => String(u.id) === String(vendorId) && u.email === user?.email,
-        ),
-      )
-    : null;
+  const sendAuctionResultEmails = async (winnerEntry, nonWinners) => {
+    try {
+      const res = await fetch(
+        `${SERVER}/socks/auction/${rowData.rfq_number}/send-result`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            winner: winnerEntry,
+            nonWinners,
+          }),
+        },
+      );
 
-  const myRank = myVendorEntry?.[1];
+      const data = await res.json();
+      if (data) {
+        dispatch(
+          toastSuccess({ detail: "Auction Ended Result Shared Successfully!" }),
+        );
+      } else {
+        dispatch(toastError({ detail: "Auction Ending ailed" }));
+      }
+    } catch (error) {
+      dispatch(toastError({ detail: "Something went wrong" }));
+    }
+  };
+
+  const fetchQuoteSummary = async (rfqNumber) => {
+    try {
+      const response = await getData(
+        `quotesummary/quotes-summary/${rfqNumber}`,
+      );
+
+      const rfqNo = response?.rfq_number;
+
+      const formattedData =
+        response?.shipments?.flatMap((shipment, shipmentIndex) =>
+          shipment?.quotes
+            //?.filter((quote) => quote.vendor_id === user.id) // 🔥 FILTER HERE
+            ?.map((quote) => ({
+              rfq_number: rfqNo,
+              shipment_index: shipmentIndex,
+              vendor_id: quote.vendor_id,
+              vendor_name: quote.vendor_name,
+              airline: quote.airline_name,
+              airport: quote.airport,
+              rank: quote.rank,
+              email: quote.vendor_email,
+            })),
+        ) || [];
+
+      setQuoteRankingAfterAuction(formattedData);
+    } catch (error) {
+      console.error("Error fetching quote summary:", error);
+    }
+  };
+
+  useEffect(() => {
+    if (rowData?.rfq_number) {
+      fetchQuoteSummary(rowData.rfq_number);
+    }
+  }, [rowData?.rfq_number]);
+
+  useEffect(() => {
+    // this runs IMMEDIATELY after state updates & re-render
+    console.log("Ranks updated after auction:", quoteRankingAfterAuction);
+    if (onAuctionDataRankUpdate) {
+      onAuctionDataRankUpdate(quoteRankingAfterAuction);
+    }
+  }, [quoteRankingAfterAuction]);
 
   function joinAuction() {
     const s = io(BASE_URL, {
@@ -102,7 +211,11 @@ export default function Vendor({
       setHasJoined(true);
     });
 
-    s.on("rankUpdate", (data) => {
+    s.on("rankUpdate", async (data) => {
+      const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      await sleep(8000);
+      await fetchQuoteSummary(rowData.rfq_number);
+
       setRank(data.rank);
       if (data.bid !== null) setMyBid(data.bid);
       if (data.endTime) setEndTime(data.endTime);
@@ -117,7 +230,7 @@ export default function Vendor({
     });
   }
 
-  function placeBid() {
+  async function placeBid() {
     if (bidCount >= maxBids) return;
     if (onSubmitBid) {
       onSubmitBid(shipmentIndex, rowData);
@@ -164,7 +277,7 @@ export default function Vendor({
   useEffect(() => {
     if (!auctionData?.startTime || !auctionData?.endTime) return;
 
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       const now = Date.now();
       const start = new Date(auctionData.startTime).getTime();
       const end = new Date(auctionData.endTime).getTime();
@@ -207,6 +320,42 @@ export default function Vendor({
 
     return () => clearInterval(interval);
   }, [auctionData]);
+
+  useEffect(() => {
+    if (!auctionData?.endTime || auctionData.mailSent) return;
+
+    const interval = setInterval(() => {
+      const end = new Date(auctionData.endTime).getTime();
+      const now = Date.now();
+
+      // Stop if already sent
+      if (hasSentResult.current) {
+        clearInterval(interval);
+        return;
+      }
+
+      // Wait until ranking data is loaded
+      if (!quoteRankingAfterAuction || quoteRankingAfterAuction.length === 0) {
+        return;
+      }
+
+      // Check auction ended
+      if (now >= end) {
+        const winner = quoteRankingAfterAuction.find((r) => r.rank === "L1");
+        const nonWinners = quoteRankingAfterAuction?.filter(
+          (r) => r.rank !== "L1",
+        );
+
+        if (winner) {
+          hasSentResult.current = true;
+          sendAuctionResultEmails(winner, nonWinners);
+          clearInterval(interval);
+        }
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [auctionData?.endTime, quoteRankingAfterAuction]);
 
   return (
     <Card style={{ background: "transparent", boxShadow: "none" }}>
@@ -282,47 +431,31 @@ export default function Vendor({
 
           <hr />
 
-          {user?.role === "vendor" && auctionData?.ranks && (
-            <>
-              {/* 🏆 WINNER CARD */}
-              {isWinner && (
-                <Card
-                  title="🏆 Congratulations!"
-                  className="mb-3 border-round-xl shadow-3"
-                >
-                  <p className="text-lg font-semibold text-green-700">
-                    🎉 You won the auction!
-                  </p>
+          {isAuctionEnded && isWinner && (
+            <Card
+              title="🏆 Congratulations!"
+              className="mb-3 border-round-xl shadow-3"
+            >
+              <p className="text-lg font-semibold text-green-700">
+                🎉 You won the auction!
+              </p>
+            </Card>
+          )}
 
-                  <p>
-                    <b>Winner:</b> {winnerVendor?.name} ({winnerVendor?.company}
-                    )
-                  </p>
+          {isAuctionEnded && !isWinner && myRank && (
+            <Card
+              title="📊 Auction Result"
+              className="mb-3 border-round-xl shadow-2"
+            >
+              <p className="text-md">
+                <b>Your Rank:</b>{" "}
+                <span className="font-semibold text-primary">{myRank}</span>
+              </p>
 
-                  <p>
-                    <b>Your Winning Bid:</b>{" "}
-                    {auctionData.bids[winnerVendorId]?.bid}
-                  </p>
-                </Card>
-              )}
-
-              {/* 🙏 NON-WINNER CARD */}
-              {!isWinner && myRank && (
-                <Card
-                  title="📊 Auction Result"
-                  className="mb-3 border-round-xl shadow-2"
-                >
-                  <p className="text-md">
-                    <b>Your Rank:</b>{" "}
-                    <span className="font-semibold text-primary">{myRank}</span>
-                  </p>
-
-                  <p className="text-sm text-600">
-                    Thank you for participating in the auction.
-                  </p>
-                </Card>
-              )}
-            </>
+              <p className="text-sm text-600">
+                Thank you for participating in the auction.
+              </p>
+            </Card>
           )}
         </Card>
       )}
@@ -395,7 +528,7 @@ export default function Vendor({
                   <div className="mt-3 text-center">
                     <span>Your Rank</span>
                     <h2 style={{ color: "#16a34a" }}>
-                      {rank ? `L${rank}` : "-"}
+                      {rfqQuoteRank ? `${rfqQuoteRank}` : "-"}
                     </h2>
                   </div>
                 </div>
@@ -483,6 +616,24 @@ export default function Vendor({
             </div>
           </div>
         </div>
+      )}
+
+      {bidCount == 0 && (
+        <Card
+          className="mb-3 text-center"
+          style={{
+            background: "linear-gradient(135deg, #0f172a, #1e293b)",
+            color: "#fff",
+            borderRadius: "12px",
+          }}
+        >
+          <div className="mt-3 text-center">
+            <span>Your Current Rank</span>
+            <h2 style={{ color: "#16a34a" }}>
+              {rfqQuoteRank ? `${rfqQuoteRank}` : "-"}
+            </h2>
+          </div>
+        </Card>
       )}
     </Card>
   );

@@ -28,6 +28,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useApi } from "../../utils/requests";
 import { LayoutContext } from "../../store/layoutContext";
 import { BASE_URL, API_URL } from "../../constants";
+import { v4 as uuidv4 } from "uuid";
 
 const eximModes = [
   { label: "Export", value: "export" },
@@ -1090,6 +1091,8 @@ const CreateRfq = () => {
   const watchHideBid = watch("hide_current_bid_price");
   const watchMode = watch("mode");
 
+  const [userId, setUserId] = useState(uuidv4().slice(0, 8));
+
   const onSubmit =
     (formType = "submitted") =>
     async (data) => {
@@ -1129,6 +1132,7 @@ const CreateRfq = () => {
           ...data,
           rfq_number: generatedRfqNumber,
           auction_number: abc,
+          buyerId: userId,
           form_type: submitSource.current,
           rfq_type: source || data.type,
           rfq_items:
@@ -1256,8 +1260,10 @@ const CreateRfq = () => {
               return dispatch(toastError({ detail: result.msg }));
             }
 
-            dispatch(toastSuccess({ detail: "RFQ Created Successfully.." }));
-            navigate("/rfqs");
+            dispatch(toastSuccess({ detail: "Created Successfully.." }));
+            abc && submitSource.current === "submitted"
+              ? navigate("/quote-summary/" + generatedRfqNumber)
+              : navigate("/rfqs");
           } catch (err) {
             console.error("Error creating RFQ:", err);
           }
@@ -1285,22 +1291,22 @@ const CreateRfq = () => {
 
   const [files, setFiles] = useState([]);
 
-  const onUpload = (e) => {
-    const uploadedFiles = e.files || [];
-    setFiles([...files, ...uploadedFiles]);
-  };
-
   // const onUpload = (e) => {
   //   const uploadedFiles = e.files || [];
-
-  //   setFiles((prevFiles) => {
-  //     const allFiles = [...prevFiles, ...uploadedFiles];
-  //     const uniqueFiles = Array.from(
-  //       new Map(allFiles.map((f) => [f.name, f])).values()
-  //     );
-  //     return uniqueFiles;
-  //   });
+  //   setFiles([...files, ...uploadedFiles]);
   // };
+
+  const onUpload = (e) => {
+    const uploadedFiles = e.files || [];
+
+    setFiles((prevFiles) => {
+      const allFiles = [...prevFiles, ...uploadedFiles];
+      const uniqueFiles = Array.from(
+        new Map(allFiles.map((f) => [f.name, f])).values(),
+      );
+      return uniqueFiles;
+    });
+  };
 
   const removeFile = (name) => {
     setFiles((prev) => prev.filter((f) => f.name !== name));
@@ -4319,7 +4325,7 @@ const CreateRfq = () => {
                 )}
                 <Button
                   type="submit"
-                  label={source === "auction" ? "Create Auction" : "Submit RFQ"}
+                  label={source ? "Create Auction" : "Submit RFQ"}
                   className="p-button-success"
                   onClick={handleSubmit(onSubmit("submitted"))}
                   disabled={
