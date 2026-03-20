@@ -20,6 +20,8 @@ import VendorBiddingPanel from "./VendorBiddingPanel";
 import { Dialog } from "primereact/dialog";
 import { v4 as uuidv4 } from "uuid";
 import { setAuctions } from "../../store/auctionSlice";
+import { BASE_URL, API_URL } from "../../constants";
+import VendorCostUpload from "./VendorCostUpload";
 
 const RfqManagement = () => {
   const { postData, getData } = useApi();
@@ -69,6 +71,10 @@ const RfqManagement = () => {
   const [showVendorAuctionDialog, setShowVendorAuctionDialog] = useState(false);
   const [userId, setUserId] = useState(uuidv4().slice(0, 8));
   const [auctionData, setAuctionData] = useState(null);
+  const [selectedRow, setSelectedRow] = useState(null);
+  const [rfqNumberForQuoteSummary, setRfqNumberForQuoteSummary] =
+    useState(null);
+  const [showVendorUpload, setShowVendorUpload] = useState(false);
   const [quoteRankingBeforeAuction, setQuoteRankingBeforeAuction] =
     useState(null);
 
@@ -124,7 +130,8 @@ const RfqManagement = () => {
           (rfq) =>
             rfq.status === "requested_hod_approval" ||
             rfq.status === "hod_approved" ||
-            rfq.status === "hod_rejected",
+            rfq.status === "hod_rejected" ||
+            rfq.status === "documents_submitted_by_exports",
         );
         setRfqs(result);
       } else {
@@ -143,6 +150,7 @@ const RfqManagement = () => {
   };
 
   const fetchQuoteSummary = async (rfqNumber) => {
+    setRfqNumberForQuoteSummary(rfqNumber);
     try {
       const response = await getData(
         `quotesummary/quotes-summary/${rfqNumber}`,
@@ -338,6 +346,11 @@ const RfqManagement = () => {
                     documentation_charges: quote.documentation_charges || "",
                     customs_handling: quote.customs_handling || "",
                     free_storage_days: quote.free_storage_days || "",
+                    hodAcceptRequestDetails:
+                      entry.hodAcceptRequestDetails || {},
+                    buyerDocumentsUploadedDetails:
+                      entry.buyerDocumentsUploadedDetails || {},
+                    invoiceDetails: entry.invoiceDetails || [],
                   });
                 }
               });
@@ -575,7 +588,7 @@ const RfqManagement = () => {
   }, []);
 
   const filteredRfqs =
-    role === "user" || role === "hod"
+    role === "user" || role === "hod" || role === "vendor"
       ? rfqs.filter((rfq) => rfq.form_type?.toLowerCase() !== "draft")
       : rfqs;
 
@@ -936,6 +949,9 @@ const RfqManagement = () => {
         ...item,
         row_id: item.row_id ?? idx + 1,
       }));
+
+    const isAuctionEnded =
+      auctionData?.endTime && new Date() > new Date(auctionData.endTime);
 
     return (
       <div className="p-3">
@@ -2313,239 +2329,395 @@ const RfqManagement = () => {
                           !auctionData?.auction_number ? 8 : 8
                         }`}
                       >
-                        <div className="grid formgrid">
-                          <div className="field col-12 md:col-4">
-                            <label>Airline</label>
-                            <InputText
-                              value={row.airline_name}
-                              onChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "airline_name",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>Airport</label>
-                            <InputText
-                              value={row.airport}
-                              onChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "airport",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>Chargeable Weight (KG)</label>
-                            <InputNumber
-                              value={row.chargeable_weight || 0}
-                              onValueChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "chargeable_weight",
-                                  e.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>Freight (Rs/KG)</label>
-                            <InputNumber
-                              value={row.base_rate || 0}
-                              onValueChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "base_rate",
-                                  e.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>AMS (CURRENCY-INR)</label>
-                            <InputNumber
-                              value={row.ams || 0}
-                              onValueChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "ams",
-                                  e.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>PAC (CURRENCY-INR)</label>
-                            <InputNumber
-                              value={row.pac || 0}
-                              onValueChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "pac",
-                                  e.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>AWB (CURRENCY-INR)</label>
-                            <InputNumber
-                              value={row.awb || 0}
-                              onValueChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "awb",
-                                  e.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>Other Charges (CURRENCY-INR)</label>
-                            <InputNumber
-                              value={row.other_charges || 0}
-                              onValueChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "other_charges",
-                                  e.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          <div className="field col-12 md:col-4">
-                            <label>
-                              <b>Total</b>
-                            </label>
-                            <InputNumber
-                              value={row.total_charges || 0}
-                              readOnly
-                              onChange={(e) =>
-                                handleInputChange(
-                                  shipment,
-                                  shipmentIndex,
-                                  idx,
-                                  "total_charges",
-                                  e.target.value,
-                                )
-                              }
-                            />
-                          </div>
-
-                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
-                            '""' && (
+                        <fieldset disabled={isAuctionEnded}>
+                          <div className="grid formgrid">
                             <div className="field col-12 md:col-4">
-                              <label>Currency</label>
-                              <Dropdown
-                                value={row.currency || "INR"}
-                                options={["INR", "USD", "EUR"]}
+                              <label>Airline</label>
+                              <InputText
+                                value={row.airline_name}
                                 onChange={(e) =>
-                                  handleCurrencyChange(
+                                  handleInputChange(
                                     shipment,
                                     shipmentIndex,
                                     idx,
-                                    "currency",
-                                    e.value,
+                                    "airline_name",
+                                    e.target.value,
                                   )
                                 }
                               />
                             </div>
-                          )}
 
-                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
-                            '""' && (
-                            <div className="field col-12 md:col-2">
-                              <label>Exchange Rate</label>
+                            <div className="field col-12 md:col-4">
+                              <label>Airport</label>
+                              <InputText
+                                value={row.airport}
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "airport",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="field col-12 md:col-4">
+                              <label>Chargeable Weight (KG)</label>
                               <InputNumber
-                                value={row.exchangeRate || 0}
-                                mode="decimal"
-                                minFractionDigits={3}
+                                value={row.chargeable_weight || 0}
                                 onValueChange={(e) =>
-                                  handleExchangeRateChange(
+                                  handleInputChange(
                                     shipment,
                                     shipmentIndex,
                                     idx,
-                                    "exchangeRate",
+                                    "chargeable_weight",
                                     e.value,
                                   )
                                 }
                               />
-                              <span>{fetchingRateMsg}</span>
                             </div>
-                          )}
 
-                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
-                            '""' && (
-                            <div className="field col-12 md:col-2">
-                              <label>DAP/DDP {rowData.dapCurrency}</label>
-
+                            <div className="field col-12 md:col-4">
+                              <label>Freight (Rs/KG)</label>
                               <InputNumber
-                                value={row.dap_ddp_charges || 0}
+                                value={row.base_rate || 0}
                                 onValueChange={(e) =>
-                                  handleDapDdpChange(
+                                  handleInputChange(
                                     shipment,
                                     shipmentIndex,
                                     idx,
-                                    "dap_ddp_charges",
+                                    "base_rate",
                                     e.value,
                                   )
                                 }
                               />
                             </div>
-                          )}
 
-                          {JSON.stringify(rowData?.dapCurrency ?? "") !==
-                            '""' && (
+                            <div className="field col-12 md:col-4">
+                              <label>AMS (CURRENCY-INR)</label>
+                              <InputNumber
+                                value={row.ams || 0}
+                                onValueChange={(e) =>
+                                  handleInputChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "ams",
+                                    e.value,
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="field col-12 md:col-4">
+                              <label>PAC (CURRENCY-INR)</label>
+                              <InputNumber
+                                value={row.pac || 0}
+                                onValueChange={(e) =>
+                                  handleInputChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "pac",
+                                    e.value,
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="field col-12 md:col-4">
+                              <label>AWB (CURRENCY-INR)</label>
+                              <InputNumber
+                                value={row.awb || 0}
+                                onValueChange={(e) =>
+                                  handleInputChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "awb",
+                                    e.value,
+                                  )
+                                }
+                              />
+                            </div>
+
+                            <div className="field col-12 md:col-4">
+                              <label>Other Charges (CURRENCY-INR)</label>
+                              <InputNumber
+                                value={row.other_charges || 0}
+                                onValueChange={(e) =>
+                                  handleInputChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "other_charges",
+                                    e.value,
+                                  )
+                                }
+                              />
+                            </div>
+
                             <div className="field col-12 md:col-4">
                               <label>
-                                <b>Total DAP/DPP Charge</b>
+                                <b>Total</b>
                               </label>
                               <InputNumber
-                                value={row.totaldapdppcharge || 0}
+                                value={row.total_charges || 0}
+                                readOnly
+                                onChange={(e) =>
+                                  handleInputChange(
+                                    shipment,
+                                    shipmentIndex,
+                                    idx,
+                                    "total_charges",
+                                    e.target.value,
+                                  )
+                                }
+                              />
+                            </div>
+
+                            {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                              '""' && (
+                              <div className="field col-12 md:col-4">
+                                <label>Currency</label>
+                                <Dropdown
+                                  value={row.currency || "INR"}
+                                  options={["INR", "USD", "EUR"]}
+                                  onChange={(e) =>
+                                    handleCurrencyChange(
+                                      shipment,
+                                      shipmentIndex,
+                                      idx,
+                                      "currency",
+                                      e.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                            )}
+
+                            {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                              '""' && (
+                              <div className="field col-12 md:col-2">
+                                <label>Exchange Rate</label>
+                                <InputNumber
+                                  value={row.exchangeRate || 0}
+                                  mode="decimal"
+                                  minFractionDigits={3}
+                                  onValueChange={(e) =>
+                                    handleExchangeRateChange(
+                                      shipment,
+                                      shipmentIndex,
+                                      idx,
+                                      "exchangeRate",
+                                      e.value,
+                                    )
+                                  }
+                                />
+                                <span>{fetchingRateMsg}</span>
+                              </div>
+                            )}
+
+                            {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                              '""' && (
+                              <div className="field col-12 md:col-2">
+                                <label>DAP/DDP {rowData.dapCurrency}</label>
+
+                                <InputNumber
+                                  value={row.dap_ddp_charges || 0}
+                                  onValueChange={(e) =>
+                                    handleDapDdpChange(
+                                      shipment,
+                                      shipmentIndex,
+                                      idx,
+                                      "dap_ddp_charges",
+                                      e.value,
+                                    )
+                                  }
+                                />
+                              </div>
+                            )}
+
+                            {JSON.stringify(rowData?.dapCurrency ?? "") !==
+                              '""' && (
+                              <div className="field col-12 md:col-4">
+                                <label>
+                                  <b>Total DAP/DPP Charge</b>
+                                </label>
+                                <InputNumber
+                                  value={row.totaldapdppcharge || 0}
+                                  readOnly
+                                />
+                              </div>
+                            )}
+
+                            <div className="field col-12 md:col-4">
+                              <label>
+                                <b>Grand Total</b>
+                              </label>
+                              <InputNumber
+                                value={row.grandTotalValue || 0}
                                 readOnly
                               />
                             </div>
-                          )}
-
-                          <div className="field col-12 md:col-4">
-                            <label>
-                              <b>Grand Total</b>
-                            </label>
-                            <InputNumber
-                              value={row.grandTotalValue || 0}
-                              readOnly
-                            />
                           </div>
-                        </div>
+                        </fieldset>
+                        {row.hodAcceptRequestDetails?.requested_airline && (
+                          <div
+                            className={`p-3 mt-3 border-round ${
+                              row.hodAcceptRequestDetails?.hod_rejected_on
+                                ? "bg-red-50 border-red-300"
+                                : "bg-green-50 border-green-300"
+                            }`}
+                          >
+                            <strong
+                              className={
+                                row.hodAcceptRequestDetails?.hod_rejected_on
+                                  ? "text-red-700"
+                                  : "text-green-700"
+                              }
+                            >
+                              {row.hodAcceptRequestDetails?.hod_rejected_on
+                                ? "Buyer Rejected"
+                                : "Buyer Approved"}
+                            </strong>
+
+                            <div style={{ marginTop: "8px" }}>
+                              <strong>Buyer Comment:</strong>{" "}
+                              {row.hodAcceptRequestDetails.hod_msg}
+                              <br />
+                              {row.hodAcceptRequestDetails?.hod_rejected_on ? (
+                                <>
+                                  <strong>Rejected On:</strong>{" "}
+                                  {formatDate(
+                                    row.hodAcceptRequestDetails.hod_rejected_on,
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  <strong>Buyer Approved On:</strong>{" "}
+                                  {formatDate(
+                                    row.hodAcceptRequestDetails.hod_approved_on,
+                                  )}
+                                </>
+                              )}
+                            </div>
+
+                            {!row?.hodAcceptRequestDetails?.hod_rejected_on &&
+                              row?.hodAcceptRequestDetails?.hod_approved_on &&
+                              !row?.flight_schedule1 && (
+                                <div
+                                  style={{
+                                    marginTop: "12px",
+                                    padding: "10px",
+                                    backgroundColor: "#fff3cd",
+                                    border: "1px solid #ffeeba",
+                                    borderRadius: "4px",
+                                    color: "#856404",
+                                  }}
+                                >
+                                  <strong>Note:</strong> You are nominated for
+                                  this shipment, kindly share earliest flight
+                                  schedule.
+                                </div>
+                              )}
+
+                            {row?.flight_schedule1 &&
+                              row?.hodAcceptRequestDetails?.hod_approved_on &&
+                              Object.keys(
+                                row?.buyerDocumentsUploadedDetails || {},
+                              ).length > 0 && (
+                                <div
+                                  style={{
+                                    marginTop: "12px",
+                                    padding: "10px",
+                                    backgroundColor: "#fff3cd",
+                                    border: "1px solid #ffeeba",
+                                    borderRadius: "4px",
+                                    color: "#856404",
+                                  }}
+                                >
+                                  <strong>Note:</strong> Flight schedule has
+                                  been submitted and approved by HOD. Kindly
+                                  upload the invoice and related cost documents
+                                  (Freight, DAP, Custom Duty, Others) at the
+                                  earliest to proceed further.
+                                </div>
+                              )}
+
+                            <br />
+
+                            {row?.hodAcceptRequestDetails?.hod_approved_on &&
+                              Object.keys(
+                                row?.buyerDocumentsUploadedDetails || {},
+                              ).length > 0 && (
+                                <Button
+                                  label="Upload Invoice"
+                                  icon="pi pi-upload"
+                                  className="p-button-sm"
+                                  onClick={() => {
+                                    setSelectedRow({
+                                      user,
+                                      rfqNumberForQuoteSummary,
+                                      invoiceDetails: row.invoiceDetails || [],
+                                    });
+                                    setShowVendorUpload(true);
+                                  }}
+                                />
+                              )}
+                          </div>
+                        )}
+
+                        {row?.buyerDocumentsUploadedDetails &&
+                          row.airline_name ===
+                            row.buyerDocumentsUploadedDetails.airline_name && (
+                            <div className="p-3 mt-3 border-round bg-blue-50 border-blue-300">
+                              <strong className="text-blue-700">
+                                Buyer Documents Submitted
+                              </strong>
+
+                              <div style={{ marginTop: "8px" }}>
+                                <strong>Vendor:</strong>{" "}
+                                {row.buyerDocumentsUploadedDetails.vendor_name}
+                                <br />
+                                <strong>Vendor Email:</strong>{" "}
+                                {row.buyerDocumentsUploadedDetails.vendor_email}
+                                <br />
+                                <strong>Airline:</strong>{" "}
+                                {row.buyerDocumentsUploadedDetails.airline_name}
+                                <br />
+                                <strong>Submitted On:</strong>{" "}
+                                {formatDate(
+                                  row.buyerDocumentsUploadedDetails
+                                    .submitted_at,
+                                )}
+                                <br />
+                                {row.buyerDocumentsUploadedDetails.attached_file
+                                  ?.length > 0 && (
+                                  <>
+                                    <strong>Attachments:</strong>
+
+                                    {row.buyerDocumentsUploadedDetails.attached_file.map(
+                                      (file, index) => (
+                                        <div key={index}>
+                                          <a
+                                            href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-700 underline"
+                                          >
+                                            {file}
+                                          </a>
+                                        </div>
+                                      ),
+                                    )}
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                          )}
                       </div>
 
                       {/* {auctionData?.auction_number && ( */}
@@ -2562,6 +2734,7 @@ const RfqManagement = () => {
                           <VendorBiddingPanel
                             userId={userId}
                             bidValue={row.grandTotalValue}
+                            airlineName={row.airline_name}
                             auctionData={auctionData}
                             shipmentIndex={shipmentIndex}
                             rowData={rowData}
@@ -2801,6 +2974,19 @@ const RfqManagement = () => {
 
                     {/* Actions */}
                     <div className="flex justify-content-end gap-2 mt-3">
+                      <Button
+                        icon="pi pi-send"
+                        label="Submit Flight Schedule"
+                        className="p-button-success mt-3 mr-4"
+                        disabled={
+                          rowData.status === "accepted" ||
+                          !airlineData[shipmentIndex] ||
+                          airlineData[shipmentIndex].length === 0
+                        }
+                        onClick={() =>
+                          handlePackageSubmit(shipmentIndex, rowData)
+                        }
+                      />
                       <Button
                         icon="pi pi-trash"
                         className="p-button-text p-button-danger"
@@ -3196,6 +3382,24 @@ const RfqManagement = () => {
           />
         </DataTable>
       )}
+
+      <Dialog
+        header="Vendor Cost Breakdown Upload"
+        visible={showVendorUpload}
+        style={{ width: "50vw" }}
+        modal
+        onHide={() => setShowVendorUpload(false)}
+      >
+        {selectedRow && (
+          <VendorCostUpload
+            row={selectedRow}
+            // refreshData={() => {
+            //   fetchAuctionData();
+            //   setShowVendorUpload(false);
+            // }}
+          />
+        )}
+      </Dialog>
     </div>
   );
 };

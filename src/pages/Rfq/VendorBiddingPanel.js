@@ -16,6 +16,7 @@ const SERVER = API_URL;
 export default function Vendor({
   userId,
   bidValue,
+  airlineName,
   auctionData,
   shipmentIndex,
   rowData,
@@ -25,7 +26,7 @@ export default function Vendor({
 }) {
   //console.log("RFQ Quote Rank:", rfqQuoteRank);
   const { postData, getData } = useApi();
-  const [auctionId, setAuctionId] = useState("");
+  const [auctionId, setAuctionId] = useState(auctionData?.id || "");
   const [socket, setSocket] = useState(null);
   const [myBid, setMyBid] = useState(bidValue);
   const [rank, setRank] = useState(null);
@@ -54,11 +55,63 @@ export default function Vendor({
   const [quoteRankingAfterAuction, setQuoteRankingAfterAuction] =
     useState(null);
 
+  const directAuction = auctionData?.directAuction === true;
+
+  const isAirlineInvited =
+    directAuction ||
+    auctionData?.invitedAirlines?.some((v) => v.airline_name === airlineName);
+
+  useEffect(() => {
+    if (auctionData?.id) {
+      setAuctionId(auctionData.id);
+    }
+  }, [auctionData?.id]);
+
   useEffect(() => {
     if (bidValue !== undefined && bidValue !== null) {
       setMyBid(bidValue);
     }
   }, [bidValue]);
+
+  useEffect(() => {
+    const prefix = `auction_socket_${auctionId}_${user.id}`;
+
+    const existingKey = Object.keys(localStorage).find((key) =>
+      key.startsWith(prefix),
+    );
+
+    if (!existingKey) return;
+
+    const stored = localStorage.getItem(existingKey);
+    if (!stored) return;
+
+    const joinData = JSON.parse(stored);
+
+    // update airline name
+    joinData.airlineName = airlineName;
+
+    const s = io(BASE_URL, {
+      query: { role: "vendor", userId },
+    });
+
+    s.on("connect", () => {
+      s.emit("joinAuction", joinData);
+    });
+
+    setSocket(s);
+  }, [auctionId, airlineName, user.id]);
+
+  useEffect(() => {
+    const prefix = `auction_socket_${auctionId}_${user.id}_`;
+
+    const hasAnyAirlineJoined = Object.keys(localStorage).some((key) =>
+      key.startsWith(prefix),
+    );
+
+    if (hasAnyAirlineJoined) {
+      setHasJoined(true);
+    }
+  }, [auctionId, user.id]);
 
   useEffect(() => {
     if (showChat) {
@@ -95,12 +148,21 @@ export default function Vendor({
 
   const myEmail = user.email;
 
+  const filteredRanking = quoteRankingAfterAuction?.filter(
+    (r) => r.shipment_index === shipmentIndex && r.airline === airlineName,
+  );
+
+  const winnerEntry = filteredRanking?.find((r) => r.rank === "L1");
+
+  const myEntry = filteredRanking?.find((r) => r.email === myEmail);
+
   // 🔥 Winner = rank L1 (per shipment / airline if needed)
-  const winnerEntry = quoteRankingAfterAuction?.find((r) => r.rank === "L1");
+
+  //const winnerEntry = quoteRankingAfterAuction?.find((r) => r.rank === "L1");
   const nonWinners = quoteRankingAfterAuction?.filter((r) => r.rank !== "L1");
 
   // 🔥 My rank entry
-  const myEntry = quoteRankingAfterAuction?.find((r) => r.email === myEmail);
+  //const myEntry = quoteRankingAfterAuction?.find((r) => r.email === myEmail);
 
   // derived states
   const winnerVendor = winnerEntry
@@ -197,8 +259,9 @@ export default function Vendor({
     });
 
     s.on("connect", () => {
-      s.emit("joinAuction", {
+      const joinData = {
         auctionId,
+        airlineName,
         user: {
           id: user.id,
           name: user.name,
@@ -206,9 +269,16 @@ export default function Vendor({
           role: user.role,
           company: user.company,
         },
-      });
+      };
+
+      s.emit("joinAuction", joinData);
+
       setSocket(s);
       setHasJoined(true);
+      localStorage.setItem(
+        `auction_socket_${auctionId}_${user.id}_${airlineName}`,
+        JSON.stringify(joinData),
+      );
     });
 
     s.on("rankUpdate", async (data) => {
@@ -235,6 +305,14 @@ export default function Vendor({
     if (onSubmitBid) {
       onSubmitBid(shipmentIndex, rowData);
     }
+    setBidCount(bidCount + 1);
+    // localStorage.setItem(
+    //   `auction_bidcount_${auctionId}_${user.id}`,
+    //   bidCount + 1,
+    // );
+    const key = `auction_bidcount_${auctionId}_${user.id}`;
+
+    localStorage.setItem(key, Number(localStorage.getItem(key) || 0) + 1);
     socket.emit("placeBid", {
       auctionId,
       bid: Number(myBid),
@@ -247,7 +325,6 @@ export default function Vendor({
       },
       rfqNumber: rowData.rfq_number,
     });
-    setBidCount(bidCount + 1);
   }
 
   //   useEffect(() => {
@@ -330,6 +407,7 @@ export default function Vendor({
 
       // Stop if already sent
       if (hasSentResult.current) {
+        console.log("Auction result email already sent, stopping interval.");
         clearInterval(interval);
         return;
       }
@@ -342,15 +420,31 @@ export default function Vendor({
       // Check auction ended
       if (now >= end) {
         const winner = quoteRankingAfterAuction.find((r) => r.rank === "L1");
-        const nonWinners = quoteRankingAfterAuction?.filter(
-          (r) => r.rank !== "L1",
-        );
+        // const nonWinners = quoteRankingAfterAuction?.filter(
+        //   (r) => r.rank !== "L1",
+        // );
+
+        const nonWinners = quoteRankingAfterAuction?.filter((r) => {
+          const isAirlineInvited =
+            auctionData?.directAuction === true ||
+            auctionData?.invitedAirlines?.some(
+              (v) => v.airline_name === r.airline,
+            );
+
+          return r.rank !== "L1" && isAirlineInvited;
+        });
 
         if (winner) {
+          console.log("Auction ended. Winner:", winner);
           hasSentResult.current = true;
           sendAuctionResultEmails(winner, nonWinners);
           clearInterval(interval);
         }
+        Object.keys(localStorage).forEach((key) => {
+          if (key.startsWith("auction_")) {
+            localStorage.removeItem(key);
+          }
+        });
       }
     }, 1000);
 
@@ -359,7 +453,7 @@ export default function Vendor({
 
   return (
     <Card style={{ background: "transparent", boxShadow: "none" }}>
-      {showScheduledCard && (
+      {showScheduledCard && isAirlineInvited && (
         <Card
           className="mb-3 text-center"
           style={{
@@ -395,7 +489,7 @@ export default function Vendor({
       )}
 
       {/* COUNTDOWN */}
-      {countdownLabel && (
+      {countdownLabel && isAirlineInvited && (
         <Card
           className="mb-3 text-center"
           style={{
@@ -431,7 +525,7 @@ export default function Vendor({
 
           <hr />
 
-          {isAuctionEnded && isWinner && (
+          {isAuctionEnded && isAirlineInvited && isWinner && (
             <Card
               title="🏆 Congratulations!"
               className="mb-3 border-round-xl shadow-3"
@@ -442,7 +536,7 @@ export default function Vendor({
             </Card>
           )}
 
-          {isAuctionEnded && !isWinner && myRank && (
+          {isAuctionEnded && isAirlineInvited && !isWinner && myRank && (
             <Card
               title="📊 Auction Result"
               className="mb-3 border-round-xl shadow-2"
@@ -461,12 +555,13 @@ export default function Vendor({
       )}
 
       {/* JOIN AUCTION */}
-      {isLive && !hasJoined && (
+      {isLive && isAirlineInvited && !hasJoined && (
         <>
           <Panel header="Join Auction" className="mb-3">
             <div className="p-fluid">
               <InputText
-                placeholder="Enter Auction ID"
+                placeholder="Enter Auction Participation ID"
+                disabled
                 value={auctionId}
                 onChange={(e) => setAuctionId(e.target.value)}
                 className="mb-2"
@@ -482,7 +577,7 @@ export default function Vendor({
         </>
       )}
 
-      {isLive && hasJoined && (
+      {isLive && isAirlineInvited && hasJoined && (
         <div className="flip-container">
           <div className={`flip-card ${showChat ? "show-chat" : ""}`}>
             {/* FRONT — PLACE BID */}
@@ -515,7 +610,16 @@ export default function Vendor({
 
                   <div className="flex justify-content-between mb-2">
                     <span>Bids Left</span>
-                    <strong>{maxBids - bidCount}</strong>
+                    <strong>
+                      {maxBids -
+                        Number(
+                          localStorage.getItem(
+                            `auction_bidcount_${auctionId}_${user.id}`,
+                          ) ??
+                            bidCount ??
+                            0,
+                        )}
+                    </strong>
                   </div>
 
                   <Button

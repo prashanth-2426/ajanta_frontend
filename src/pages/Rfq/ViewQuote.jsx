@@ -26,6 +26,7 @@ import { FilterMatchMode } from "primereact/api";
 import { ColumnGroup } from "primereact/columngroup";
 import { Row } from "primereact/row";
 import { BASE_URL, API_URL } from "../../constants";
+import { Accordion, AccordionTab } from "primereact/accordion";
 
 const ViewQuote = () => {
   const { postData, getData } = useApi();
@@ -49,6 +50,8 @@ const ViewQuote = () => {
 
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showHodApprovalDialog, setShowHodApprovalDialog] = useState(false);
+  const [showDocumentsUploadDialog, setShowDocumentsUploadDialog] =
+    useState(false);
 
   const [showShareToMarketTeamDialog, setShowShareToMarketTeamDialog] =
     useState(false);
@@ -63,7 +66,7 @@ const ViewQuote = () => {
 
   const [dialogParams, setDialogParams] = useState(null);
 
-  const [attachment, setAttachment] = useState(null);
+  const [attachment, setAttachment] = useState([]);
 
   const usersdata = useSelector((state) => state.users.data);
   const hodUsers = Array.isArray(usersdata.users)
@@ -87,6 +90,8 @@ const ViewQuote = () => {
   const [auctionData, setAuctionData] = useState(null);
 
   const [auctionPulse, setAuctionPulse] = useState(null);
+  const [hodRejectedOn, setHodRejectedOn] = useState(null);
+  const [attachedFiles, setAttachedFiles] = useState([]);
 
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
@@ -113,7 +118,7 @@ const ViewQuote = () => {
         <Column
           footer={
             <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
-              Total:
+              Value of Shipment in INR:
             </strong>
           }
           footerStyle={{ textAlign: "right" }}
@@ -121,9 +126,11 @@ const ViewQuote = () => {
 
         <Column
           footer={
-            <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
-              ₹ {invAmount?.toFixed(2)}
-            </strong>
+            exchangeRate ? (
+              <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
+                ₹ {invAmount?.toFixed(2)}
+              </strong>
+            ) : null
           }
           footerStyle={{ textAlign: "right" }}
         />
@@ -874,13 +881,845 @@ const ViewQuote = () => {
       );
     };
 
+    // const exportToPDF = async (auctionDetails = {}, companyDetails = {}) => {
+    //   const doc = new jsPDF("l", "mm", "a4");
+    //   const pageWidth = doc.internal.pageSize.getWidth();
+
+    //   const { totalSaving = "INR 2,00,000.00 (2.71%)" } = companyDetails;
+
+    //   // Get the accepted vendor saving
+    //   let acceptedSaving = "N/A";
+
+    //   try {
+    //     const acceptedRow = allQuotes.find(
+    //       (q) =>
+    //         q.acceptedDetails?.accepted_at &&
+    //         q.acceptedDetails?.accepted_airline === q.airline_name,
+    //     );
+
+    //     if (acceptedRow) {
+    //       const firstBid = acceptedRow.FirstBidPrice || 0;
+    //       const finalBid = acceptedRow.grandTotalValue || 0;
+    //       const savingValue = firstBid - finalBid;
+
+    //       acceptedSaving = ` ${savingValue.toLocaleString("en-IN")} `;
+    //     }
+    //   } catch (err) {
+    //     console.error("Saving calc error:", err);
+    //   }
+
+    //   const l1Quote = [...allQuotes]
+    //     .map((q) => {
+    //       const firstBid = q.FirstBidPrice || 0;
+    //       const finalBid = q.grandTotalValue || 0;
+    //       const saving = firstBid - finalBid;
+
+    //       return {
+    //         vendor_name: q.vendor_name,
+    //         finalBid,
+    //         saving,
+    //       };
+    //     })
+    //     .sort((a, b) => a.finalBid - b.finalBid)[0]; // Smallest Final Bid = L1
+
+    //   const L1TotalSavings = l1Quote ? l1Quote.saving.toFixed(2) : "N/A";
+
+    //   //console.log("l1TotalSavings", L1TotalSavings);
+
+    //   const {
+    //     auctionId = rfq?.rfq_number || "N/A",
+    //     auctionTitle = rfq?.title || "N/A",
+    //     auctionType = rfq?.type || "N/A",
+    //     country = rfq?.country || "N/A",
+    //     subindustry = rfq?.subindustry || "N/A",
+    //     hideCurrentBid = rfq?.hideCurrentBidPrice || "N/A",
+    //     testAuction = "No",
+    //     description = rfq?.description || "N/A",
+    //     createdDate = rfq?.createdDate
+    //       ? new Date(rfq?.createdDate).toLocaleString()
+    //       : "N/A",
+    //     openDate = rfq?.openDateTime
+    //       ? new Date(rfq?.openDateTime).toLocaleString()
+    //       : "N/A",
+    //     closeDate = rfq?.closeDateTime
+    //       ? new Date(rfq?.closeDateTime).toLocaleString()
+    //       : "N/A",
+    //   } = auctionDetails;
+
+    //   acceptedSaving = acceptedSaving || "N/A";
+    //   let currentY = 10; // 🔹 Track current vertical position
+
+    //   // =========================
+    //   // 🔹 Header (Centered Logo)
+    //   // =========================
+    //   const addHeader = () => {
+    //     const logoWidth = 140;
+    //     const logoHeight = 15;
+    //     const logoX = (pageWidth - logoWidth) / 2;
+    //     const logoY = currentY;
+
+    //     try {
+    //       doc.addImage(logoImg, "PNG", logoX, logoY, logoWidth, logoHeight);
+    //     } catch (err) {
+    //       console.error("Logo load error:", err);
+    //     }
+
+    //     currentY = logoY + logoHeight + 10; // move below logo
+    //   };
+
+    //   // =========================
+    //   // 🔹 Auction Details Section
+    //   // =========================
+    //   const addAuctionDetails = () => {
+    //     const lineSpacing = 7;
+    //     const pageWidth = doc.internal.pageSize.getWidth();
+    //     const marginLeft = 20;
+    //     const valueX = 70;
+    //     const maxTextWidth = pageWidth - valueX - 20; // available width for text
+
+    //     doc.setFontSize(10);
+    //     //doc.setFont("helvetica", "normal");
+
+    //     const details = [
+    //       ["Auction ID", auctionId, true],
+    //       ["Auction Title", auctionTitle, true],
+    //       ["Auction Type", auctionType],
+    //       ["Country", country],
+    //       ["Industry", subindustry],
+    //       ["Hide Current Bid Price", hideCurrentBid],
+    //       ["Test eAuction", testAuction],
+    //       ["Description", description],
+    //       ["__SPACER__", ""],
+    //       ["Auction Created Date & Time", createdDate],
+    //       ["Auction Open Date & Time", openDate],
+    //       ["Auction Close Date & Time", closeDate],
+    //       ["Total Saving - INR ", L1TotalSavings, true],
+    //     ];
+
+    //     details.forEach(([label, value, isBold]) => {
+    //       if (label === "__SPACER__") {
+    //         currentY += 10; // top margin
+    //         return;
+    //       }
+
+    //       // Wrap long text properly
+    //       const labelText = `${label}:`;
+    //       const wrappedValue = doc.splitTextToSize(
+    //         value?.toString() || "",
+    //         maxTextWidth,
+    //       );
+
+    //       if (isBold) doc.setFont("helvetica", "bold");
+    //       else doc.setFont("helvetica", "normal");
+
+    //       // Draw label
+    //       doc.text(labelText, marginLeft, currentY);
+    //       // Draw wrapped value, one or multiple lines
+    //       doc.setFont("helvetica", "normal");
+    //       doc.text(wrappedValue, valueX, currentY);
+
+    //       // Increase Y position based on text height
+    //       currentY += lineSpacing * wrappedValue.length;
+    //     });
+
+    //     // Draw line separator
+    //     doc.setDrawColor(200);
+    //     doc.line(20, currentY, pageWidth - 20, currentY);
+    //     currentY += 10;
+
+    //     // Add Total Saving & Summary Title
+    //     doc.setFont("helvetica", "bold");
+    //     //doc.text(`Total Saving - ${totalSaving}`, 20, currentY);
+    //     currentY += 8;
+    //     doc.text(`Auction Quote Details`, 20, currentY);
+    //     currentY += 10; // space before next section
+
+    //     return currentY;
+    //   };
+
+    //   const quotedatalatestFinal = (startY) => {
+    //     let yPos = startY;
+    //     const topQuotes = allQuotes; // all vendors
+
+    //     // 🧩 Combine all columns from all 3 tables
+    //     const allCols = [
+    //       "Vendor",
+    //       "Airline",
+    //       "Airport",
+    //       "Chargeable Wt (kg)",
+    //       "Freight / Kg (INR)",
+    //       "AMS (INR)",
+    //       "PAC (INR)",
+    //       "AWB (INR)",
+    //       "Other (INR)",
+    //       "Currency",
+    //       "DAP/DDP",
+    //       "Exchange Rate",
+    //       "Transit Days",
+    //       "Routing",
+    //       "Remark / Condition",
+    //       "Target Price",
+    //       "Total Charges (INR)",
+    //       "Total Saving",
+    //       "Percentage",
+    //       "Rank",
+    //       "isAccepted",
+    //     ];
+
+    //     // 🧠 Helper to build all rows dynamically
+    //     const buildRows = (cols) =>
+    //       topQuotes.map((q, index) => {
+    //         console.log("Generating row for quote:", q);
+    //         const lastNegotiation = Array.isArray(q.negotiation)
+    //           ? q.negotiation.find(
+    //               (n) =>
+    //                 n.vendor_id === q.vendor_id &&
+    //                 n.airline_name === q.airline_name,
+    //             )
+    //           : null;
+
+    //         const lastPurchase = lastNegotiation?.last_purchase_price || "-";
+    //         const firstBid = q.FirstBidPrice || 0;
+    //         const finalBid = q.grandTotalValue || 0;
+    //         const saving = firstBid - finalBid || 0;
+
+    //         const isAccepted =
+    //           q.acceptedDetails?.accepted_at &&
+    //           q.acceptedDetails?.accepted_airline === q.airline_name;
+
+    //         const routes = [
+    //           { route: q.route1, schedule: q.flight_schedule1 },
+    //           { route: q.route2, schedule: q.flight_schedule2 },
+    //           { route: q.route3, schedule: q.flight_schedule3 },
+    //         ]
+    //           .filter((r) => r.route || r.schedule)
+    //           .map((r) => {
+    //             const routeText = r.route || "-";
+    //             const scheduleText = r.schedule
+    //               ? new Date(r.schedule).toLocaleDateString()
+    //               : "-";
+    //             return `${routeText}\n${scheduleText}`;
+    //           })
+    //           .join("\n");
+
+    //         const row = {
+    //           Vendor: q.vendor_name || "-",
+    //           Airline: q.airline_name || "-",
+    //           Airport: q.airport || "-",
+    //           "Chargeable Wt (kg)": q.chargeable_weight || "-",
+    //           "Freight / Kg (INR)": q.base_rate || "-",
+    //           "AMS (INR)": q.ams || "-",
+    //           "PAC (INR)": q.pac || "-",
+    //           "AWB (INR)": q.awb || "-",
+    //           "Other (INR)": q.other_charges || "-",
+    //           Currency: q.currency || "-",
+    //           "DAP/DDP": q.dap_ddp_charges || "-",
+    //           "Exchange Rate": exchangeRate
+    //             ? exchangeRate
+    //             : q.exchangeRate || "-",
+    //           "Transit Days": q.transit_days || "-",
+    //           Routing: routes || "-",
+    //           "Remark / Condition": q.remarks || "-",
+    //           "Target Price": lastPurchase ? lastPurchase : "-",
+    //           "Total Charges (INR)": finalBid
+    //             ? parseFloat(finalBid).toFixed(2)
+    //             : "-",
+    //           "Total Saving": saving ? saving.toFixed(2) : "-",
+    //           Percentage: q.percentage ? `${q.percentage}%` : "-",
+    //           Rank: `L${index + 1}`,
+    //           isAccepted: isAccepted ? "Yes" : "No",
+    //         };
+
+    //         return cols.map((col) => row[col]);
+    //       });
+
+    //     // 📄 Draw Combined Table
+    //     doc.autoTable({
+    //       startY: yPos,
+    //       head: [allCols],
+    //       body: buildRows(allCols),
+    //       theme: "grid",
+    //       styles: {
+    //         fontSize: 8,
+    //         cellPadding: 2,
+    //         halign: "center",
+    //         valign: "middle",
+    //         lineColor: [200, 200, 200],
+    //         overflow: "linebreak", // Wrap text
+    //       },
+    //       headStyles: {
+    //         fillColor: [68, 114, 196],
+    //         textColor: [255, 255, 255],
+    //         fontStyle: "bold",
+    //       },
+    //       alternateRowStyles: { fillColor: [245, 245, 245] },
+    //       margin: { top: 10, left: 10, right: 10 },
+    //       tableWidth: "auto", // Fit table to page width
+    //       showHead: "firstPage",
+    //       didParseCell: (data) => {
+    //         // Highlight top vendor (L1)
+    //         if (data.cell.raw === "L1") {
+    //           data.cell.styles.fillColor = [210, 255, 210];
+    //         }
+    //       },
+    //     });
+
+    //     return doc.lastAutoTable.finalY + 10;
+    //   };
+
+    //   const addSummaryBidSection = (startY) => {
+    //     let y = startY;
+    //     const pageWidth = doc.internal.pageSize.getWidth();
+
+    //     // ==========================
+    //     //  SECTION: SUMMARY TITLE
+    //     // ==========================
+    //     doc.setFontSize(12);
+    //     doc.setFont("helvetica", "bold");
+    //     doc.text("Summary Sheet of Bid", 20, y);
+    //     y += 10;
+
+    //     // ==========================
+    //     //  EXTRACT SUMMARY ROWS
+    //     // ==========================
+    //     const summaryRows = allQuotes.map((q, i) => {
+    //       const finalBid = q.grandTotalValue || 0;
+    //       const firstBid = q.FirstBidPrice || 0;
+    //       const saving = firstBid - finalBid;
+
+    //       return {
+    //         sr_no: i + 1,
+    //         supplier: q.vendorName || q.vendor_name || q.vendor || "-",
+    //         airline: q.airline_name || "-",
+    //         transit: q.transit_days || "-",
+    //         final_price: finalBid.toFixed(2),
+    //         saving: saving.toFixed(2),
+    //         position: q.acceptedDetails?.position || "",
+    //       };
+    //     });
+
+    //     // Sort by savings for L1, L2, L3
+    //     summaryRows.sort((a, b) => b.saving - a.saving);
+    //     summaryRows.forEach((r, index) => {
+    //       r.position = `L${index + 1}`;
+    //     });
+
+    //     // ==========================
+    //     //  SUMMARY TABLE
+    //     // ==========================
+    //     doc.autoTable({
+    //       startY: y,
+    //       head: [
+    //         [
+    //           "Sr No",
+    //           "Supplier",
+    //           "Airline",
+    //           "Transit Time",
+    //           "Final Bid Price (INR)",
+    //           "Saving (INR)",
+    //           "Position",
+    //         ],
+    //       ],
+    //       body: summaryRows.map((r) => [
+    //         r.sr_no,
+    //         r.supplier,
+    //         r.airline,
+    //         r.transit,
+    //         r.final_price,
+    //         r.saving,
+    //         r.position,
+    //       ]),
+    //       styles: { fontSize: 9, cellPadding: 3 },
+    //       headStyles: {
+    //         halign: "center",
+    //         fillColor: [230, 230, 230],
+    //         textColor: 20,
+    //         fontStyle: "bold",
+    //       },
+    //       alternateRowStyles: { fillColor: [245, 245, 245] },
+    //       margin: { left: 20, right: 20 },
+    //       didDrawPage: (data) => {
+    //         y = data.cursor.y + 10;
+    //       },
+    //     });
+
+    //     return y;
+    //   };
+
+    //   const extractAuctionActivity = (auctionData = {}) => {
+    //     const invited = Array.isArray(auctionData.invited)
+    //       ? auctionData.invited
+    //       : [];
+
+    //     const users = auctionData.users ? Object.values(auctionData.users) : [];
+
+    //     const vendors = users.filter((u) => u.role === "vendor");
+
+    //     const bids = auctionData.bids || {};
+    //     const ranks = auctionData.ranks || {};
+
+    //     const participated = vendors.filter((v) => bids[v.id]);
+
+    //     const winnerId = Object.entries(ranks).find(
+    //       ([, rank]) => rank === 1,
+    //     )?.[0];
+
+    //     return {
+    //       invited,
+    //       participated,
+    //       bids,
+    //       ranks,
+    //       winnerId,
+    //     };
+    //   };
+
+    //   const addAuctionActivitySection = (startY, auctionData) => {
+    //     let y = startY;
+
+    //     const { invited, participated, bids, ranks, winnerId } =
+    //       extractAuctionActivity(auctionData);
+
+    //     // ==========================
+    //     // 🔹 Section Title
+    //     // ==========================
+    //     doc.setFont("helvetica", "bold");
+    //     doc.setFontSize(12);
+    //     doc.text("Auction Activity Summary", 20, y);
+    //     y += 10;
+
+    //     // ==========================
+    //     // 📅 Auction Timeline
+    //     // ==========================
+    //     doc.setFontSize(10);
+    //     doc.setFont("helvetica", "normal");
+
+    //     doc.text(
+    //       `Auction Number : ${auctionData?.auction_number || "N/A"}`,
+    //       20,
+    //       y,
+    //     );
+    //     y += 6;
+
+    //     doc.text(
+    //       `Auction Mode : ${(auctionData?.mode || "").toUpperCase()}`,
+    //       20,
+    //       y,
+    //     );
+    //     y += 6;
+
+    //     doc.text(
+    //       `Start Time : ${new Date(auctionData.startTime).toLocaleString()}`,
+    //       20,
+    //       y,
+    //     );
+    //     y += 6;
+
+    //     doc.text(
+    //       `End Time : ${new Date(auctionData.endTime).toLocaleString()}`,
+    //       20,
+    //       y,
+    //     );
+    //     y += 10;
+
+    //     // ==========================
+    //     // 📨 Invited Vendors Table
+    //     // ==========================
+    //     doc.setFont("helvetica", "bold");
+    //     doc.text("Invited Vendors", 20, y);
+    //     y += 6;
+
+    //     doc.autoTable({
+    //       startY: y,
+    //       head: [["Email"]],
+    //       body: invited.map((email) => [email]),
+    //       theme: "grid",
+    //       styles: { fontSize: 9, cellPadding: 3 },
+    //       headStyles: {
+    //         fillColor: [68, 114, 196],
+    //         textColor: 255,
+    //         fontStyle: "bold",
+    //       },
+    //       margin: { left: 20, right: 20 },
+    //     });
+
+    //     y = doc.lastAutoTable.finalY + 10;
+
+    //     y = doc.lastAutoTable.finalY + 10;
+
+    //     // ==========================
+    //     // 🏆 Winner Summary
+    //     // ==========================
+    //     if (winnerId) {
+    //       const winner = participated.find((v) => v.id === winnerId);
+
+    //       doc.setFont("helvetica", "bold");
+    //       doc.text("Auction Winner", 20, y);
+    //       y += 6;
+
+    //       doc.setFont("helvetica", "normal");
+    //       doc.text(
+    //         `Winner : ${winner?.name || "-"} (${winner?.company || "-"})`,
+    //         20,
+    //         y,
+    //       );
+    //       y += 6;
+
+    //       doc.text(`Winning Bid : ${bids[winnerId]?.bid ?? "-"}`, 20, y);
+    //       y += 10;
+    //     }
+
+    //     return y;
+    //   };
+
+    //   const generalDetails = {
+    //     eximMode: rfq?.eximMode || "N/A",
+    //     movementType: rfq?.movement_type || "N/A",
+    //     incoterm: rfq?.incoterm_exp_air || "N/A",
+    //     originAirport: rfq?.origin_airport || "N/A",
+    //     originAddress: rfq?.origin_address || "N/A",
+    //     stuffing: rfq?.stuffing_location || "N/A",
+    //     destinationAirport: rfq?.destination_airport || "N/A",
+    //     destinationAddress: rfq?.destination_address || "N/A",
+    //     destuffing: rfq?.destuffing_location || "N/A",
+    //     totalWeight: rfq?.totalGrossWeight + "KG",
+    //     totalVolumetric: rfq?.totalVolumetricWeight + "KG",
+    //     valueShipment: "INR" + rfq?.value_of_shipment || "N/A",
+    //     //cargoType: "N/A",
+    //     materialType: rfq?.material || "N/A",
+    //     hsCode: rfq?.hs_code || "N/A",
+    //     //additionalDetails: "N/A",
+    //     volumetricFactor: rfq?.volumetricFactor || "N/A",
+    //   };
+
+    //   const addGeneralDetails = (startY) => {
+    //     let y = startY;
+
+    //     doc.setFont("helvetica", "bold");
+    //     doc.setFontSize(12);
+    //     doc.text("General Details", 20, y);
+    //     y += 8;
+
+    //     const rows = [
+    //       [
+    //         `Exim Mode : ${generalDetails.eximMode || "-"}`,
+    //         `Movement Type : ${generalDetails.movementType || "-"}`,
+    //         `Incoterm : ${generalDetails.incoterm || "-"}`,
+    //       ],
+    //       [
+    //         `Origin Airport : ${generalDetails.originAirport || "-"}`,
+    //         `Origin Address : ${generalDetails.originAddress || "-"}`,
+    //         `Stuffing Location : ${generalDetails.stuffing || "-"}`,
+    //       ],
+    //       [
+    //         `Destination Airport : ${generalDetails.destinationAirport || "-"}`,
+    //         `Destination Address : ${generalDetails.destinationAddress || "-"}`,
+    //         `DeStuffing Location : ${generalDetails.destuffing || "-"}`,
+    //       ],
+    //       [
+    //         `Total Weight ( In Unit ) : ${generalDetails.totalWeight || "-"}`,
+    //         `Total Volumetric Weight : ${
+    //           generalDetails.totalVolumetric || "-"
+    //         }`,
+    //         `Value of Shipment : ${generalDetails.valueShipment || "-"}`,
+    //       ],
+    //       [
+    //         // `Cargo Type : ${generalDetails.cargoType || "-"}`,
+    //         `Material Type : ${generalDetails.materialType || "-"}`,
+    //         `HS Code : ${generalDetails.hsCode || "-"}`,
+    //       ],
+    //       // [
+    //       //   {
+    //       //     content: `Additional Details : ${
+    //       //       generalDetails.additionalDetails || "-"
+    //       //     }`,
+    //       //     colSpan: 3,
+    //       //   },
+    //       // ],
+    //       [
+    //         {
+    //           content: `* Volumetric Weight Factor considered as : : ${
+    //             generalDetails.volumetricFactor || "-"
+    //           }`,
+    //           colSpan: 3,
+    //         },
+    //       ],
+    //     ];
+
+    //     doc.autoTable({
+    //       startY: y,
+    //       head: [],
+    //       body: rows,
+    //       theme: "grid",
+    //       styles: {
+    //         fontSize: 9,
+    //         valign: "middle",
+    //         halign: "left",
+    //         cellPadding: 3,
+    //       },
+    //       tableLineColor: [0, 0, 0],
+    //       tableLineWidth: 0.2,
+    //       margin: { left: 20, right: 20 },
+    //       columnStyles: {
+    //         0: { cellWidth: 180 / 3 },
+    //         1: { cellWidth: 180 / 3 },
+    //         2: { cellWidth: 180 / 3 },
+    //       },
+    //     });
+
+    //     return doc.lastAutoTable.finalY + 10;
+    //   };
+
+    //   const containerDatat =
+    //     rfq?.package_summary?.packages?.map((pkg) => ({
+    //       packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
+    //       dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${
+    //         pkg.height || 0
+    //       } ${pkg.dim_unit?.toUpperCase() || ""}`,
+    //       gross_weight: `${pkg.gross_weight || 0} ${
+    //         pkg.weight_unit?.toUpperCase() || ""
+    //       }`,
+    //       charges: "Air Freight",
+    //     })) || [];
+
+    //   const containerData = [
+    //     {
+    //       packages: "12 Cartons",
+    //       dimension: "37 x 36.5 x 26.5 CM",
+    //       gross_weight: "13.13 KG",
+    //       charges: "Air Freight",
+    //     },
+    //     {
+    //       packages: "9 Cartons",
+    //       dimension: "37 x 36.5 x 26.5 CM",
+    //       gross_weight: "13.235 KG",
+    //       charges: "Air Freight",
+    //     },
+    //   ];
+
+    //   const addContainerAndCharges = (currentY, doc, data) => {
+    //     const pageHeight = doc.internal.pageSize.getHeight();
+    //     const marginBottom = 20;
+
+    //     const checkPageBreak = (neededSpace = 10) => {
+    //       if (currentY + neededSpace > pageHeight - marginBottom) {
+    //         doc.addPage();
+    //         currentY = 20; // reset top position
+    //       }
+    //     };
+
+    //     // Section Title
+    //     checkPageBreak(15);
+
+    //     doc.setFontSize(12);
+    //     doc.setFont("helvetica", "bold");
+    //     doc.text("Container & Charges", 14, currentY);
+    //     currentY += 8;
+
+    //     const headers = [
+    //       "No. of Packages",
+    //       "Dimension",
+    //       "Gross Weight / Package",
+    //       "Charges",
+    //     ];
+
+    //     const columnWidths = [50, 70, 60, 40];
+    //     let x = 14;
+
+    //     doc.setFont("helvetica", "bold");
+    //     doc.setFontSize(10);
+
+    //     headers.forEach((h, index) => {
+    //       doc.text(h, x, currentY);
+    //       x += columnWidths[index];
+    //     });
+
+    //     currentY += 8;
+    //     doc.line(14, currentY, 200, currentY);
+
+    //     doc.setFont("helvetica", "normal");
+
+    //     data.forEach((row) => {
+    //       checkPageBreak(15); // ensure space before row
+
+    //       let xPos = 14;
+    //       currentY += 8;
+
+    //       doc.text(row.packages, xPos, currentY);
+    //       xPos += columnWidths[0];
+
+    //       doc.text(row.dimension, xPos, currentY);
+    //       xPos += columnWidths[1];
+
+    //       doc.text(row.gross_weight, xPos, currentY);
+    //       xPos += columnWidths[2];
+
+    //       doc.text(row.charges, xPos, currentY);
+
+    //       currentY += 3;
+    //       doc.line(14, currentY, 200, currentY);
+    //     });
+
+    //     return currentY + 10;
+    //   };
+
+    //   const quotedatalatestFinalNew = (startY) => {
+    //     let yPos = startY;
+    //     const topQuotes = allQuotes; // all vendors
+
+    //     // 🧩 Combine all columns from all 3 tables
+    //     const allCols = [
+    //       "Vendor",
+    //       "Airline",
+    //       "Transit Days",
+    //       "Final Bid Price",
+    //       "Percent %",
+    //       "Total Saving",
+    //       "Position",
+    //     ];
+
+    //     // 🧠 Helper to build all rows dynamically
+    //     const buildRows = (cols) =>
+    //       topQuotes.map((q, index) => {
+    //         console.log("Generating row for quote:", q);
+    //         const lastNegotiation = Array.isArray(q.negotiation)
+    //           ? q.negotiation.find(
+    //               (n) =>
+    //                 n.vendor_id === q.vendor_id &&
+    //                 n.airline_name === q.airline_name,
+    //             )
+    //           : null;
+
+    //         const lastPurchase = lastNegotiation?.last_purchase_price || "-";
+    //         const firstBid = q.FirstBidPrice || 0;
+    //         const finalBid = q.grandTotalValue || 0;
+    //         const saving = firstBid - finalBid || 0;
+
+    //         const isAccepted =
+    //           q.acceptedDetails?.accepted_at &&
+    //           q.acceptedDetails?.accepted_airline === q.airline_name;
+
+    //         const routes = [
+    //           { route: q.route1, schedule: q.flight_schedule1 },
+    //           { route: q.route2, schedule: q.flight_schedule2 },
+    //           { route: q.route3, schedule: q.flight_schedule3 },
+    //         ]
+    //           .filter((r) => r.route || r.schedule)
+    //           .map((r) => {
+    //             const routeText = r.route || "-";
+    //             const scheduleText = r.schedule
+    //               ? new Date(r.schedule).toLocaleDateString()
+    //               : "-";
+    //             return `${routeText}\n${scheduleText}`;
+    //           })
+    //           .join("\n");
+
+    //         const row = {
+    //           Vendor: q.vendor_name || "-",
+    //           Airline: q.airline_name || "-",
+    //           "Transit Days": q.transit_days || "-",
+    //           "Final Bid Price": finalBid,
+    //           "Percent %":
+    //             q.percentage !== undefined ? `${q.percentage}%` : "-",
+    //           "Total Saving": saving ? saving.toFixed(2) : "-",
+    //           Position: `L${index + 1}`,
+    //         };
+
+    //         return cols.map((col) => row[col]);
+    //       });
+
+    //     doc.setFontSize(12);
+    //     doc.setFont("helvetica", "bold");
+    //     doc.text("Participated Vendor and Bid Details", 10, yPos);
+
+    //     yPos += 6;
+
+    //     // 📄 Draw Combined Table
+    //     doc.autoTable({
+    //       startY: yPos,
+    //       head: [allCols],
+    //       body: buildRows(allCols),
+    //       theme: "grid",
+    //       styles: {
+    //         fontSize: 8,
+    //         cellPadding: 2,
+    //         halign: "center",
+    //         valign: "middle",
+    //         lineColor: [200, 200, 200],
+    //         overflow: "linebreak", // Wrap text
+    //       },
+    //       headStyles: {
+    //         fillColor: [68, 114, 196],
+    //         textColor: [255, 255, 255],
+    //         fontStyle: "bold",
+    //       },
+    //       alternateRowStyles: { fillColor: [245, 245, 245] },
+    //       margin: { top: 10, left: 10, right: 10 },
+    //       tableWidth: "auto", // Fit table to page width
+    //       showHead: "firstPage",
+    //       didParseCell: (data) => {
+    //         // Highlight top vendor (L1)
+    //         if (data.cell.raw === "L1") {
+    //           data.cell.styles.fillColor = [210, 255, 210];
+    //         }
+    //       },
+    //     });
+
+    //     return doc.lastAutoTable.finalY + 10;
+    //   };
+
+    //   // =========================
+    //   // 🔹 Footer (Page Numbers)
+    //   // =========================
+    //   const addFooter = (pageNum, totalPages) => {
+    //     doc.setFontSize(8);
+    //     doc.setTextColor(100);
+    //     doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth / 2, 290, {
+    //       align: "center",
+    //     });
+    //   };
+
+    //   // =========================
+    //   // 🔹 Generate PDF Flow
+    //   // =========================
+    //   addHeader();
+    //   currentY = addAuctionDetails();
+    //   currentY = addAuctionActivitySection(currentY, auctionData);
+    //   currentY = quotedatalatestFinalNew(currentY);
+    //   //currentY = addSummaryBidSection(currentY);
+    //   currentY = addGeneralDetails(currentY);
+    //   const hasPackages = containerDatat.some(
+    //     (row) => parseInt(row.packages) > 0,
+    //   );
+
+    //   if (hasPackages) {
+    //     currentY = addContainerAndCharges(currentY, doc, containerDatat);
+    //   }
+    //   currentY = quotedatalatestFinal(currentY);
+
+    //   const totalPages = doc.internal.getNumberOfPages();
+    //   for (let i = 1; i <= totalPages; i++) {
+    //     doc.setPage(i);
+    //     addFooter(i, totalPages);
+    //   }
+
+    //   doc.save(`Auction_${auctionId}_Details.pdf`);
+    // };
+
     const exportToPDF = async (auctionDetails = {}, companyDetails = {}) => {
       const doc = new jsPDF("l", "mm", "a4");
       const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      let currentY = 12;
+
+      const checkPageBreak = (space = 15) => {
+        if (currentY + space > pageHeight - 20) {
+          doc.addPage();
+          currentY = 15;
+        }
+      };
 
       const { totalSaving = "INR 2,00,000.00 (2.71%)" } = companyDetails;
 
-      // Get the accepted vendor saving
       let acceptedSaving = "N/A";
 
       try {
@@ -894,8 +1733,7 @@ const ViewQuote = () => {
           const firstBid = acceptedRow.FirstBidPrice || 0;
           const finalBid = acceptedRow.grandTotalValue || 0;
           const savingValue = firstBid - finalBid;
-
-          acceptedSaving = ` ${savingValue.toLocaleString("en-IN")} `;
+          acceptedSaving = `${savingValue.toLocaleString("en-IN")}`;
         }
       } catch (err) {
         console.error("Saving calc error:", err);
@@ -905,19 +1743,15 @@ const ViewQuote = () => {
         .map((q) => {
           const firstBid = q.FirstBidPrice || 0;
           const finalBid = q.grandTotalValue || 0;
-          const saving = firstBid - finalBid;
-
           return {
             vendor_name: q.vendor_name,
             finalBid,
-            saving,
+            saving: firstBid - finalBid,
           };
         })
-        .sort((a, b) => a.finalBid - b.finalBid)[0]; // Smallest Final Bid = L1
+        .sort((a, b) => a.finalBid - b.finalBid)[0];
 
       const L1TotalSavings = l1Quote ? l1Quote.saving.toFixed(2) : "N/A";
-
-      //console.log("l1TotalSavings", L1TotalSavings);
 
       const {
         auctionId = rfq?.rfq_number || "N/A",
@@ -926,7 +1760,6 @@ const ViewQuote = () => {
         country = rfq?.country || "N/A",
         subindustry = rfq?.subindustry || "N/A",
         hideCurrentBid = rfq?.hideCurrentBidPrice || "N/A",
-        testAuction = "No",
         description = rfq?.description || "N/A",
         createdDate = rfq?.createdDate
           ? new Date(rfq?.createdDate).toLocaleString()
@@ -939,653 +1772,66 @@ const ViewQuote = () => {
           : "N/A",
       } = auctionDetails;
 
-      acceptedSaving = acceptedSaving || "N/A";
-      let currentY = 10; // 🔹 Track current vertical position
-
-      // =========================
-      // 🔹 Header (Centered Logo)
-      // =========================
       const addHeader = () => {
         const logoWidth = 140;
         const logoHeight = 15;
         const logoX = (pageWidth - logoWidth) / 2;
-        const logoY = currentY;
 
         try {
-          doc.addImage(logoImg, "PNG", logoX, logoY, logoWidth, logoHeight);
-        } catch (err) {
-          console.error("Logo load error:", err);
-        }
+          doc.addImage(logoImg, "PNG", logoX, currentY, logoWidth, logoHeight);
+        } catch (e) {}
 
-        currentY = logoY + logoHeight + 10; // move below logo
+        currentY += logoHeight + 8;
       };
 
-      // =========================
-      // 🔹 Auction Details Section
-      // =========================
       const addAuctionDetails = () => {
-        const lineSpacing = 7;
-        const pageWidth = doc.internal.pageSize.getWidth();
-        const marginLeft = 20;
-        const valueX = 70;
-        const maxTextWidth = pageWidth - valueX - 20; // available width for text
+        doc.setFontSize(11);
+        doc.setFont("helvetica", "bold");
+        doc.text("Auction Details", 20, currentY);
+        currentY += 8;
 
-        doc.setFontSize(10);
-        //doc.setFont("helvetica", "normal");
+        doc.setFontSize(9);
+        doc.setFont("helvetica", "normal");
 
-        const details = [
-          ["Auction ID", auctionId, true],
-          ["Auction Title", auctionTitle, true],
+        const rows = [
+          ["Auction ID", auctionId],
+          ["Auction Title", auctionTitle],
           ["Auction Type", auctionType],
           ["Country", country],
           ["Industry", subindustry],
-          ["Hide Current Bid Price", hideCurrentBid],
-          ["Test eAuction", testAuction],
+          ["Hide Current Bid", hideCurrentBid],
           ["Description", description],
-          ["__SPACER__", ""],
-          ["Auction Created Date & Time", createdDate],
-          ["Auction Open Date & Time", openDate],
-          ["Auction Close Date & Time", closeDate],
-          ["Total Saving - INR ", L1TotalSavings, true],
+          ["Created Date", createdDate],
+          ["Open Date", openDate],
+          ["Close Date", closeDate],
+          ["Total Saving (INR)", L1TotalSavings],
         ];
 
-        details.forEach(([label, value, isBold]) => {
-          if (label === "__SPACER__") {
-            currentY += 10; // top margin
-            return;
-          }
-
-          // Wrap long text properly
-          const labelText = `${label}:`;
-          const wrappedValue = doc.splitTextToSize(
-            value?.toString() || "",
-            maxTextWidth,
-          );
-
-          if (isBold) doc.setFont("helvetica", "bold");
-          else doc.setFont("helvetica", "normal");
-
-          // Draw label
-          doc.text(labelText, marginLeft, currentY);
-          // Draw wrapped value, one or multiple lines
-          doc.setFont("helvetica", "normal");
-          doc.text(wrappedValue, valueX, currentY);
-
-          // Increase Y position based on text height
-          currentY += lineSpacing * wrappedValue.length;
+        rows.forEach((r) => {
+          checkPageBreak();
+          const value = doc.splitTextToSize(String(r[1]), 180);
+          doc.text(`${r[0]} :`, 20, currentY);
+          doc.text(value, 70, currentY);
+          currentY += value.length * 6;
         });
 
-        // Draw line separator
+        currentY += 6;
+
         doc.setDrawColor(200);
         doc.line(20, currentY, pageWidth - 20, currentY);
-        currentY += 10;
-
-        // Add Total Saving & Summary Title
-        doc.setFont("helvetica", "bold");
-        //doc.text(`Total Saving - ${totalSaving}`, 20, currentY);
         currentY += 8;
-        doc.text(`Auction Quote Details`, 20, currentY);
-        currentY += 10; // space before next section
-
-        return currentY;
-      };
-
-      const quotedatalatestFinal = (startY) => {
-        let yPos = startY;
-        const topQuotes = allQuotes; // all vendors
-
-        // 🧩 Combine all columns from all 3 tables
-        const allCols = [
-          "Vendor",
-          "Airline",
-          "Airport",
-          "Chargeable Wt (kg)",
-          "Freight / Kg (INR)",
-          "AMS (INR)",
-          "PAC (INR)",
-          "AWB (INR)",
-          "Other (INR)",
-          "Currency",
-          "DAP/DDP",
-          "Exchange Rate",
-          "Transit Days",
-          "Routing",
-          "Remark / Condition",
-          "Target Price",
-          "Total Charges (INR)",
-          "Total Saving",
-          "Rank",
-          "isAccepted",
-        ];
-
-        // 🧠 Helper to build all rows dynamically
-        const buildRows = (cols) =>
-          topQuotes.map((q, index) => {
-            console.log("Generating row for quote:", q);
-            const lastNegotiation = Array.isArray(q.negotiation)
-              ? q.negotiation.find(
-                  (n) =>
-                    n.vendor_id === q.vendor_id &&
-                    n.airline_name === q.airline_name,
-                )
-              : null;
-
-            const lastPurchase = lastNegotiation?.last_purchase_price || "-";
-            const firstBid = q.FirstBidPrice || 0;
-            const finalBid = q.grandTotalValue || 0;
-            const saving = firstBid - finalBid || 0;
-
-            const isAccepted =
-              q.acceptedDetails?.accepted_at &&
-              q.acceptedDetails?.accepted_airline === q.airline_name;
-
-            const routes = [
-              { route: q.route1, schedule: q.flight_schedule1 },
-              { route: q.route2, schedule: q.flight_schedule2 },
-              { route: q.route3, schedule: q.flight_schedule3 },
-            ]
-              .filter((r) => r.route || r.schedule)
-              .map((r) => {
-                const routeText = r.route || "-";
-                const scheduleText = r.schedule
-                  ? new Date(r.schedule).toLocaleDateString()
-                  : "-";
-                return `${routeText}\n${scheduleText}`;
-              })
-              .join("\n");
-
-            const row = {
-              Vendor: q.vendor_name || "-",
-              Airline: q.airline_name || "-",
-              Airport: q.airport || "-",
-              "Chargeable Wt (kg)": q.chargeable_weight || "-",
-              "Freight / Kg (INR)": q.base_rate || "-",
-              "AMS (INR)": q.ams || "-",
-              "PAC (INR)": q.pac || "-",
-              "AWB (INR)": q.awb || "-",
-              "Other (INR)": q.other_charges || "-",
-              Currency: q.currency || "-",
-              "DAP/DDP": q.dap_ddp_charges || "-",
-              "Exchange Rate": q.exchangeRate || "-",
-              "Transit Days": q.transit_days || "-",
-              Routing: routes || "-",
-              "Remark / Condition": q.remarks || "-",
-              "Target Price": lastPurchase ? lastPurchase : "-",
-              "Total Charges (INR)": finalBid
-                ? parseFloat(finalBid).toFixed(2)
-                : "-",
-              "Total Saving": saving ? saving.toFixed(2) : "-",
-              Rank: `L${index + 1}`,
-              isAccepted: isAccepted ? "Yes" : "No",
-            };
-
-            return cols.map((col) => row[col]);
-          });
-
-        // 📄 Draw Combined Table
-        doc.autoTable({
-          startY: yPos,
-          head: [allCols],
-          body: buildRows(allCols),
-          theme: "grid",
-          styles: {
-            fontSize: 8,
-            cellPadding: 2,
-            halign: "center",
-            valign: "middle",
-            lineColor: [200, 200, 200],
-            overflow: "linebreak", // Wrap text
-          },
-          headStyles: {
-            fillColor: [68, 114, 196],
-            textColor: [255, 255, 255],
-            fontStyle: "bold",
-          },
-          alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { top: 10, left: 10, right: 10 },
-          tableWidth: "auto", // Fit table to page width
-          showHead: "firstPage",
-          didParseCell: (data) => {
-            // Highlight top vendor (L1)
-            if (data.cell.raw === "L1") {
-              data.cell.styles.fillColor = [210, 255, 210];
-            }
-          },
-        });
-
-        return doc.lastAutoTable.finalY + 10;
-      };
-
-      const addSummaryBidSection = (startY) => {
-        let y = startY;
-        const pageWidth = doc.internal.pageSize.getWidth();
-
-        // ==========================
-        //  SECTION: SUMMARY TITLE
-        // ==========================
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Summary Sheet of Bid", 20, y);
-        y += 10;
-
-        // ==========================
-        //  EXTRACT SUMMARY ROWS
-        // ==========================
-        const summaryRows = allQuotes.map((q, i) => {
-          const finalBid = q.grandTotalValue || 0;
-          const firstBid = q.FirstBidPrice || 0;
-          const saving = firstBid - finalBid;
-
-          return {
-            sr_no: i + 1,
-            supplier: q.vendorName || q.vendor_name || q.vendor || "-",
-            airline: q.airline_name || "-",
-            transit: q.transit_days || "-",
-            final_price: finalBid.toFixed(2),
-            saving: saving.toFixed(2),
-            position: q.acceptedDetails?.position || "",
-          };
-        });
-
-        // Sort by savings for L1, L2, L3
-        summaryRows.sort((a, b) => b.saving - a.saving);
-        summaryRows.forEach((r, index) => {
-          r.position = `L${index + 1}`;
-        });
-
-        // ==========================
-        //  SUMMARY TABLE
-        // ==========================
-        doc.autoTable({
-          startY: y,
-          head: [
-            [
-              "Sr No",
-              "Supplier",
-              "Airline",
-              "Transit Time",
-              "Final Bid Price (INR)",
-              "Saving (INR)",
-              "Position",
-            ],
-          ],
-          body: summaryRows.map((r) => [
-            r.sr_no,
-            r.supplier,
-            r.airline,
-            r.transit,
-            r.final_price,
-            r.saving,
-            r.position,
-          ]),
-          styles: { fontSize: 9, cellPadding: 3 },
-          headStyles: {
-            halign: "center",
-            fillColor: [230, 230, 230],
-            textColor: 20,
-            fontStyle: "bold",
-          },
-          alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { left: 20, right: 20 },
-          didDrawPage: (data) => {
-            y = data.cursor.y + 10;
-          },
-        });
-
-        return y;
-      };
-
-      const extractAuctionActivity = (auctionData = {}) => {
-        const invited = Array.isArray(auctionData.invited)
-          ? auctionData.invited
-          : [];
-
-        const users = auctionData.users ? Object.values(auctionData.users) : [];
-
-        const vendors = users.filter((u) => u.role === "vendor");
-
-        const bids = auctionData.bids || {};
-        const ranks = auctionData.ranks || {};
-
-        const participated = vendors.filter((v) => bids[v.id]);
-
-        const winnerId = Object.entries(ranks).find(
-          ([, rank]) => rank === 1,
-        )?.[0];
-
-        return {
-          invited,
-          participated,
-          bids,
-          ranks,
-          winnerId,
-        };
-      };
-
-      const addAuctionActivitySection = (startY, auctionData) => {
-        let y = startY;
-
-        const { invited, participated, bids, ranks, winnerId } =
-          extractAuctionActivity(auctionData);
-
-        // ==========================
-        // 🔹 Section Title
-        // ==========================
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text("Auction Activity Summary", 20, y);
-        y += 10;
-
-        // ==========================
-        // 📅 Auction Timeline
-        // ==========================
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "normal");
-
-        doc.text(
-          `Auction Number : ${auctionData?.auction_number || "N/A"}`,
-          20,
-          y,
-        );
-        y += 6;
-
-        doc.text(
-          `Auction Mode : ${(auctionData?.mode || "").toUpperCase()}`,
-          20,
-          y,
-        );
-        y += 6;
-
-        doc.text(
-          `Start Time : ${new Date(auctionData.startTime).toLocaleString()}`,
-          20,
-          y,
-        );
-        y += 6;
-
-        doc.text(
-          `End Time : ${new Date(auctionData.endTime).toLocaleString()}`,
-          20,
-          y,
-        );
-        y += 10;
-
-        // ==========================
-        // 📨 Invited Vendors Table
-        // ==========================
-        doc.setFont("helvetica", "bold");
-        doc.text("Invited Vendors", 20, y);
-        y += 6;
-
-        doc.autoTable({
-          startY: y,
-          head: [["Email"]],
-          body: invited.map((email) => [email]),
-          theme: "grid",
-          styles: { fontSize: 9, cellPadding: 3 },
-          headStyles: {
-            fillColor: [68, 114, 196],
-            textColor: 255,
-            fontStyle: "bold",
-          },
-          margin: { left: 20, right: 20 },
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        // ==========================
-        // ✅ Participated Vendors
-        // ==========================
-        doc.setFont("helvetica", "bold");
-        doc.text("Participated Vendors", 20, y);
-        y += 6;
-
-        doc.autoTable({
-          startY: y,
-          head: [["Vendor Name", "Company", "Bid Amount", "Bid Time", "Rank"]],
-          body: participated.map((v) => [
-            v.name || "-",
-            v.company || "-",
-            bids[v.id]?.bid ?? "-",
-            bids[v.id]?.time ? new Date(bids[v.id].time).toLocaleString() : "-",
-            ranks[v.id] ? `L${ranks[v.id]}` : "-",
-          ]),
-          theme: "grid",
-          styles: {
-            fontSize: 9,
-            cellPadding: 3,
-            halign: "center",
-          },
-          headStyles: {
-            fillColor: [68, 114, 196],
-            textColor: 255,
-            fontStyle: "bold",
-          },
-          alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { left: 20, right: 20 },
-          didParseCell: (data) => {
-            if (data.cell.raw === "L1") {
-              data.cell.styles.fillColor = [210, 255, 210];
-            }
-          },
-        });
-
-        y = doc.lastAutoTable.finalY + 10;
-
-        // ==========================
-        // 🏆 Winner Summary
-        // ==========================
-        if (winnerId) {
-          const winner = participated.find((v) => v.id === winnerId);
-
-          doc.setFont("helvetica", "bold");
-          doc.text("Auction Winner", 20, y);
-          y += 6;
-
-          doc.setFont("helvetica", "normal");
-          doc.text(
-            `Winner : ${winner?.name || "-"} (${winner?.company || "-"})`,
-            20,
-            y,
-          );
-          y += 6;
-
-          doc.text(`Winning Bid : ${bids[winnerId]?.bid ?? "-"}`, 20, y);
-          y += 10;
-        }
-
-        return y;
-      };
-
-      const generalDetails = {
-        eximMode: rfq?.eximMode || "N/A",
-        movementType: rfq?.movement_type || "N/A",
-        incoterm: rfq?.incoterm_exp_air || "N/A",
-        originAirport: rfq?.origin_airport || "N/A",
-        originAddress: rfq?.origin_address || "N/A",
-        stuffing: rfq?.stuffing_location || "N/A",
-        destinationAirport: rfq?.destination_airport || "N/A",
-        destinationAddress: rfq?.destination_address || "N/A",
-        destuffing: rfq?.destuffing_location || "N/A",
-        totalWeight: rfq?.totalGrossWeight + "KG",
-        totalVolumetric: rfq?.totalVolumetricWeight + "KG",
-        valueShipment: "INR" + rfq?.value_of_shipment || "N/A",
-        cargoType: "N/A",
-        materialType: rfq?.material || "N/A",
-        hsCode: rfq?.hs_code || "N/A",
-        additionalDetails: "N/A",
-        volumetricFactor: rfq?.volumetricFactor || "N/A",
-      };
-
-      const addGeneralDetails = (startY) => {
-        let y = startY;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(12);
-        doc.text("General Details", 20, y);
-        y += 8;
-
-        const rows = [
-          [
-            `Exim Mode : ${generalDetails.eximMode || "-"}`,
-            `Movement Type : ${generalDetails.movementType || "-"}`,
-            `Incoterm : ${generalDetails.incoterm || "-"}`,
-          ],
-          [
-            `Origin Airport : ${generalDetails.originAirport || "-"}`,
-            `Origin Address : ${generalDetails.originAddress || "-"}`,
-            `Stuffing Location : ${generalDetails.stuffing || "-"}`,
-          ],
-          [
-            `Destination Airport : ${generalDetails.destinationAirport || "-"}`,
-            `Destination Address : ${generalDetails.destinationAddress || "-"}`,
-            `DeStuffing Location : ${generalDetails.destuffing || "-"}`,
-          ],
-          [
-            `Total Weight ( In Unit ) : ${generalDetails.totalWeight || "-"}`,
-            `Total Volumetric Weight : ${
-              generalDetails.totalVolumetric || "-"
-            }`,
-            `Value of Shipment : ${generalDetails.valueShipment || "-"}`,
-          ],
-          [
-            `Cargo Type : ${generalDetails.cargoType || "-"}`,
-            `Material Type : ${generalDetails.materialType || "-"}`,
-            `HS Code : ${generalDetails.hsCode || "-"}`,
-          ],
-          [
-            {
-              content: `Additional Details : ${
-                generalDetails.additionalDetails || "-"
-              }`,
-              colSpan: 3,
-            },
-          ],
-          [
-            {
-              content: `* Volumetric Weight Factor considered as : : ${
-                generalDetails.volumetricFactor || "-"
-              }`,
-              colSpan: 3,
-            },
-          ],
-        ];
-
-        doc.autoTable({
-          startY: y,
-          head: [],
-          body: rows,
-          theme: "grid",
-          styles: {
-            fontSize: 9,
-            valign: "middle",
-            halign: "left",
-            cellPadding: 3,
-          },
-          tableLineColor: [0, 0, 0],
-          tableLineWidth: 0.2,
-          margin: { left: 20, right: 20 },
-          columnStyles: {
-            0: { cellWidth: 180 / 3 },
-            1: { cellWidth: 180 / 3 },
-            2: { cellWidth: 180 / 3 },
-          },
-        });
-
-        return doc.lastAutoTable.finalY + 10;
-      };
-
-      const containerDatat =
-        rfq?.package_summary?.packages?.map((pkg) => ({
-          packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
-          dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${
-            pkg.height || 0
-          } ${pkg.dim_unit?.toUpperCase() || ""}`,
-          gross_weight: `${pkg.gross_weight || 0} ${
-            pkg.weight_unit?.toUpperCase() || ""
-          }`,
-          charges: "Air Freight",
-        })) || [];
-
-      const containerData = [
-        {
-          packages: "12 Cartons",
-          dimension: "37 x 36.5 x 26.5 CM",
-          gross_weight: "13.13 KG",
-          charges: "Air Freight",
-        },
-        {
-          packages: "9 Cartons",
-          dimension: "37 x 36.5 x 26.5 CM",
-          gross_weight: "13.235 KG",
-          charges: "Air Freight",
-        },
-      ];
-
-      const addContainerAndCharges = (currentY, doc, data) => {
-        // Section Title
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Container & Charges", 14, currentY);
-        currentY += 8;
-
-        // Table Headers
-        const headers = [
-          "No. of Packages",
-          "Dimension",
-          "Gross Weight / Package",
-          "Charges",
-        ];
-
-        const columnWidths = [50, 70, 60, 40];
-        let x = 14;
-
-        doc.setFont("helvetica", "bold");
-        doc.setFontSize(10);
-
-        headers.forEach((h, index) => {
-          doc.text(h, x, currentY);
-          x += columnWidths[index];
-        });
-
-        currentY += 8;
-        doc.setLineWidth(0.5);
-
-        // Draw header line
-        doc.line(14, currentY, 200, currentY);
-
-        // Table Rows
-        doc.setFont("helvetica", "normal");
-
-        data.forEach((row) => {
-          let xPos = 14;
-          currentY += 8;
-
-          doc.text(row.packages, xPos, currentY); // No. of Packages
-          xPos += columnWidths[0];
-
-          doc.text(row.dimension, xPos, currentY); // Dimension
-          xPos += columnWidths[1];
-
-          doc.text(row.gross_weight, xPos, currentY); // Gross Weight / Package
-          xPos += columnWidths[2];
-
-          doc.text(row.charges, xPos, currentY); // Charges
-
-          // Row underline
-          currentY += 3;
-          doc.line(14, currentY, 200, currentY);
-        });
-
-        return currentY + 10;
       };
 
       const quotedatalatestFinalNew = (startY) => {
-        let yPos = startY;
-        const topQuotes = allQuotes; // all vendors
+        let y = startY;
 
-        // 🧩 Combine all columns from all 3 tables
-        const allCols = [
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Participated Vendor and Bid Details", 20, y);
+
+        y += 6;
+
+        const cols = [
           "Vendor",
           "Airline",
           "Transit Days",
@@ -1595,114 +1841,319 @@ const ViewQuote = () => {
           "Position",
         ];
 
-        // 🧠 Helper to build all rows dynamically
-        const buildRows = (cols) =>
-          topQuotes.map((q, index) => {
-            console.log("Generating row for quote:", q);
-            const lastNegotiation = Array.isArray(q.negotiation)
-              ? q.negotiation.find(
-                  (n) =>
-                    n.vendor_id === q.vendor_id &&
-                    n.airline_name === q.airline_name,
-                )
-              : null;
+        const rows = allQuotes.map((q, i) => {
+          const first = q.FirstBidPrice || 0;
+          const final = q.grandTotalValue || 0;
+          const saving = first - final;
 
-            const lastPurchase = lastNegotiation?.last_purchase_price || "-";
-            const firstBid = q.FirstBidPrice || 0;
-            const finalBid = q.grandTotalValue || 0;
-            const saving = firstBid - finalBid || 0;
+          return [
+            q.vendor_name || "-",
+            q.airline_name || "-",
+            q.transit_days || "-",
+            final.toFixed(2),
+            q.percentage ? `${q.percentage}%` : "-",
+            saving.toFixed(2),
+            `L${i + 1}`,
+          ];
+        });
 
-            const isAccepted =
-              q.acceptedDetails?.accepted_at &&
-              q.acceptedDetails?.accepted_airline === q.airline_name;
-
-            const routes = [
-              { route: q.route1, schedule: q.flight_schedule1 },
-              { route: q.route2, schedule: q.flight_schedule2 },
-              { route: q.route3, schedule: q.flight_schedule3 },
-            ]
-              .filter((r) => r.route || r.schedule)
-              .map((r) => {
-                const routeText = r.route || "-";
-                const scheduleText = r.schedule
-                  ? new Date(r.schedule).toLocaleDateString()
-                  : "-";
-                return `${routeText}\n${scheduleText}`;
-              })
-              .join("\n");
-
-            const row = {
-              Vendor: q.vendor_name || "-",
-              Airline: q.airline_name || "-",
-              "Transit Days": q.transit_days || "-",
-              "Final Bid Price": finalBid,
-              "Percent %":
-                q.percentage !== undefined ? `${q.percentage}%` : "-",
-              "Total Saving": saving ? saving.toFixed(2) : "-",
-              Position: `L${index + 1}`,
-            };
-
-            return cols.map((col) => row[col]);
-          });
-
-        // 📄 Draw Combined Table
         doc.autoTable({
-          startY: yPos,
-          head: [allCols],
-          body: buildRows(allCols),
+          startY: y,
+          head: [cols],
+          body: rows,
           theme: "grid",
           styles: {
             fontSize: 8,
             cellPadding: 2,
+            overflow: "linebreak",
             halign: "center",
-            valign: "middle",
-            lineColor: [200, 200, 200],
-            overflow: "linebreak", // Wrap text
           },
           headStyles: {
             fillColor: [68, 114, 196],
-            textColor: [255, 255, 255],
+            textColor: 255,
             fontStyle: "bold",
           },
           alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { top: 10, left: 10, right: 10 },
-          tableWidth: "auto", // Fit table to page width
-          showHead: "firstPage",
-          didParseCell: (data) => {
-            // Highlight top vendor (L1)
-            if (data.cell.raw === "L1") {
-              data.cell.styles.fillColor = [210, 255, 210];
-            }
-          },
+          margin: { left: 15, right: 15 },
+          tableWidth: "auto",
         });
 
         return doc.lastAutoTable.finalY + 10;
       };
 
-      // =========================
-      // 🔹 Footer (Page Numbers)
-      // =========================
-      const addFooter = (pageNum, totalPages) => {
+      const addGeneralDetails = (startY) => {
+        let y = startY;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("General Details", 20, y);
+
+        y += 8;
+
+        const rows = [
+          [
+            `Exim Mode : ${rfq?.eximMode || "-"}`,
+            `Movement Type : ${rfq?.movement_type || "-"}`,
+            `Incoterm : ${rfq?.incoterm_exp_air || "-"}`,
+          ],
+          [
+            `Origin Airport : ${rfq?.origin_airport || "-"}`,
+            `Origin Address : ${rfq?.origin_address || "-"}`,
+            `Stuffing : ${rfq?.stuffing_location || "-"}`,
+          ],
+          [
+            `Destination Airport : ${rfq?.destination_airport || "-"}`,
+            `Destination Address : ${rfq?.destination_address || "-"}`,
+            `Destuffing : ${rfq?.destuffing_location || "-"}`,
+          ],
+          [
+            `Total Weight : ${rfq?.totalGrossWeight} KG`,
+            `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
+            `Value of Shipment : INR ${rfq?.value_of_shipment || "-"}`,
+          ],
+          [
+            `Material : ${rfq?.material || "-"}`,
+            `HS Code : ${rfq?.hs_code || "-"}`,
+          ],
+          [
+            {
+              content: `Volumetric Factor : ${rfq?.volumetricFactor || "-"}`,
+              colSpan: 3,
+            },
+          ],
+        ];
+
+        doc.autoTable({
+          startY: y,
+          body: rows,
+          theme: "grid",
+          styles: { fontSize: 9, cellPadding: 3 },
+          margin: { left: 20, right: 20 },
+        });
+
+        return doc.lastAutoTable.finalY + 10;
+      };
+
+      const addContainerAndCharges = (startY, data) => {
+        let y = startY;
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Container & Charges", 20, y);
+
+        y += 6;
+
+        doc.autoTable({
+          startY: y,
+          head: [["No of Packages", "Dimension", "Gross Weight", "Charges"]],
+          body: data.map((r) => [
+            r.packages,
+            r.dimension,
+            r.gross_weight,
+            r.charges,
+          ]),
+          styles: { fontSize: 9 },
+          headStyles: { fillColor: [68, 114, 196], textColor: 255 },
+          margin: { left: 20, right: 20 },
+        });
+
+        return doc.lastAutoTable.finalY + 10;
+      };
+
+      const addAuctionActivitySection = (startY, auctionData = {}) => {
+        let y = startY;
+        const pageHeight = doc.internal.pageSize.getHeight();
+        const marginBottom = 20;
+
+        const checkPageBreak = (needed = 15) => {
+          if (y + needed > pageHeight - marginBottom) {
+            doc.addPage();
+            y = 20;
+          }
+        };
+
+        const invited = Array.isArray(auctionData?.invited)
+          ? auctionData.invited
+          : [];
+
+        const users = auctionData?.users
+          ? Object.values(auctionData.users)
+          : [];
+        const vendors = users.filter((u) => u.role === "vendor");
+
+        const bids = auctionData?.bids || {};
+        const ranks = auctionData?.ranks || {};
+
+        const participated = vendors.filter((v) => bids[v.id]);
+
+        const winnerId = Object.entries(ranks).find(
+          ([, rank]) => rank === 1,
+        )?.[0];
+
+        const winner = participated.find((v) => v.id === winnerId);
+
+        checkPageBreak(20);
+
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(12);
+        doc.text("Auction Activity Summary", 20, y);
+
+        y += 8;
+
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+
+        const timelineRows = [
+          ["Auction Number", auctionData?.auction_number || "N/A"],
+          ["Auction Mode", (auctionData?.mode || "").toUpperCase()],
+          [
+            "Start Time",
+            auctionData?.startTime
+              ? new Date(auctionData.startTime).toLocaleString()
+              : "N/A",
+          ],
+          [
+            "End Time",
+            auctionData?.endTime
+              ? new Date(auctionData.endTime).toLocaleString()
+              : "N/A",
+          ],
+          ["Country", rfq?.country ? rfq.country : "N/A"],
+          ["Industry", rfq?.subindustry ? rfq.subindustry : "N/A"],
+          ["Hide Current Bid", rfq?.hideCurrentBid ? "Yes" : "No"],
+          ["Description", rfq?.description || "N/A"],
+          [
+            "Created Date",
+            rfq?.createdDate
+              ? new Date(rfq.createdDate).toLocaleString()
+              : "N/A",
+          ],
+          ["Total Saving (INR)", L1TotalSavings ? L1TotalSavings : "-"],
+        ];
+
+        timelineRows.forEach((row) => {
+          checkPageBreak(10);
+          doc.text(`${row[0]} :`, 20, y);
+          doc.text(String(row[1]), 70, y);
+          y += 6;
+        });
+
+        y += 5;
+
+        checkPageBreak(15);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("Invited Vendors", 20, y);
+        y += 5;
+
+        doc.autoTable({
+          startY: y,
+          head: [["Email"]],
+          body:
+            invited.length > 0
+              ? invited.map((email) => [email])
+              : [["No vendors invited"]],
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+          },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          margin: { left: 20, right: 20 },
+        });
+
+        y = doc.lastAutoTable.finalY + 8;
+
+        checkPageBreak(20);
+
+        doc.setFont("helvetica", "bold");
+        doc.text("Auction Participation & Winner Summary", 20, y);
+
+        y += 6;
+
+        const summaryTable = [
+          ["Total Vendors Invited", invited.length],
+          ["Total Vendors Participated", participated.length],
+          ["Total Bids Submitted", Object.keys(bids).length],
+          [
+            "Winner",
+            winner
+              ? `${winner?.name || "-"} (${winner?.company || "-"})`
+              : "N/A",
+          ],
+          ["Winning Bid", winner ? (bids[winnerId]?.bid ?? "-") : "N/A"],
+        ];
+
+        doc.autoTable({
+          startY: y,
+          head: [["Metric", "Value"]],
+          body: summaryTable,
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            cellPadding: 3,
+            halign: "left",
+          },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          columnStyles: {
+            0: { cellWidth: 90, fontStyle: "bold" },
+            1: { cellWidth: 120 },
+          },
+          margin: { left: 20, right: 20 },
+        });
+
+        y = doc.lastAutoTable.finalY + 8;
+
+        return y;
+
+        return y;
+      };
+
+      /* ==============================
+   FOOTER
+============================== */
+
+      const addFooter = (page, total) => {
         doc.setFontSize(8);
-        doc.setTextColor(100);
-        doc.text(`Page ${pageNum} of ${totalPages}`, pageWidth / 2, 290, {
+        doc.setTextColor(120);
+        doc.text(`Page ${page} of ${total}`, pageWidth / 2, pageHeight - 8, {
           align: "center",
         });
       };
 
-      // =========================
-      // 🔹 Generate PDF Flow
-      // =========================
+      /* ==============================
+   PDF FLOW
+============================== */
+
       addHeader();
-      currentY = addAuctionDetails();
       currentY = addAuctionActivitySection(currentY, auctionData);
+      //addAuctionDetails();
+
       currentY = quotedatalatestFinalNew(currentY);
-      //currentY = addSummaryBidSection(currentY);
       currentY = addGeneralDetails(currentY);
-      currentY = addContainerAndCharges(currentY, doc, containerDatat);
-      currentY = quotedatalatestFinal(currentY);
+
+      const containerDatat =
+        rfq?.package_summary?.packages?.map((pkg) => ({
+          packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
+          dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${pkg.height || 0} ${pkg.dim_unit?.toUpperCase() || ""}`,
+          gross_weight: `${pkg.gross_weight || 0} ${pkg.weight_unit?.toUpperCase() || ""}`,
+          charges: "Air Freight",
+        })) || [];
+
+      if (containerDatat.length) {
+        currentY = addContainerAndCharges(currentY, containerDatat);
+      }
 
       const totalPages = doc.internal.getNumberOfPages();
+
       for (let i = 1; i <= totalPages; i++) {
         doc.setPage(i);
         addFooter(i, totalPages);
@@ -1714,30 +2165,76 @@ const ViewQuote = () => {
     const allQuotesWithUniqueId = allQuotes.map((row, index) => ({
       ...row,
       uniqueId: `${row.vendor_id}_${index}`, // vendor + index to make unique
-      attachedFile: row.hodAcceptRequestDetails?.attached_file || null,
+      attachedFile: row.hodAcceptRequestDetails?.attached_file || [],
       marketingAttachedFile:
-        row.sharedtoMarketingTeamDetails?.attached_file || null,
+        row.sharedtoMarketingTeamDetails?.attached_file || [],
       marketingTeamDataRemarks:
         row.sharedtoMarketingTeamDetails?.remarks || null,
       marketingTeamDataDate:
         row.sharedtoMarketingTeamDetails?.accepted_at || null,
       hodApprovalDataRemarks: row.hodAcceptRequestDetails?.remarks || null,
       hodApprovalDataDate: row.hodAcceptRequestDetails?.accepted_at || null,
+      hodApprovalDataRejectedDate:
+        row.hodAcceptRequestDetails?.hod_rejected_on || null,
+      hodApprovalDataMessage: row.hodAcceptRequestDetails?.hod_msg || null,
+      buyerDocumentsSubmitted:
+        row.buyerDocumentsUploadedDetails?.attached_file || [],
+      buyerDocSubmittedDate:
+        row.buyerDocumentsUploadedDetails?.submitted_at || null,
     }));
+
+    console.log("allQuotesWithUniqueId", allQuotesWithUniqueId);
+
+    const hodApprovalQuotes = allQuotesWithUniqueId.filter(
+      (row) =>
+        row.hodAcceptRequestDetails &&
+        Object.keys(row.hodAcceptRequestDetails).length > 0,
+    );
+
+    console.log("hodApprovalQuotes", hodApprovalQuotes);
+
+    const buyerDocumentsQuotes = allQuotesWithUniqueId.filter(
+      (row) => row.buyerDocumentsSubmitted?.length > 0,
+    );
+
+    console.log("buyerDocumentsQuotes", buyerDocumentsQuotes);
+
+    const invoiceDetails = allQuotesWithUniqueId.filter(
+      (row) => row.invoiceDetails && Object.keys(row.invoiceDetails).length > 0,
+    );
+
+    console.log("invoiceDetails", invoiceDetails);
 
     const attachedFileName =
       allQuotesWithUniqueId.find((row) => row.attachedFile)?.attachedFile ||
       null;
 
+    const attachedFiles =
+      allQuotesWithUniqueId.find((row) => row.attachedFile?.length > 0)
+        ?.attachedFile || [];
+
     const marketingTeamReviewFileName =
       allQuotesWithUniqueId.find((row) => row.marketingAttachedFile)
         ?.marketingAttachedFile || null;
+
+    const marketingAttachedFiles =
+      allQuotesWithUniqueId.find((row) => row.marketingAttachedFile?.length > 0)
+        ?.marketingAttachedFile || [];
+
+    const buyerDocuments =
+      allQuotesWithUniqueId.find(
+        (row) => row.buyerDocumentsSubmitted?.length > 0,
+      )?.buyerDocumentsSubmitted || [];
 
     //console.log("marketingTeamReviewFileName", marketingTeamReviewFileName);
 
     const marketingTeamReviewDataRemarks =
       allQuotesWithUniqueId.find((row) => row.marketingTeamDataRemarks)
         ?.marketingTeamDataRemarks || null;
+
+    const marketingEmailID =
+      allQuotesWithUniqueId.find((row) => row.sharedtoMarketingTeamDetails)
+        ?.sharedtoMarketingTeamDetails?.marketing_email || null;
 
     const marketingTeamReviewDataDate =
       allQuotesWithUniqueId.find((row) => row.marketingTeamDataDate)
@@ -1749,9 +2246,25 @@ const ViewQuote = () => {
       allQuotesWithUniqueId.find((row) => row.hodApprovalDataRemarks)
         ?.hodApprovalDataRemarks || null;
 
+    const hodApprovalDataMessage =
+      allQuotesWithUniqueId.find((row) => row.hodApprovalDataMessage)
+        ?.hodApprovalDataMessage || null;
+
+    const hodEmailID =
+      allQuotesWithUniqueId.find((row) => row.hodAcceptRequestDetails)
+        ?.hodAcceptRequestDetails?.hod_email || null;
+
     const hodApprovalDataDate =
       allQuotesWithUniqueId.find((row) => row.hodApprovalDataDate)
         ?.hodApprovalDataDate || null;
+
+    const hodRejectedOn =
+      allQuotesWithUniqueId.find((row) => row.hodApprovalDataRejectedDate)
+        ?.hodApprovalDataRejectedDate || null;
+
+    const buyerDocSubmittedDate =
+      allQuotesWithUniqueId.find((row) => row.buyerDocSubmittedDate)
+        ?.buyerDocSubmittedDate || null;
 
     const quoteWithAttachment = allQuotesWithUniqueId.find(
       (row) => row.attachedFile && row.status === "requested_hod_approval",
@@ -1784,7 +2297,7 @@ const ViewQuote = () => {
           </div>
 
           <div className="col-12 md:col-3">
-            <label htmlFor="shipmentValue">Value of Shipment</label>
+            <label htmlFor="shipmentValue">Value of Shipment in INR</label>
             <input
               id="shipmentValue"
               type="number"
@@ -1808,7 +2321,187 @@ const ViewQuote = () => {
           {}
         </div>
 
-        {attachedFileName && (
+        <h6 className="mb-3 mt-4">Approvals</h6>
+        <div className="grid">
+          {hodApprovalQuotes?.map((quote) => (
+            <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
+              <div className="p-3 border-round shadow-1 surface-card h-full">
+                <div className="flex align-items-center justify-content-between mb-2">
+                  <strong>{quote.vendor_name}</strong>
+
+                  <span
+                    className={`px-2 py-1 border-round text-sm ${
+                      quote.hodApprovalDataRejectedDate
+                        ? "bg-red-100 text-red-700"
+                        : "bg-green-100 text-green-700"
+                    }`}
+                  >
+                    {quote.hodApprovalDataRejectedDate
+                      ? "Rejected"
+                      : quote.hodApprovalDataMessage
+                        ? "Approved"
+                        : "Pending Approval"}
+                  </span>
+                </div>
+
+                <div className="text-sm">
+                  <div>
+                    <strong>HOD:</strong>{" "}
+                    {quote.hodAcceptRequestDetails?.hod_email}
+                  </div>
+
+                  <div>
+                    <strong>HOD Comment:</strong> {quote.hodApprovalDataMessage}
+                  </div>
+
+                  <div>
+                    <strong>Export Team Buyer Comment:</strong>{" "}
+                    {quote.hodApprovalDataRemarks}
+                  </div>
+
+                  <div>
+                    <strong>Date:</strong>{" "}
+                    {formatDate(
+                      quote.hodApprovalDataRejectedDate ||
+                        quote.hodApprovalDataDate,
+                    )}
+                  </div>
+                </div>
+
+                {quote.attachedFile?.length > 0 && (
+                  <div className="mt-2">
+                    <strong>Attachments:</strong>
+                    {quote.attachedFile.map((file, i) => (
+                      <div key={i}>
+                        <a
+                          href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline text-sm"
+                        >
+                          {file}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <h6 className="mb-3 mt-5">Buyer to Vendor Documents Submission</h6>
+        <div className="grid">
+          {buyerDocumentsQuotes.map((quote) => (
+            <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
+              <div className="p-3 border-round shadow-1 surface-card h-full border-green-300 bg-green-50">
+                {/* Header */}
+                <div className="flex align-items-center justify-content-between mb-2">
+                  <strong>{quote.vendor_name}</strong>
+
+                  <span className="px-2 py-1 border-round text-sm bg-green-100 text-green-700">
+                    Documents Submitted
+                  </span>
+                </div>
+
+                {/* Details */}
+                <div className="text-sm mb-2">
+                  <strong>Submitted On:</strong>{" "}
+                  {formatDate(quote.buyerDocSubmittedDate)}
+                </div>
+
+                {/* Attachments */}
+                {quote.buyerDocumentsSubmitted?.length > 0 && (
+                  <div>
+                    <strong>Files:</strong>
+
+                    {quote.buyerDocumentsSubmitted.map((file, i) => (
+                      <div key={i}>
+                        <a
+                          href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline text-sm"
+                        >
+                          {file}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <h6 className="mb-3 mt-5">Vendor to Buyer Invoice Submission</h6>
+        <div className="grid">
+          {invoiceDetails.map((quote) => (
+            <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
+              <div className="p-3 border-round shadow-1 surface-card h-full border-blue-300 bg-blue-50">
+                {/* Header */}
+                <div className="flex align-items-center justify-content-between mb-2">
+                  <strong>{quote.vendor_name}</strong>
+
+                  <span className="px-2 py-1 border-round text-sm bg-blue-100 text-blue-700">
+                    Invoice Submitted
+                  </span>
+                </div>
+
+                {/* Submitted Date */}
+                <div className="text-sm mb-2">
+                  <strong>Submitted On:</strong>{" "}
+                  {formatDate(quote.invoiceDetails?.submitted_on)}
+                </div>
+
+                {/* Cost Breakdown */}
+                <div className="text-sm mb-2">
+                  <div>
+                    <strong>Freight:</strong>{" "}
+                    {quote.invoiceDetails?.freight_amount || "-"}
+                  </div>
+
+                  <div>
+                    <strong>DAP:</strong>{" "}
+                    {quote.invoiceDetails?.dap_amount || "-"}
+                  </div>
+
+                  <div>
+                    <strong>Custom Duty:</strong>{" "}
+                    {quote.invoiceDetails?.custom_duty_amount || "-"}
+                  </div>
+
+                  <div>
+                    <strong>Others:</strong>{" "}
+                    {quote.invoiceDetails?.others_amount || "-"}
+                  </div>
+                </div>
+
+                {/* Attachments */}
+                {quote.invoiceDetails?.attached_file?.length > 0 && (
+                  <div>
+                    <strong>Files:</strong>
+
+                    {quote.invoiceDetails.attached_file.map((file, i) => (
+                      <div key={i}>
+                        <a
+                          href={`${BASE_URL}/uploads/invoices/${encodeURIComponent(file)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 underline text-sm"
+                        >
+                          {file}
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {attachedFiles.length > 0 && (
           <div className="p-3 mb-3 border-round bg-yellow-100 text-yellow-900 shadow-2">
             <div className="flex align-items-center gap-3">
               {/* ⏳ Icon on the LEFT */}
@@ -1824,31 +2517,132 @@ const ViewQuote = () => {
                 ⏳
               </span>
 
-              <div>
-                <strong>Requested HOD Approval:</strong>
-                <br />
-                <strong>Reason: {hodApprovalDataRemarks}</strong>
-                <br />
-                <br />
-                <strong>Requested On: {formatDate(hodApprovalDataDate)}</strong>
-                <br />
-                <strong>Attachment: </strong>
-                <a
-                  href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
-                    attachedFileName,
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-700 underline"
-                >
-                  {attachedFileName}
-                </a>
-              </div>
+              {hodApprovalDataMessage ? (
+                <div className="p-3 border rounded bg-green-50 border-green-300">
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns:
+                        hodApprovalDataMessage && buyerDocuments?.length > 0
+                          ? "1fr 1fr"
+                          : "1fr",
+                      gap: "20px",
+                      marginTop: "10px",
+                    }}
+                  >
+                    {/* HOD Approval Section */}
+                    {(hodApprovalDataMessage || hodRejectedOn) && (
+                      <div
+                        className={`p-3 border-round shadow-1 ${
+                          hodRejectedOn
+                            ? "bg-red-50 border-red-300"
+                            : "bg-white"
+                        }`}
+                      >
+                        <strong
+                          className={
+                            hodRejectedOn ? "text-red-700" : "text-green-700"
+                          }
+                        >
+                          HOD Approval Status:{" "}
+                          {hodRejectedOn ? "Rejected" : "Approved"}
+                        </strong>
+                        <br />
+                        <strong>Requested HOD Approval:</strong> {hodEmailID}
+                        <br />
+                        <strong>Reason:</strong> {hodApprovalDataRemarks}
+                        <br />
+                        <strong>HOD Comment:</strong> {hodApprovalDataMessage}
+                        <br />
+                        <br />
+                        <strong>
+                          {hodRejectedOn ? "Rejected On:" : "Requested On:"}
+                        </strong>{" "}
+                        {formatDate(
+                          hodRejectedOn ? hodRejectedOn : hodApprovalDataDate,
+                        )}
+                        <br />
+                        {attachedFiles?.length > 0 && (
+                          <>
+                            <strong>Attachment:</strong>
+                            {attachedFiles.map((file, index) => (
+                              <div key={index}>
+                                <a
+                                  href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-700 underline"
+                                >
+                                  {file}
+                                </a>
+                              </div>
+                            ))}
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Buyer Documents Section */}
+                    {buyerDocuments?.length > 0 && (
+                      <div className="p-3 border-round bg-white shadow-1">
+                        <strong className="text-green-700">
+                          Buyer Submitted Documents
+                        </strong>
+                        <br />
+                        <strong>Submitted On:</strong>{" "}
+                        {formatDate(buyerDocSubmittedDate)}
+                        {buyerDocuments.map((file, index) => (
+                          <div key={index}>
+                            <a
+                              href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-blue-700 underline"
+                            >
+                              {file}
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="p-3 border rounded bg-yellow-50 border-yellow-300">
+                  <strong className="text-yellow-700">
+                    HOD Approval Status: Sent for Approval
+                  </strong>
+                  <br />
+                  <strong>Requested HOD Approval:</strong> {hodEmailID}
+                  <br />
+                  <strong>Reason:</strong> {hodApprovalDataRemarks}
+                  <br />
+                  <strong>HOD Comment:</strong> {hodApprovalDataMessage}
+                  <br />
+                  <br />
+                  <strong>Requested On:</strong>{" "}
+                  {formatDate(hodApprovalDataDate)}
+                  <br />
+                  <strong>Attachment:</strong>
+                  {attachedFiles?.map((file, index) => (
+                    <div key={index}>
+                      <a
+                        href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-700 underline"
+                      >
+                        {file}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        {marketingTeamReviewFileName && (
+        {marketingAttachedFiles.length > 0 && (
           <div className="p-3 mb-3 border-round bg-yellow-100 text-yellow-900 shadow-2">
             <div className="flex align-items-center gap-3">
               {/* ⏳ Icon on the LEFT */}
@@ -1865,7 +2659,9 @@ const ViewQuote = () => {
               </span>
 
               <div>
-                <strong>Requested Marketing Team Review:</strong>
+                <strong>
+                  Requested Marketing Team Review: {marketingEmailID}
+                </strong>
                 <br />
                 <strong>Reason: {marketingTeamReviewDataRemarks}</strong>
                 <br />
@@ -1874,7 +2670,7 @@ const ViewQuote = () => {
                 </strong>
                 <br />
                 <strong>Attachment: </strong>
-                <a
+                {/* <a
                   href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
                     marketingTeamReviewFileName,
                   )}`}
@@ -1883,7 +2679,19 @@ const ViewQuote = () => {
                   className="text-blue-700 underline"
                 >
                   {marketingTeamReviewFileName}
-                </a>
+                </a> */}
+                {marketingAttachedFiles?.map((file, index) => (
+                  <div key={index}>
+                    <a
+                      href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-700 underline"
+                    >
+                      {file}
+                    </a>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -2096,13 +2904,38 @@ const ViewQuote = () => {
                 return (
                   <span
                     style={{
-                      color: "green",
-                      fontWeight: "bold",
-                      fontSize: "1.8rem",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      fontSize: "1.4rem",
                     }}
-                    title="HOD Approved"
                   >
-                    ✅
+                    <span style={{ color: "green" }} title="HOD Approved">
+                      ✅
+                    </span>
+
+                    <span
+                      style={{ color: "#0d6efd", cursor: "pointer" }}
+                      title="Send Documents"
+                      onClick={() => setShowDocumentsUploadDialog(true)}
+                    >
+                      📑
+                    </span>
+
+                    <Button
+                      icon="pi pi-times"
+                      className="p-button-danger p-button-rounded p-button-sm"
+                      tooltip="Reject"
+                      style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
+                      onClick={() =>
+                        openConfirmModal(
+                          "hod_rejected",
+                          row.rfq_number || rfq.rfq_number,
+                          row.vendor_id,
+                          row.airline_name,
+                        )
+                      }
+                    />
                   </span>
                 );
               }
@@ -2166,6 +2999,87 @@ const ViewQuote = () => {
     );
   };
 
+  const handleHodDecisionSubmit = async () => {
+    try {
+      const form = new FormData();
+
+      form.append("rfq_number", rfq.rfq_number);
+      form.append("action", dialogParams.actionType);
+      form.append("vendors", dialogParams.vendor_id);
+      form.append("requestedAirline", dialogParams.airline_name);
+      form.append("hod_msg", acceptRemarks || "");
+      form.append("hod_name", user?.name || "");
+      form.append("hod_email", user?.email || "");
+
+      const attachedFilesData =
+        rfq?.shipments
+          ?.flatMap((shipment) => shipment.quotes || [])
+          ?.find((quote) => quote?.hodAcceptRequestDetails?.attached_file)
+          ?.hodAcceptRequestDetails?.attached_file || null;
+
+      console.log("Attached Files Data for HOD Decision:", attachedFilesData);
+
+      form.append("existingAttachments", JSON.stringify(attachedFilesData));
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("quotesummary/update-rfq-status", form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      dispatch(
+        toastSuccess({
+          detail: "HOD Approval successfully!",
+        }),
+      );
+
+      setShowHODDecisionDialog(false);
+      setAcceptRemarks("");
+      fetchSummary();
+    } catch (error) {
+      console.error("HOD Decision Error:", error);
+      dispatch(toastError({ detail: "Error processing HOD decision." }));
+    }
+  };
+
+  const handleSubmitClick = async () => {
+    console.log("Attached Files:", attachedFiles);
+    console.log("HOD Rejected On:", hodRejectedOn);
+
+    const hodRejectedOnCheck =
+      rfq?.shipments
+        ?.flatMap((shipment) => shipment.quotes || [])
+        ?.find((quote) => quote?.hodAcceptRequestDetails?.hod_rejected_on)
+        ?.hodAcceptRequestDetails?.hod_rejected_on || null;
+
+    if (hodRejectedOnCheck) {
+      await handleHodDecisionSubmit();
+    } else {
+      await postData("quotesummary/update-rfq-status", {
+        rfq_number: rfq.rfq_number,
+        action: dialogParams.actionType,
+        vendors: [dialogParams.vendor_id],
+        requestedAirline: [dialogParams.airline_name],
+        hod_msg: acceptRemarks,
+        hod_name: user?.name || "",
+        hod_email: user?.email || "",
+      });
+
+      dispatch(
+        toastSuccess({
+          detail: "HOD Approval successfully!",
+        }),
+      );
+
+      setShowHODDecisionDialog(false);
+      setAcceptRemarks("");
+      fetchSummary();
+    }
+  };
+
   const handleHodApprovalSubmit = async () => {
     try {
       const form = new FormData();
@@ -2176,7 +3090,10 @@ const ViewQuote = () => {
       form.append("hod_email", selectedHod?.email || "");
 
       if (attachment) {
-        form.append("attachment", attachment);
+        //form.append("attachment", attachment);
+        attachment.forEach((file) => {
+          form.append("attachment", file);
+        });
       }
 
       const token = localStorage.getItem("USERTOKEN");
@@ -2193,12 +3110,51 @@ const ViewQuote = () => {
       );
 
       setShowHodApprovalDialog(false);
-      setAttachment(null);
+      setAttachment([]);
       setAcceptRemarks("");
       fetchSummary();
     } catch (error) {
       console.error("HOD Approval Error:", error);
       dispatch(toastError({ detail: "Error sending approval request." }));
+    }
+  };
+
+  const handleDocumentsSubmit = async (selectedVendors) => {
+    try {
+      const form = new FormData();
+      form.append("rfq_number", rfq.rfq_number);
+      form.append("action", "documents_submitted_by_exports");
+      form.append("remarks", acceptRemarks || "");
+      form.append("vendor_name", selectedVendors[0]?.vendor_name || "");
+      form.append("vendor_email", selectedVendors[0]?.vendor_email || "");
+      form.append("vendor_id", selectedVendors[0]?.vendor_id || "");
+      form.append("airline_name", selectedVendors[0]?.airline_name || "");
+
+      if (attachment) {
+        //form.append("attachment", attachment);
+        attachment.forEach((file) => {
+          form.append("attachment", file);
+        });
+      }
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("quotesummary/update-rfq-status", form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      dispatch(toastSuccess({ detail: "Documents Submitted successfully!" }));
+
+      setShowDocumentsUploadDialog(false);
+      setAttachment([]);
+      setAcceptRemarks("");
+      fetchSummary();
+    } catch (error) {
+      console.error("Documents Submit Error:", error);
+      dispatch(toastError({ detail: "Error submitting documents." }));
     }
   };
 
@@ -2212,7 +3168,10 @@ const ViewQuote = () => {
       form.append("marketing_email", marketingHead?.email || "");
 
       if (attachment) {
-        form.append("attachment", attachment);
+        //form.append("attachment", attachment);
+        attachment.forEach((file) => {
+          form.append("attachment", file);
+        });
       }
 
       const token = localStorage.getItem("USERTOKEN");
@@ -2229,7 +3188,7 @@ const ViewQuote = () => {
       );
 
       setShowShareToMarketTeamDialog(false);
-      setAttachment(null);
+      setAttachment([]);
       setMarketingRemarks("");
       fetchSummary();
     } catch (error) {
@@ -2491,26 +3450,7 @@ const ViewQuote = () => {
           <Button
             label="Submit"
             className="p-button-sm p-button-success"
-            onClick={async () => {
-              await postData("quotesummary/update-rfq-status", {
-                rfq_number: rfq.rfq_number,
-                action: dialogParams.actionType,
-                vendors: [dialogParams.vendor_id],
-                requestedAirline: [dialogParams.airline_name],
-                hod_msg: acceptRemarks,
-                hod_name: user?.name || "",
-                hod_email: user?.email || "",
-              });
-              dispatch(
-                toastSuccess({
-                  detail: "HOD Approval successfully!",
-                }),
-              );
-              setShowHODDecisionDialog(false);
-              //setSelectedVendors([]);
-              setAcceptRemarks("");
-              fetchSummary();
-            }}
+            onClick={handleSubmitClick}
           />
           <Button
             label="Cancel"
@@ -2559,9 +3499,31 @@ const ViewQuote = () => {
           </label>
           <input
             type="file"
+            multiple
             className="p-inputtext w-full"
-            onChange={(e) => setAttachment(e.target.files[0])}
+            onChange={(e) => {
+              const newFiles = Array.from(e.target.files);
+              setAttachment((prev) => [...prev, ...newFiles]);
+            }}
           />
+          {attachment?.length > 0 && (
+            <div className="mt-2">
+              {attachment?.map((file, index) => (
+                <div key={index} className="flex justify-content-between mb-1">
+                  <span>{file.name}</span>
+                  <Button
+                    icon="pi pi-times"
+                    className="p-button-text p-button-sm"
+                    onClick={() =>
+                      setAttachment((prev) =>
+                        prev.filter((_, i) => i !== index),
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mb-3">
@@ -2585,6 +3547,79 @@ const ViewQuote = () => {
             label="Cancel"
             className="p-button-secondary p-button-sm"
             onClick={() => setShowHodApprovalDialog(false)}
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        header="Submit Invoice and Documents"
+        visible={showDocumentsUploadDialog}
+        onHide={() => setShowDocumentsUploadDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          {selectedVendors.map((v) => (
+            <div key={v.vendor_id} className="mb-2">
+              <i className="pi pi-user mr-2" />
+              <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
+            </div>
+          ))}
+        </div>
+
+        <div className="mb-3">
+          <label>
+            <strong>Attach File</strong>
+          </label>
+          <input
+            type="file"
+            multiple
+            className="p-inputtext w-full"
+            onChange={(e) => {
+              const newFiles = Array.from(e.target.files);
+              setAttachment((prev) => [...prev, ...newFiles]);
+            }}
+          />
+          {attachment?.length > 0 && (
+            <div className="mt-2">
+              {attachment?.map((file, index) => (
+                <div key={index} className="flex justify-content-between mb-1">
+                  <span>{file.name}</span>
+                  <Button
+                    icon="pi pi-times"
+                    className="p-button-text p-button-sm"
+                    onClick={() =>
+                      setAttachment((prev) =>
+                        prev.filter((_, i) => i !== index),
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={acceptRemarks}
+            onChange={(e) => setAcceptRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Submit Documents"
+            className="p-button-sm p-button-success"
+            onClick={() => handleDocumentsSubmit(selectedVendors)}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowDocumentsUploadDialog(false)}
           />
         </div>
       </Dialog>
@@ -2629,9 +3664,31 @@ const ViewQuote = () => {
           </label>
           <input
             type="file"
+            multiple
             className="p-inputtext w-full"
-            onChange={(e) => setAttachment(e.target.files[0])}
+            onChange={(e) => {
+              const newFiles = Array.from(e.target.files);
+              setAttachment((prev) => [...prev, ...newFiles]);
+            }}
           />
+          {attachment?.length > 0 && (
+            <div className="mt-2">
+              {attachment?.map((file, index) => (
+                <div key={index} className="flex justify-content-between mb-1">
+                  <span>{file.name}</span>
+                  <Button
+                    icon="pi pi-times"
+                    className="p-button-text p-button-sm"
+                    onClick={() =>
+                      setAttachment((prev) =>
+                        prev.filter((_, i) => i !== index),
+                      )
+                    }
+                  />
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="mb-3">

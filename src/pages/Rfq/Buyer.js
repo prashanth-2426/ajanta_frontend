@@ -18,6 +18,7 @@ import { toastError, toastSuccess } from "../../store/toastSlice";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { BASE_URL, API_URL } from "../../constants";
+import { set } from "react-hook-form";
 
 const SERVER = API_URL;
 
@@ -33,6 +34,7 @@ export default function Buyer({
   const auctions = useSelector((state) => state.auctions.list);
   const [title, setTitle] = useState("");
   const [invites, setInvites] = useState([]);
+  const [invitedAirlines, setInvitedAirlines] = useState([]);
   const [auction, setAuction] = useState(null);
   const socket = useRef(null);
   const [mode, setMode] = useState("forward");
@@ -74,6 +76,7 @@ export default function Buyer({
           : [];
 
       setInvites(invitedEmails.join(", "));
+      setInvitedAirlines(existingAuction.invitedAirlines || []);
     }
   }, [existingAuction]);
 
@@ -90,6 +93,7 @@ export default function Buyer({
       endTime: existingAuction.endTime,
       rfqNumber,
       auctionId: existingAuction?.id,
+      directAuction: true, // 🔥 flag to indicate direct auction creation without invite step
     });
   }, [existingAuction]);
 
@@ -167,6 +171,13 @@ export default function Buyer({
     } else if (Array.isArray(vendors) && vendors.length > 0) {
       // ✅ Fallback to vendors list
       setInvites(vendors.map((v) => v.vendor_email));
+      setInvitedAirlines(
+        vendors.map((v) => ({
+          vendor_id: v.vendor_id,
+          email: v.vendor_email,
+          airline_name: v.airline_name,
+        })),
+      );
     }
   }, [vendors, existingAuction]);
 
@@ -272,6 +283,7 @@ export default function Buyer({
       endTime,
       rfqNumber,
       auctionId: existingAuction?.id,
+      directAuction: true,
     };
 
     console.log("Creating Auction with Payload:", payload);
@@ -332,6 +344,7 @@ export default function Buyer({
           title,
           buyerId: userId,
           invited,
+          invitedAirlines,
           mode,
           startTime,
           endTime,
@@ -419,6 +432,7 @@ export default function Buyer({
         vendorId: vendor,
         online: vendorUser?.online ?? false,
         vendorName: vendorUser?.name || vendor,
+        company: vendorUser?.company || "-",
         bid: b?.bid ?? "-",
         rank: ranks[vendor] || null,
         time: b?.time ? new Date(b.time).toLocaleTimeString() : "-",
@@ -729,7 +743,11 @@ export default function Buyer({
                 <Column
                   field="vendorName"
                   header="Vendor"
-                  body={(row) => <strong>{row.vendorName}</strong>}
+                  body={(row) => (
+                    <strong>
+                      {row.vendorName} - {row.company}
+                    </strong>
+                  )}
                 />
 
                 {/* <Column
