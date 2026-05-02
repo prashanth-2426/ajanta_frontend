@@ -27,6 +27,8 @@ import { ColumnGroup } from "primereact/columngroup";
 import { Row } from "primereact/row";
 import { BASE_URL, API_URL } from "../../constants";
 import { Accordion, AccordionTab } from "primereact/accordion";
+import { MultiSelect } from "primereact/multiselect";
+import { set } from "react-hook-form";
 
 const ViewQuote = () => {
   const { postData, getData } = useApi();
@@ -56,6 +58,9 @@ const ViewQuote = () => {
   const [showShareToMarketTeamDialog, setShowShareToMarketTeamDialog] =
     useState(false);
 
+  const [showShareToAccountsTeamDialog, setShowShareToAccountsTeamDialog] =
+    useState(false);
+
   const [showHODDecisionDialog, setShowHODDecisionDialog] = useState(false);
   const [showNegotiateDialog, setShowNegotiateDialog] = useState(false);
   const [showAuctionDialog, setShowAuctionDialog] = useState(false);
@@ -75,10 +80,19 @@ const ViewQuote = () => {
   const marketingUsers = Array.isArray(usersdata.users)
     ? usersdata.users.filter((u) => u.role === "marketing")
     : [];
+
+  const accountsUsers = Array.isArray(usersdata.users)
+    ? usersdata.users.filter((u) => u.role === "accounts")
+    : [];
+
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   //console.log("hodUsers in View Quote:", hodUsers);
   const [selectedHod, setSelectedHod] = useState(null);
   const [marketingHead, setMarketingHead] = useState(null);
+
+  const [accountsTeam, setAccountsTeam] = useState([]);
   const [marketingRemarks, setMarketingRemarks] = useState("");
+  const [accountsRemarks, setAccountsRemarks] = useState("");
   const [marketingReviewStatus, setMarketingReviewStatus] = useState(false);
 
   const [rolesckt, setRole] = useState(null);
@@ -92,6 +106,10 @@ const ViewQuote = () => {
   const [auctionPulse, setAuctionPulse] = useState(null);
   const [hodRejectedOn, setHodRejectedOn] = useState(null);
   const [attachedFiles, setAttachedFiles] = useState([]);
+
+  const [showRejectDialog, setShowRejectDialog] = useState(false);
+  const [showApproveDialog, setShowApproveDialog] = useState(false);
+  const [rejectReason, setRejectReason] = useState("");
 
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
@@ -147,49 +165,50 @@ const ViewQuote = () => {
     console.log("visibleRows changed:", visibleRows);
 
     // 🔹 Case 1: Table has visible rows (filters / sorting applied)
-    if (Array.isArray(visibleRows) && visibleRows.length > 0) {
-      visibleRows.map((row) => {
-        if (Array.isArray(visibleRows) && visibleRows.length > 0) {
-          const hasExchangeRate = !!exchangeRate;
+    //if (Array.isArray(visibleRows) && visibleRows.length > 0) {
+    visibleRows.map((row) => {
+      if (Array.isArray(visibleRows) && visibleRows.length > 0) {
+        const hasExchangeRate = !!exchangeRate;
 
-          const total = visibleRows.reduce((sum, row) => {
-            const computedGrandTotal =
-              Number(row.chargeable_weight || 0) * Number(row.base_rate || 0) +
-              Number(row.ams || 0) +
-              Number(row.pac || 0) +
-              Number(row.awb || 0) +
-              Number(row.other_charges || 0) +
-              Number(row.dap_ddp_charges || 0) * Number(exchangeRate);
+        const total = visibleRows.reduce((sum, row) => {
+          const computedGrandTotal =
+            Number(row.chargeable_weight || 0) * Number(row.base_rate || 0) +
+            Number(row.ams || 0) +
+            Number(row.pac || 0) +
+            Number(row.awb || 0) +
+            Number(row.other_charges || 0) +
+            Number(row.dap_ddp_charges || 0) * Number(exchangeRate);
 
-            const finalGrandTotal = hasExchangeRate
-              ? computedGrandTotal
-              : Number(row.grandTotalValue || 0);
+          const finalGrandTotal = hasExchangeRate
+            ? computedGrandTotal
+            : Number(row.grandTotalValue || 0);
 
-            return sum + finalGrandTotal;
-          }, 0);
+          return sum + finalGrandTotal;
+        }, 0);
 
-          console.log("Calculated invAmount with filters:", total);
-          setInvAmount(total);
-          return; // ⛔ stop further execution
-        }
-      });
+        console.log("Calculated invAmount with filters:", total);
+        let newval = exchangeRate * shipmentValue;
+        setInvAmount(newval);
+        return; // ⛔ stop further execution
+      }
+    });
 
-      // const total = visibleRows.reduce(
-      //   (sum, row) => sum + Number(row.grandTotalValue || 0),
-      //   0
-      // );
-      // console.log("Calculated invAmount with filters:", total);
-      // setInvAmount(total);
-      // return; // ⛔ stop here
-    } else {
-      // 🔹 Case 2: No filters → full data
-      const total = rfq.shipments
-        .flatMap((s) => s.quotes || [])
-        .reduce((sum, q) => sum + Number(q.grandTotalValue || 0), 0);
+    // const total = visibleRows.reduce(
+    //   (sum, row) => sum + Number(row.grandTotalValue || 0),
+    //   0
+    // );
+    // console.log("Calculated invAmount with filters:", total);
+    // setInvAmount(total);
+    // return; // ⛔ stop here
+    //} else {
+    // 🔹 Case 2: No filters → full data
+    // const total = rfq.shipments
+    //   .flatMap((s) => s.quotes || [])
+    //   .reduce((sum, q) => sum + Number(q.grandTotalValue || 0), 0);
 
-      setInvAmount(total);
-    }
-  }, [rfq, exchangeRate, visibleRows]);
+    // setInvAmount(total);
+    //}
+  }, [rfq, exchangeRate, visibleRows, shipmentValue]);
 
   //useEffect(() => {
   const fetchSummary = async () => {
@@ -235,6 +254,148 @@ const ViewQuote = () => {
     setTimeout(() => {
       setAuctionPulse(null);
     }, 2000);
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectReason.trim()) {
+      alert("Please enter rejection reason");
+      return;
+    }
+
+    try {
+      const payload = {
+        rfq_number: rfq.rfq_number,
+        action: "marketingteam_rejected",
+        status: "rejected",
+        reason: rejectReason,
+        auction_id: auctionData?.id,
+      };
+
+      console.log("Reject payload:", payload);
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("quotesummary/update-rfq-status", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      dispatch(toastSuccess({ detail: `Marketing Team has rejected the RFQ` }));
+      setShowRejectDialog(false);
+      setRejectReason("");
+      fetchSummary();
+    } catch (error) {
+      console.error("Error rejecting:", error);
+      dispatch(
+        toastError({ detail: error.response?.data?.msg || "Failed to reject" }),
+      );
+    }
+  };
+
+  const handleInvoiceRejectSubmit = async () => {
+    if (!rejectReason.trim()) {
+      alert("Please enter rejection reason");
+      return;
+    }
+
+    try {
+      const payload = {
+        rfq_number: rfq.rfq_number,
+        action: "invoice_rejected",
+        status: "rejected",
+        reason: rejectReason,
+        auction_id: auctionData?.id,
+      };
+
+      console.log("Reject payload:", payload);
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("quotesummary/update-rfq-status", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+      dispatch(toastSuccess({ detail: `Invoice has been rejected` }));
+      setShowRejectDialog(false);
+      setRejectReason("");
+      fetchSummary();
+    } catch (error) {
+      console.error("Error rejecting:", error);
+      dispatch(
+        toastError({ detail: error.response?.data?.msg || "Failed to reject" }),
+      );
+    }
+  };
+
+  const handleApproveSubmit = async () => {
+    try {
+      const payload = {
+        rfq_number: rfq.rfq_number,
+        action: "marketingteam_approved",
+        status: "approved",
+        reason: "",
+        auction_id: auctionData?.id,
+      };
+
+      console.log("Approve payload:", payload);
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("quotesummary/update-rfq-status", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      dispatch(toastSuccess({ detail: `Marketing Team has approved the RFQ` }));
+
+      fetchSummary();
+    } catch (error) {
+      console.error("Error approving:", error);
+
+      dispatch(
+        toastError({
+          detail: error.response?.data?.msg || "Failed to approve",
+        }),
+      );
+    }
+  };
+
+  const handleInvoiceApproveSubmit = async () => {
+    try {
+      const payload = {
+        rfq_number: rfq.rfq_number,
+        action: "invoice_approved",
+        status: "approved",
+        reason: "",
+        auction_id: auctionData?.id,
+      };
+
+      console.log("Approve payload:", payload);
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("quotesummary/update-rfq-status", payload, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      dispatch(toastSuccess({ detail: `Invoice has been approved` }));
+
+      fetchSummary();
+    } catch (error) {
+      console.error("Error approving:", error);
+
+      dispatch(
+        toastError({
+          detail: error.response?.data?.msg || "Failed to approve",
+        }),
+      );
+    }
   };
 
   const isAuctionEnded = React.useMemo(() => {
@@ -1907,8 +2068,9 @@ const ViewQuote = () => {
             `Destuffing : ${rfq?.destuffing_location || "-"}`,
           ],
           [
-            `Total Weight : ${rfq?.totalGrossWeight} KG`,
-            `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
+            // `Total Weight : ${rfq?.totalGrossWeight} KG`,
+            // `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
+            `Chargable Weight : ${rfq?.chargeable_weight || "-"} KG`,
             `Value of Shipment : INR ${rfq?.value_of_shipment || "-"}`,
           ],
           [
@@ -2070,49 +2232,47 @@ const ViewQuote = () => {
 
         checkPageBreak(20);
 
-        doc.setFont("helvetica", "bold");
-        doc.text("Auction Participation & Winner Summary", 20, y);
+        // doc.setFont("helvetica", "bold");
+        // doc.text("Auction Participation & Winner Summary", 20, y);
 
-        y += 6;
+        // y += 6;
 
-        const summaryTable = [
-          ["Total Vendors Invited", invited.length],
-          ["Total Vendors Participated", participated.length],
-          ["Total Bids Submitted", Object.keys(bids).length],
-          [
-            "Winner",
-            winner
-              ? `${winner?.name || "-"} (${winner?.company || "-"})`
-              : "N/A",
-          ],
-          ["Winning Bid", winner ? (bids[winnerId]?.bid ?? "-") : "N/A"],
-        ];
+        // const summaryTable = [
+        //   ["Total Vendors Invited", invited.length],
+        //   ["Total Vendors Participated", participated.length],
+        //   ["Total Bids Submitted", Object.keys(bids).length],
+        //   [
+        //     "Winner",
+        //     winner
+        //       ? `${winner?.name || "-"} (${winner?.company || "-"})`
+        //       : "N/A",
+        //   ],
+        //   ["Winning Bid", winner ? (bids[winnerId]?.bid ?? "-") : "N/A"],
+        // ];
 
-        doc.autoTable({
-          startY: y,
-          head: [["Metric", "Value"]],
-          body: summaryTable,
-          theme: "grid",
-          styles: {
-            fontSize: 9,
-            cellPadding: 3,
-            halign: "left",
-          },
-          headStyles: {
-            fillColor: [68, 114, 196],
-            textColor: 255,
-            fontStyle: "bold",
-          },
-          columnStyles: {
-            0: { cellWidth: 90, fontStyle: "bold" },
-            1: { cellWidth: 120 },
-          },
-          margin: { left: 20, right: 20 },
-        });
+        // doc.autoTable({
+        //   startY: y,
+        //   head: [["Metric", "Value"]],
+        //   body: summaryTable,
+        //   theme: "grid",
+        //   styles: {
+        //     fontSize: 9,
+        //     cellPadding: 3,
+        //     halign: "left",
+        //   },
+        //   headStyles: {
+        //     fillColor: [68, 114, 196],
+        //     textColor: 255,
+        //     fontStyle: "bold",
+        //   },
+        //   columnStyles: {
+        //     0: { cellWidth: 90, fontStyle: "bold" },
+        //     1: { cellWidth: 120 },
+        //   },
+        //   margin: { left: 20, right: 20 },
+        // });
 
-        y = doc.lastAutoTable.finalY + 8;
-
-        return y;
+        // y = doc.lastAutoTable.finalY + 8;
 
         return y;
       };
@@ -2148,9 +2308,9 @@ const ViewQuote = () => {
           charges: "Air Freight",
         })) || [];
 
-      if (containerDatat.length) {
-        currentY = addContainerAndCharges(currentY, containerDatat);
-      }
+      // if (containerDatat.length) {
+      //   currentY = addContainerAndCharges(currentY, containerDatat);
+      // }
 
       const totalPages = doc.internal.getNumberOfPages();
 
@@ -2193,11 +2353,23 @@ const ViewQuote = () => {
 
     console.log("hodApprovalQuotes", hodApprovalQuotes);
 
+    let hasHodApproved = hodApprovalQuotes.some(
+      (item) => item.hodAcceptRequestDetails?.status === "hod_approved",
+    );
+
+    console.log("hasHodApproved value::", hasHodApproved);
+
     const buyerDocumentsQuotes = allQuotesWithUniqueId.filter(
       (row) => row.buyerDocumentsSubmitted?.length > 0,
     );
 
     console.log("buyerDocumentsQuotes", buyerDocumentsQuotes);
+
+    const marketingTeamStatusQuotes = allQuotesWithUniqueId.filter(
+      (row) => row.marketingAttachedFile?.length > 0,
+    );
+
+    console.log("marketingTeamStatusQuotes", marketingTeamStatusQuotes);
 
     const invoiceDetails = allQuotesWithUniqueId.filter(
       (row) => row.invoiceDetails && Object.keys(row.invoiceDetails).length > 0,
@@ -2297,7 +2469,7 @@ const ViewQuote = () => {
           </div>
 
           <div className="col-12 md:col-3">
-            <label htmlFor="shipmentValue">Value of Shipment in INR</label>
+            <label htmlFor="shipmentValue">Value of Shipment</label>
             <input
               id="shipmentValue"
               type="number"
@@ -2321,13 +2493,13 @@ const ViewQuote = () => {
           {}
         </div>
 
-        <h6 className="mb-3 mt-4">Approvals</h6>
+        <h6 className="mb-3 mt-4">Approvals :</h6>
         <div className="grid">
           {hodApprovalQuotes?.map((quote) => (
             <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
               <div className="p-3 border-round shadow-1 surface-card h-full">
                 <div className="flex align-items-center justify-content-between mb-2">
-                  <strong>{quote.vendor_name}</strong>
+                  <strong>HOD Status:</strong>
 
                   <span
                     className={`px-2 py-1 border-round text-sm ${
@@ -2388,9 +2560,99 @@ const ViewQuote = () => {
               </div>
             </div>
           ))}
+
+          {marketingTeamStatusQuotes?.map((quote) => {
+            const marketing = quote.sharedtoMarketingTeamDetails;
+
+            return (
+              <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
+                <div className="p-3 border-round shadow-1 surface-card h-full">
+                  {/* Header */}
+                  <div className="flex align-items-center justify-content-between mb-2">
+                    <strong>Marketing Status:</strong>
+
+                    <span
+                      className={`px-2 py-1 border-round text-sm ${
+                        marketing?.status === "marketingteam_rejected"
+                          ? "bg-red-100 text-red-700"
+                          : marketing?.status === "marketingteam_approved"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-yellow-100 text-yellow-700"
+                      }`}
+                    >
+                      {/* {marketing?.status === "marketingteam_rejected"
+                        ? "Rejected"
+                        : marketing?.status === "marketingteam_approved"
+                          ? "Approved"
+                          : "Pending Approval"} */}
+                      Submited
+                    </span>
+
+                    {/* <i
+                      className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
+                      title="Approve"
+                      onClick={() => setShowApproveDialog(true)}
+                    ></i>
+                    <i
+                      className="pi pi-times-circle text-red-600 cursor-pointer text-lg"
+                      title="Reject"
+                      onClick={() => setShowRejectDialog(true)}
+                    ></i> */}
+                  </div>
+
+                  {/* Details */}
+                  <div className="text-sm">
+                    <div>
+                      <strong>Marketing Name:</strong>{" "}
+                      {marketing?.marketing_name}
+                    </div>
+
+                    <div>
+                      <strong>Marketing Email:</strong>{" "}
+                      {marketing?.marketing_email}
+                    </div>
+
+                    <div>
+                      <strong>Marketing Comment:</strong> {marketing?.remarks}
+                    </div>
+
+                    <div>
+                      <strong>Date:</strong>{" "}
+                      {formatDate(
+                        marketing?.approved_on ||
+                          marketing?.rejected_on ||
+                          marketing?.accepted_at,
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Attachments */}
+                  {marketing?.attached_file?.length > 0 && (
+                    <div className="mt-2">
+                      <strong>Attachments:</strong>
+                      {marketing.attached_file.map((file, i) => (
+                        <div key={i}>
+                          <a
+                            href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-600 underline text-sm"
+                          >
+                            {file}
+                          </a>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
 
-        <h6 className="mb-3 mt-5">Buyer to Vendor Documents Submission</h6>
+        <div className="grid"></div>
+
+        <h6 className="mb-3 mt-5">Buyer to Vendor Documents Submission :</h6>
         <div className="grid">
           {buyerDocumentsQuotes.map((quote) => (
             <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
@@ -2434,7 +2696,7 @@ const ViewQuote = () => {
           ))}
         </div>
 
-        <h6 className="mb-3 mt-5">Vendor to Buyer Invoice Submission</h6>
+        <h6 className="mb-3 mt-5">Vendor to Buyer Invoice Submission :</h6>
         <div className="grid">
           {invoiceDetails.map((quote) => (
             <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
@@ -2442,10 +2704,35 @@ const ViewQuote = () => {
                 {/* Header */}
                 <div className="flex align-items-center justify-content-between mb-2">
                   <strong>{quote.vendor_name}</strong>
-
-                  <span className="px-2 py-1 border-round text-sm bg-blue-100 text-blue-700">
-                    Invoice Submitted
+                  <span
+                    className={`px-2 py-1 border-round text-sm ${
+                      quote.invoiceDetails?.status === "invoice_rejected"
+                        ? "bg-red-100 text-red-700"
+                        : quote.invoiceDetails?.status === "invoice_approved"
+                          ? "bg-green-100 text-green-700"
+                          : "bg-yellow-100 text-yellow-700"
+                    }`}
+                  >
+                    {quote.invoiceDetails?.status === "invoice_rejected"
+                      ? "Rejected"
+                      : quote.invoiceDetails?.status === "invoice_approved"
+                        ? "Approved"
+                        : "Received"}
                   </span>
+
+                  <i
+                    className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
+                    title="Share with Accounts Team"
+                    onClick={() => {
+                      setSelectedInvoice(quote.invoiceDetails);
+                      setShowShareToAccountsTeamDialog(true);
+                    }}
+                  ></i>
+                  <i
+                    className="pi pi-times-circle text-red-600 cursor-pointer text-lg"
+                    title="Reject"
+                    onClick={() => setShowRejectDialog(true)}
+                  ></i>
                 </div>
 
                 {/* Submitted Date */}
@@ -2501,10 +2788,9 @@ const ViewQuote = () => {
           ))}
         </div>
 
-        {attachedFiles.length > 0 && (
+        {/* {attachedFiles.length > 0 && (
           <div className="p-3 mb-3 border-round bg-yellow-100 text-yellow-900 shadow-2">
             <div className="flex align-items-center gap-3">
-              {/* ⏳ Icon on the LEFT */}
               <span
                 style={{
                   color: "#e67e22",
@@ -2530,7 +2816,6 @@ const ViewQuote = () => {
                       marginTop: "10px",
                     }}
                   >
-                    {/* HOD Approval Section */}
                     {(hodApprovalDataMessage || hodRejectedOn) && (
                       <div
                         className={`p-3 border-round shadow-1 ${
@@ -2582,7 +2867,7 @@ const ViewQuote = () => {
                       </div>
                     )}
 
-                    {/* Buyer Documents Section */}
+
                     {buyerDocuments?.length > 0 && (
                       <div className="p-3 border-round bg-white shadow-1">
                         <strong className="text-green-700">
@@ -2640,12 +2925,11 @@ const ViewQuote = () => {
               )}
             </div>
           </div>
-        )}
+        )} */}
 
-        {marketingAttachedFiles.length > 0 && (
+        {/* {marketingAttachedFiles.length > 0 && (
           <div className="p-3 mb-3 border-round bg-yellow-100 text-yellow-900 shadow-2">
             <div className="flex align-items-center gap-3">
-              {/* ⏳ Icon on the LEFT */}
               <span
                 style={{
                   color: "#e67e22",
@@ -2658,7 +2942,7 @@ const ViewQuote = () => {
                 ⏳
               </span>
 
-              <div>
+              <div style={{ width: "100%" }}>
                 <strong>
                   Requested Marketing Team Review: {marketingEmailID}
                 </strong>
@@ -2670,16 +2954,7 @@ const ViewQuote = () => {
                 </strong>
                 <br />
                 <strong>Attachment: </strong>
-                {/* <a
-                  href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
-                    marketingTeamReviewFileName,
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-700 underline"
-                >
-                  {marketingTeamReviewFileName}
-                </a> */}
+
                 {marketingAttachedFiles?.map((file, index) => (
                   <div key={index}>
                     <a
@@ -2692,10 +2967,27 @@ const ViewQuote = () => {
                     </a>
                   </div>
                 ))}
+
+
+                <div className="flex gap-2 mt-3">
+                  <button
+                    className="p-button p-button-success"
+                    onClick={() => setShowApproveDialog(true)}
+                  >
+                    Approved
+                  </button>
+
+                  <button
+                    className="p-button p-button-danger"
+                    onClick={() => setShowRejectDialog(true)}
+                  >
+                    Rejected
+                  </button>
+                </div>
               </div>
             </div>
           </div>
-        )}
+        )} */}
 
         <DataTable
           value={allQuotesWithUniqueId}
@@ -3176,7 +3468,7 @@ const ViewQuote = () => {
 
       const token = localStorage.getItem("USERTOKEN");
 
-      await postData("/quotesummary/update-rfq-status", form, {
+      const result = await postData("/quotesummary/update-rfq-status", form, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -3194,6 +3486,39 @@ const ViewQuote = () => {
     } catch (error) {
       console.error("Marketing Team Share Error:", error);
       dispatch(toastError({ detail: "Error sharing to marketing team." }));
+    }
+  };
+
+  const handleShareToAccountsTeam = async () => {
+    try {
+      const form = new FormData();
+      form.append("rfq_number", rfq.rfq_number);
+      form.append("action", "shared_to_accounts_team");
+      form.append("remarks", accountsRemarks || "");
+      form.append("accounts_team_details", accountsTeam || []);
+      form.append("selected_invoice", JSON.stringify(selectedInvoice) || {});
+
+      const token = localStorage.getItem("USERTOKEN");
+
+      await postData("/quotesummary/update-rfq-status", form, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
+      });
+
+      dispatch(
+        toastSuccess({ detail: "Shared with Accounts Team successfully!" }),
+      );
+
+      setShowShareToAccountsTeamDialog(false);
+      setAttachment([]);
+      setSelectedInvoice(null);
+      setAccountsRemarks("");
+      fetchSummary();
+    } catch (error) {
+      console.error("Accounts Team Share Error:", error);
+      dispatch(toastError({ detail: "Error sharing to accounts team." }));
     }
   };
 
@@ -3287,14 +3612,6 @@ const ViewQuote = () => {
               onClick={() => setShowShareToMarketTeamDialog(true)}
             />
           )}
-          {role !== "hod" && (
-            <Button
-              label="Send For HOD Approval"
-              className="p-button-info p-button-sm"
-              onClick={() => setShowHodApprovalDialog(true)}
-              //disabled={selectedVendors.length === 0}
-            />
-          )}
 
           {/* {hodQuote && ( */}
           <div>
@@ -3312,30 +3629,24 @@ const ViewQuote = () => {
               {role === "user" && (
                 <>
                   <Button
-                    label="✏️ Negotiate"
-                    className="p-button-warning p-button-sm"
-                    onClick={() => setShowNegotiateDialog(true)}
-                    disabled={selectedVendors.length === 0}
-                  />
-
-                  {/* <Button
-                    label={
-                      auctionData ? "✏️ Edit Auction" : "🏆 Conduct Auction"
-                    }
+                    label={auctionData ? "✏️ Re-Auction" : "🏆 Conduct Auction"}
                     className="p-button-success p-button-sm"
                     onClick={() => setShowAuctionDialog(true)}
                     disabled={!auctionData && selectedVendors.length === 0}
-                  /> */}
-                  {/* <Button
-                    label={auctionActionLabel}
-                    className="p-button-success p-button-sm"
-                    onClick={() => setShowAuctionDialog(true)}
-                    //disabled={!auctionData && selectedVendors.length === 0}
-                  /> */}
+                  />
                 </>
               )}
             </div>
           </div>
+
+          {role !== "hod" && (
+            <Button
+              label="Send For HOD Approval"
+              className="p-button-info p-button-sm"
+              onClick={() => setShowHodApprovalDialog(true)}
+              //disabled={selectedVendors.length === 0}
+            />
+          )}
           {/* )} */}
 
           {/* <Button
@@ -3350,16 +3661,18 @@ const ViewQuote = () => {
           /> */}
         </div>
         <hr />
-        <Buyer
-          userId={userId}
-          vendors={selectedVendors}
-          existingAuction={auctionData}
-          onAuctionCreated={() => {
-            setShowAuctionDialog(false);
-            fetchAuctionData();
-          }}
-          onAuctionUpdated={handleAuctionUpdated}
-        />
+        {auctionData && (
+          <Buyer
+            userId={userId}
+            vendors={selectedVendors}
+            existingAuction={auctionData}
+            onAuctionCreated={() => {
+              setShowAuctionDialog(false);
+              fetchAuctionData();
+            }}
+            onAuctionUpdated={handleAuctionUpdated}
+          />
+        )}
       </Panel>
 
       {/* <Dialog
@@ -3648,16 +3961,6 @@ const ViewQuote = () => {
           />
         </div>
 
-        {/* <div className="mb-3">
-          <h5>Selected Vendors</h5>
-          {selectedVendors.map((v) => (
-            <div key={v.vendor_id} className="mb-2">
-              <i className="pi pi-user mr-2" />
-              <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
-            </div>
-          ))}
-        </div> */}
-
         <div className="mb-3">
           <label>
             <strong>Attach File</strong>
@@ -3712,6 +4015,108 @@ const ViewQuote = () => {
             label="Cancel"
             className="p-button-secondary p-button-sm"
             onClick={() => setShowShareToMarketTeamDialog(false)}
+          />
+        </div>
+      </Dialog>
+
+      <Dialog
+        header="Share To Accounts Team"
+        visible={showShareToAccountsTeamDialog}
+        onHide={() => setShowShareToAccountsTeamDialog(false)}
+        style={{ width: "35vw" }}
+      >
+        <div className="mb-3">
+          <label>
+            <strong>Select Accounts Team</strong>
+          </label>
+          <MultiSelect
+            value={accountsTeam}
+            options={accountsUsers.map((user) => ({
+              label: `${user.name} (${user.email})`,
+              value: user.email, // ✅ store only email
+            }))}
+            onChange={(e) => setAccountsTeam(e.value)}
+            placeholder="Select Accounts Team"
+            className="w-full"
+            filter
+            display="chip"
+          />
+        </div>
+
+        <div className="mb-3">
+          {selectedInvoice ? (
+            <>
+              {/* Invoice Info */}
+              <div className="mb-3 p-2 border-round surface-100">
+                <div className="grid">
+                  <div className="col-6">
+                    <strong>Freight:</strong>{" "}
+                    {selectedInvoice.freight_amount || "-"}
+                  </div>
+
+                  <div className="col-6">
+                    <strong>DAP:</strong> {selectedInvoice.dap_amount || "-"}
+                  </div>
+
+                  <div className="col-6">
+                    <strong>Custom Duty:</strong>{" "}
+                    {selectedInvoice.custom_duty_amount || "-"}
+                  </div>
+
+                  <div className="col-6">
+                    <strong>Others:</strong>{" "}
+                    {selectedInvoice.others_amount || "-"}
+                  </div>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              {selectedInvoice?.attached_file?.length > 0 && (
+                <div className="mb-3">
+                  <strong>Files:</strong>
+                  {selectedInvoice.attached_file.map((file, i) => (
+                    <div key={i}>
+                      <a
+                        href={`${BASE_URL}/uploads/invoices/${encodeURIComponent(file)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 underline text-sm"
+                      >
+                        {file}
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Your existing fields remain SAME */}
+            </>
+          ) : (
+            <p>No invoice selected</p>
+          )}
+        </div>
+
+        <div className="mb-3">
+          <label>Remarks</label>
+          <InputTextarea
+            rows={3}
+            value={accountsRemarks}
+            onChange={(e) => setAccountsRemarks(e.target.value)}
+            placeholder="Enter remarks..."
+            className="w-full"
+          />
+        </div>
+
+        <div className="flex justify-content-end gap-2">
+          <Button
+            label="Share Now"
+            className="p-button-sm p-button-success"
+            onClick={handleShareToAccountsTeam}
+          />
+          <Button
+            label="Cancel"
+            className="p-button-secondary p-button-sm"
+            onClick={() => setShowShareToAccountsTeamDialog(false)}
           />
         </div>
       </Dialog>
@@ -3853,6 +4258,140 @@ const ViewQuote = () => {
             fetchAuctionData();
           }}
         />
+      </Dialog>
+
+      <Dialog
+        header="Reject Marketing Review"
+        visible={showRejectDialog}
+        style={{ width: "400px" }}
+        onHide={() => setShowRejectDialog(false)}
+      >
+        <div className="p-fluid">
+          <label className="font-bold mb-2">Reason for Rejection</label>
+
+          <textarea
+            className="p-inputtext p-inputtextarea w-full"
+            rows={4}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Enter reason for rejection..."
+          />
+
+          <div className="flex justify-content-end gap-2 mt-3">
+            <button
+              className="p-button p-button-text"
+              onClick={() => setShowRejectDialog(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="p-button p-button-danger"
+              onClick={handleRejectSubmit}
+            >
+              Submit Rejection
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        header="Approve Marketing Review"
+        visible={showApproveDialog}
+        style={{ width: "400px" }}
+        onHide={() => setShowApproveDialog(false)}
+      >
+        <div className="p-fluid">
+          <p style={{ marginBottom: "15px" }}>
+            Are you sure you want to approve this RFQ from the Marketing Team?
+          </p>
+
+          <div className="flex justify-content-end gap-2 mt-3">
+            <button
+              className="p-button p-button-text"
+              onClick={() => setShowApproveDialog(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="p-button p-button-success"
+              onClick={() => {
+                handleApproveSubmit();
+                setShowApproveDialog(false);
+              }}
+            >
+              Confirm Approval
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        header="Reject Invoice"
+        visible={showRejectDialog}
+        style={{ width: "400px" }}
+        onHide={() => setShowRejectDialog(false)}
+      >
+        <div className="p-fluid">
+          <label className="font-bold mb-2">Reason for Invoice Rejection</label>
+
+          <textarea
+            className="p-inputtext p-inputtextarea w-full"
+            rows={4}
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder="Enter reason for invoice rejection..."
+          />
+
+          <div className="flex justify-content-end gap-2 mt-3">
+            <button
+              className="p-button p-button-text"
+              onClick={() => setShowRejectDialog(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="p-button p-button-danger"
+              onClick={handleInvoiceRejectSubmit}
+            >
+              Submit Rejection
+            </button>
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        header="Approve Invoice"
+        visible={showApproveDialog}
+        style={{ width: "400px" }}
+        onHide={() => setShowApproveDialog(false)}
+      >
+        <div className="p-fluid">
+          <p style={{ marginBottom: "15px" }}>
+            Are you sure you want to approve this invoice?
+          </p>
+
+          <div className="flex justify-content-end gap-2 mt-3">
+            <button
+              className="p-button p-button-text"
+              onClick={() => setShowApproveDialog(false)}
+            >
+              Cancel
+            </button>
+
+            <button
+              className="p-button p-button-success"
+              onClick={() => {
+                handleInvoiceApproveSubmit();
+                setShowApproveDialog(false);
+              }}
+            >
+              Confirm Approval
+            </button>
+          </div>
+        </div>
       </Dialog>
     </div>
   );

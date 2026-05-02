@@ -549,7 +549,7 @@ export default function Buyer({
         </div>
       )}
       <br />
-      {!isAuctionLiveView ? (
+      {!isAuctionLiveView || isAuctionEnded ? (
         <div style={{ flex: 1 }}>
           <Card title="Auction Details" className="p-3">
             <div className="p-fluid formgrid grid">
@@ -723,6 +723,19 @@ export default function Buyer({
                 </span>
               </div>
 
+              <h5 style={{ marginBottom: "10px" }}>Invited Vendors</h5>
+              {invites?.length > 0 ? (
+                <DataTable
+                  value={invites.map((email) => ({ email }))}
+                  size="small"
+                >
+                  <Column field="email" header="Vendor Email" />
+                </DataTable>
+              ) : (
+                <p>No vendors invited.</p>
+              )}
+
+              <h5 style={{ marginBottom: "10px" }}>Participating Vendors</h5>
               <DataTable
                 value={tableRows}
                 stripedRows

@@ -1112,9 +1112,15 @@ const CreateRfq = () => {
         submitSource.current === "draft"
       ) {
         //console.log("Selected Charges:", selectedCharges);
+
+        if (buyer.preshipmentnumber == null) {
+          alert("⚠️ Pre Shipment Number is required!");
+          return;
+        }
+
         const generatedRfqNumber = rfqNumber?.trim()
           ? rfqNumber
-          : `RFQ_${Math.floor(100000 + Math.random() * 900000)}`;
+          : `RFQ_${buyer.preshipmentnumber}`;
         //console.log("Generated RFQ Number:", generatedRfqNumber);
         //console.log("source value:", source);
         // console.log(

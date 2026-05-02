@@ -94,6 +94,10 @@
   animation: pulse 0.8s infinite;
 }
 
+.p-tooltip {
+  pointer-events: none;
+}
+
 @keyframes slidePop {
   from {
     opacity: 0;

@@ -91,11 +91,13 @@ const VendorCostUpload = ({ row, refreshData = () => {} }) => {
 
     formData.append("rfq_number", row.rfqNumberForQuoteSummary);
     formData.append("vendor_id", row.user.id);
+    formData.append("vendor_email", row.user.email);
 
     formData.append("freight_amount", form.freight_amount);
     formData.append("dap_amount", form.dap_amount);
     formData.append("custom_duty_amount", form.custom_duty_amount);
     formData.append("others_amount", form.others_amount);
+    formData.append("remarks", form.remark);
 
     // push all files into same documents array
     if (files.freight) formData.append("documents", files.freight);
@@ -293,12 +295,12 @@ const VendorCostUpload = ({ row, refreshData = () => {} }) => {
           onClick={submitDocuments}
         />
 
-        <Button
+        {/* <Button
           label="Return to Buyer"
           icon="pi pi-undo"
           severity="danger"
           onClick={returnToBuyer}
-        />
+        /> */}
       </div>
     </div>
   );

@@ -14,6 +14,7 @@ const roleOptions = [
   { label: "User", value: "user" },
   { label: "HOD", value: "hod" },
   { label: "Marketing", value: "marketing" },
+  { label: "Accounts", value: "accounts" },
 ];
 
 const industryOptions = [
@@ -74,7 +75,7 @@ const AddUser = () => {
       setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
     } else {
       dispatch(
-        toastError({ detail: response?.msg || "Failed to create user." })
+        toastError({ detail: response?.msg || "Failed to create user." }),
       );
     }
   };

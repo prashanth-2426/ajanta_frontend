@@ -2626,6 +2626,7 @@ const RfqManagement = () => {
 
                             {row?.flight_schedule1 &&
                               row?.hodAcceptRequestDetails?.hod_approved_on &&
+                              !row?.invoiceDetails &&
                               Object.keys(
                                 row?.buyerDocumentsUploadedDetails || {},
                               ).length > 0 && (
@@ -2640,10 +2641,10 @@ const RfqManagement = () => {
                                   }}
                                 >
                                   <strong>Note:</strong> Flight schedule has
-                                  been submitted and approved by HOD. Kindly
-                                  upload the invoice and related cost documents
-                                  (Freight, DAP, Custom Duty, Others) at the
-                                  earliest to proceed further.
+                                  been submitted. Kindly upload the invoice and
+                                  related cost documents (Freight, DAP, Custom
+                                  Duty, Others) at the earliest to proceed
+                                  further.
                                 </div>
                               )}
 
@@ -2670,54 +2671,159 @@ const RfqManagement = () => {
                           </div>
                         )}
 
-                        {row?.buyerDocumentsUploadedDetails &&
-                          row.airline_name ===
-                            row.buyerDocumentsUploadedDetails.airline_name && (
-                            <div className="p-3 mt-3 border-round bg-blue-50 border-blue-300">
-                              <strong className="text-blue-700">
-                                Buyer Documents Submitted
-                              </strong>
+                        <div className="grid">
+                          {/* Buyer Documents Card */}
+                          {row?.buyerDocumentsUploadedDetails &&
+                            row.airline_name ===
+                              row.buyerDocumentsUploadedDetails
+                                .airline_name && (
+                              <div className="col-12 md:col-6">
+                                <div className="p-3 mt-3 border-round bg-blue-50 border-blue-300">
+                                  <div className="flex justify-content-between align-items-center">
+                                    <strong className="text-blue-700">
+                                      Buyer Documents Submitted
+                                    </strong>
 
-                              <div style={{ marginTop: "8px" }}>
-                                <strong>Vendor:</strong>{" "}
-                                {row.buyerDocumentsUploadedDetails.vendor_name}
-                                <br />
-                                <strong>Vendor Email:</strong>{" "}
-                                {row.buyerDocumentsUploadedDetails.vendor_email}
-                                <br />
-                                <strong>Airline:</strong>{" "}
-                                {row.buyerDocumentsUploadedDetails.airline_name}
-                                <br />
-                                <strong>Submitted On:</strong>{" "}
-                                {formatDate(
-                                  row.buyerDocumentsUploadedDetails
-                                    .submitted_at,
-                                )}
-                                <br />
-                                {row.buyerDocumentsUploadedDetails.attached_file
-                                  ?.length > 0 && (
-                                  <>
-                                    <strong>Attachments:</strong>
+                                    <span className="px-2 py-1 border-round text-sm bg-green-100 text-green-700">
+                                      {row.buyerDocumentsUploadedDetails.status}
+                                    </span>
+                                  </div>
 
-                                    {row.buyerDocumentsUploadedDetails.attached_file.map(
-                                      (file, index) => (
-                                        <div key={index}>
-                                          <a
-                                            href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            className="text-blue-700 underline"
-                                          >
-                                            {file}
-                                          </a>
-                                        </div>
-                                      ),
+                                  <div style={{ marginTop: "8px" }}>
+                                    <strong>Vendor:</strong>{" "}
+                                    {
+                                      row.buyerDocumentsUploadedDetails
+                                        .vendor_name
+                                    }
+                                    <br />
+                                    <strong>Vendor Email:</strong>{" "}
+                                    {
+                                      row.buyerDocumentsUploadedDetails
+                                        .vendor_email
+                                    }
+                                    <br />
+                                    <strong>Airline:</strong>{" "}
+                                    {
+                                      row.buyerDocumentsUploadedDetails
+                                        .airline_name
+                                    }
+                                    <br />
+                                    <strong>Submitted On:</strong>{" "}
+                                    {formatDate(
+                                      row.buyerDocumentsUploadedDetails
+                                        .submitted_at,
                                     )}
-                                  </>
-                                )}
+                                    <br />
+                                    {row.buyerDocumentsUploadedDetails
+                                      .attached_file?.length > 0 && (
+                                      <>
+                                        <strong>Attachments:</strong>
+
+                                        {row.buyerDocumentsUploadedDetails.attached_file.map(
+                                          (file, index) => (
+                                            <div key={index}>
+                                              <a
+                                                href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-blue-700 underline"
+                                              >
+                                                {file}
+                                              </a>
+                                            </div>
+                                          ),
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Invoice Details Card */}
+                          {row?.invoiceDetails && (
+                            <div className="col-12 md:col-6">
+                              <div className="p-3 mt-3 border-round bg-green-50 border-green-300">
+                                <div className="flex justify-content-between align-items-center">
+                                  <strong className="text-green-700">
+                                    Invoice Submitted
+                                  </strong>
+                                  <span
+                                    className={`px-2 py-1 border-round text-sm ${
+                                      row.invoiceDetails?.status ===
+                                      "invoice_rejected"
+                                        ? "bg-red-100 text-red-700"
+                                        : row.invoiceDetails?.status ===
+                                            "invoice_approved"
+                                          ? "bg-green-100 text-green-700"
+                                          : "bg-yellow-100 text-yellow-700"
+                                    }`}
+                                  >
+                                    {row.invoiceDetails?.status ===
+                                    "invoice_rejected"
+                                      ? "Rejected"
+                                      : row.invoiceDetails?.status ===
+                                          "invoice_approved"
+                                        ? "Approved"
+                                        : "Submitted"}
+                                  </span>
+                                </div>
+
+                                {row.invoiceDetails?.status ===
+                                  "invoice_rejected" &&
+                                  row.invoiceDetails?.remarks && (
+                                    <div className="mt-2 p-2 border-round bg-red-50 border-red-300">
+                                      <strong className="text-red-700">
+                                        Rejection Reason:
+                                      </strong>
+                                      <div className="text-red-600 text-sm mt-1">
+                                        {row.invoiceDetails.remarks}
+                                      </div>
+                                    </div>
+                                  )}
+
+                                <div style={{ marginTop: "8px" }}>
+                                  <strong>DAP Amount:</strong>{" "}
+                                  {row.invoiceDetails.dap_amount}
+                                  <br />
+                                  <strong>Freight Amount:</strong>{" "}
+                                  {row.invoiceDetails.freight_amount}
+                                  <br />
+                                  <strong>Custom Duty:</strong>{" "}
+                                  {row.invoiceDetails.custom_duty_amount}
+                                  <br />
+                                  <strong>Other Charges:</strong>{" "}
+                                  {row.invoiceDetails.others_amount}
+                                  <br />
+                                  <strong>Submitted On:</strong>{" "}
+                                  {formatDate(row.invoiceDetails.submitted_on)}
+                                  <br />
+                                  {row.invoiceDetails.attached_file?.length >
+                                    0 && (
+                                    <>
+                                      <strong>Attachments:</strong>
+
+                                      {row.invoiceDetails.attached_file.map(
+                                        (file, index) => (
+                                          <div key={index}>
+                                            <a
+                                              href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              className="text-green-700 underline"
+                                            >
+                                              {file}
+                                            </a>
+                                          </div>
+                                        ),
+                                      )}
+                                    </>
+                                  )}
+                                </div>
                               </div>
                             </div>
                           )}
+                        </div>
                       </div>
 
                       {/* {auctionData?.auction_number && ( */}
@@ -3393,10 +3499,10 @@ const RfqManagement = () => {
         {selectedRow && (
           <VendorCostUpload
             row={selectedRow}
-            // refreshData={() => {
-            //   fetchAuctionData();
-            //   setShowVendorUpload(false);
-            // }}
+            refreshData={() => {
+              fetchQuoteSummary(selectedRow.rfqNumberForQuoteSummary);
+              setShowVendorUpload(false);
+            }}
           />
         )}
       </Dialog>
