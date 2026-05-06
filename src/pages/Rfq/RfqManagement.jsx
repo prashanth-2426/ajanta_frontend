@@ -2072,9 +2072,9 @@ const RfqManagement = () => {
                     <span className="p-col-4 pl-4">
                       <strong>Incoterm:</strong> {rowData.incoterm}
                     </span>
-                    <span className="p-col-4 pl-4">
+                    {/* <span className="p-col-4 pl-4">
                       <strong>Notes:</strong> {shipment.Notes}
-                    </span>
+                    </span> */}
                     <span className="p-col-4 pl-4">
                       <strong>Value of Shipment:</strong> ₹
                       {shipment.package_summary?.value_of_shipment || 0}
@@ -2572,42 +2572,11 @@ const RfqManagement = () => {
                                 : "bg-green-50 border-green-300"
                             }`}
                           >
-                            <strong
-                              className={
-                                row.hodAcceptRequestDetails?.hod_rejected_on
-                                  ? "text-red-700"
-                                  : "text-green-700"
-                              }
-                            >
-                              {row.hodAcceptRequestDetails?.hod_rejected_on
-                                ? "Buyer Rejected"
-                                : "Buyer Approved"}
-                            </strong>
-
-                            <div style={{ marginTop: "8px" }}>
-                              <strong>Buyer Comment:</strong>{" "}
-                              {row.hodAcceptRequestDetails.hod_msg}
-                              <br />
-                              {row.hodAcceptRequestDetails?.hod_rejected_on ? (
-                                <>
-                                  <strong>Rejected On:</strong>{" "}
-                                  {formatDate(
-                                    row.hodAcceptRequestDetails.hod_rejected_on,
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <strong>Buyer Approved On:</strong>{" "}
-                                  {formatDate(
-                                    row.hodAcceptRequestDetails.hod_approved_on,
-                                  )}
-                                </>
-                              )}
-                            </div>
-
                             {!row?.hodAcceptRequestDetails?.hod_rejected_on &&
                               row?.hodAcceptRequestDetails?.hod_approved_on &&
-                              !row?.flight_schedule1 && (
+                              !row?.flight_schedule1 &&
+                              row?.buyerDocumentsUploadedDetails.attached_file
+                                ?.length > 0 && (
                                 <div
                                   style={{
                                     marginTop: "12px",
@@ -2618,6 +2587,42 @@ const RfqManagement = () => {
                                     color: "#856404",
                                   }}
                                 >
+                                  <strong
+                                    className={
+                                      row.hodAcceptRequestDetails
+                                        ?.hod_rejected_on
+                                        ? "text-red-700"
+                                        : "text-green-700"
+                                    }
+                                  >
+                                    {row.hodAcceptRequestDetails
+                                      ?.hod_rejected_on
+                                      ? "Buyer Rejected"
+                                      : "Buyer Approved"}
+                                  </strong>
+                                  <div style={{ marginTop: "8px" }}>
+                                    <strong>Buyer Comment:</strong>{" "}
+                                    {row.hodAcceptRequestDetails.hod_msg}
+                                    <br />
+                                    {row.hodAcceptRequestDetails
+                                      ?.hod_rejected_on ? (
+                                      <>
+                                        <strong>Rejected On:</strong>{" "}
+                                        {formatDate(
+                                          row.hodAcceptRequestDetails
+                                            .hod_rejected_on,
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <strong>Buyer Approved On:</strong>{" "}
+                                        {formatDate(
+                                          row.hodAcceptRequestDetails
+                                            .hod_approved_on,
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                   <strong>Note:</strong> You are nominated for
                                   this shipment, kindly share earliest flight
                                   schedule.
@@ -2654,19 +2659,49 @@ const RfqManagement = () => {
                               Object.keys(
                                 row?.buyerDocumentsUploadedDetails || {},
                               ).length > 0 && (
-                                <Button
-                                  label="Upload Invoice"
-                                  icon="pi pi-upload"
-                                  className="p-button-sm"
-                                  onClick={() => {
-                                    setSelectedRow({
-                                      user,
-                                      rfqNumberForQuoteSummary,
-                                      invoiceDetails: row.invoiceDetails || [],
-                                    });
-                                    setShowVendorUpload(true);
-                                  }}
-                                />
+                                <>
+                                  <div style={{ marginTop: "8px" }}>
+                                    <strong>Buyer Comment:</strong>{" "}
+                                    {row.hodAcceptRequestDetails.hod_msg}
+                                    <br />
+                                    {row.hodAcceptRequestDetails
+                                      ?.hod_rejected_on ? (
+                                      <>
+                                        <strong>Rejected On:</strong>{" "}
+                                        {formatDate(
+                                          row.hodAcceptRequestDetails
+                                            .hod_rejected_on,
+                                        )}
+                                      </>
+                                    ) : (
+                                      <>
+                                        <strong>Buyer Approved On:</strong>{" "}
+                                        {formatDate(
+                                          row.hodAcceptRequestDetails
+                                            .hod_approved_on,
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
+                                  <strong>Note:</strong> You are nominated for
+                                  this shipment, kindly share earliest flight
+                                  schedule.
+                                  <br />
+                                  <Button
+                                    label="Upload Invoice"
+                                    icon="pi pi-upload"
+                                    className="p-button-sm"
+                                    onClick={() => {
+                                      setSelectedRow({
+                                        user,
+                                        rfqNumberForQuoteSummary,
+                                        invoiceDetails:
+                                          row.invoiceDetails || [],
+                                      });
+                                      setShowVendorUpload(true);
+                                    }}
+                                  />
+                                </>
                               )}
                           </div>
                         )}
@@ -2741,7 +2776,7 @@ const RfqManagement = () => {
                             )}
 
                           {/* Invoice Details Card */}
-                          {row?.invoiceDetails && (
+                          {row?.invoiceDetails?.status && (
                             <div className="col-12 md:col-6">
                               <div className="p-3 mt-3 border-round bg-green-50 border-green-300">
                                 <div className="flex justify-content-between align-items-center">

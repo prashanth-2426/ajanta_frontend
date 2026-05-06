@@ -453,7 +453,7 @@ export default function Vendor({
 
   return (
     <Card style={{ background: "transparent", boxShadow: "none" }}>
-      {showScheduledCard && isAirlineInvited && (
+      {showScheduledCard && (
         <Card
           className="mb-3 text-center"
           style={{
@@ -487,9 +487,8 @@ export default function Vendor({
           </div>
         </Card>
       )}
-
       {/* COUNTDOWN */}
-      {countdownLabel && isAirlineInvited && (
+      {countdownLabel && (
         <Card
           className="mb-3 text-center"
           style={{
@@ -553,9 +552,8 @@ export default function Vendor({
           )}
         </Card>
       )}
-
       {/* JOIN AUCTION */}
-      {isLive && isAirlineInvited && !hasJoined && (
+      {isLive && (
         <>
           <Panel header="Join Auction" className="mb-3">
             <div className="p-fluid">
@@ -576,8 +574,7 @@ export default function Vendor({
           <Divider />
         </>
       )}
-
-      {isLive && isAirlineInvited && hasJoined && (
+      {isLive && (
         <div className="flip-container">
           <div className={`flip-card ${showChat ? "show-chat" : ""}`}>
             {/* FRONT — PLACE BID */}
@@ -721,7 +718,6 @@ export default function Vendor({
           </div>
         </div>
       )}
-
       {bidCount == 0 && (
         <Card
           className="mb-3 text-center"
