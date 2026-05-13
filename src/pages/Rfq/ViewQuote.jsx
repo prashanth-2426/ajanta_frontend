@@ -110,6 +110,7 @@ const ViewQuote = () => {
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
+  const [hodStatusData, setHodStatusData] = useState([]);
 
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
@@ -146,7 +147,10 @@ const ViewQuote = () => {
           footer={
             exchangeRate ? (
               <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
-                ₹ {invAmount?.toFixed(2)}
+                ₹{" "}
+                {invAmount
+                  ? invAmount.toFixed(2)
+                  : (exchangeRate * shipmentValue).toFixed(2)}
               </strong>
             ) : null
           }
@@ -1042,7 +1046,10 @@ const ViewQuote = () => {
       );
     };
 
-    // const exportToPDF = async (auctionDetails = {}, companyDetails = {}) => {
+    // const exportToPDFTest = async (
+    //   auctionDetails = {},
+    //   companyDetails = {},
+    // ) => {
     //   const doc = new jsPDF("l", "mm", "a4");
     //   const pageWidth = doc.internal.pageSize.getWidth();
 
@@ -1846,7 +1853,7 @@ const ViewQuote = () => {
     //   currentY = addAuctionDetails();
     //   currentY = addAuctionActivitySection(currentY, auctionData);
     //   currentY = quotedatalatestFinalNew(currentY);
-    //   //currentY = addSummaryBidSection(currentY);
+    //   currentY = addSummaryBidSection(currentY);
     //   currentY = addGeneralDetails(currentY);
     //   const hasPackages = containerDatat.some(
     //     (row) => parseInt(row.packages) > 0,
@@ -1969,11 +1976,29 @@ const ViewQuote = () => {
         ];
 
         rows.forEach((r) => {
-          checkPageBreak();
-          const value = doc.splitTextToSize(String(r[1]), 180);
-          doc.text(`${r[0]} :`, 20, currentY);
-          doc.text(value, 70, currentY);
-          currentY += value.length * 6;
+          checkPageBreak(20);
+
+          const label = `${r[0]} :`;
+          const value = String(r[1] || "N/A");
+
+          // Force long strings to wrap
+          const formattedValue = value.replace(/(.{80})/g, "$1 ");
+
+          // Split text
+          const splitValue = doc.splitTextToSize(formattedValue, 180);
+
+          // Label
+          doc.setFont("helvetica", "bold");
+          doc.text(label, 20, currentY);
+
+          // Value
+          doc.setFont("helvetica", "normal");
+          doc.text(splitValue, 70, currentY);
+
+          // Dynamic row height
+          const rowHeight = splitValue.length * 6;
+
+          currentY += Math.max(rowHeight, 8);
         });
 
         currentY += 6;
@@ -2183,7 +2208,12 @@ const ViewQuote = () => {
           ["Country", rfq?.country ? rfq.country : "N/A"],
           ["Industry", rfq?.subindustry ? rfq.subindustry : "N/A"],
           ["Hide Current Bid", rfq?.hideCurrentBid ? "Yes" : "No"],
-          ["Description", rfq?.description || "N/A"],
+          [
+            "Description",
+            rfq?.description
+              ? rfq.description.replace(/\n/g, " ").trim()
+              : "N/A",
+          ],
           [
             "Created Date",
             rfq?.createdDate
@@ -2194,10 +2224,33 @@ const ViewQuote = () => {
         ];
 
         timelineRows.forEach((row) => {
-          checkPageBreak(10);
-          doc.text(`${row[0]} :`, 20, y);
-          doc.text(String(row[1]), 70, y);
-          y += 6;
+          const label = `${row[0]} :`;
+
+          // convert value safely
+          let value = String(row[1] || "N/A");
+
+          // force wrap for very long continuous strings
+          value = value.replace(/(.{60})/g, "$1 ");
+
+          // split text based on width
+          const splitValue = doc.splitTextToSize(value, 180);
+
+          // calculate required height
+          const lineHeight = 6;
+          const rowHeight = splitValue.length * lineHeight;
+
+          checkPageBreak(rowHeight + 5);
+
+          // label
+          doc.setFont("helvetica", "bold");
+          doc.text(label, 20, y);
+
+          // value
+          doc.setFont("helvetica", "normal");
+          doc.text(splitValue, 70, y);
+
+          // move Y dynamically
+          y += Math.max(rowHeight, 8);
         });
 
         y += 5;
@@ -2231,50 +2284,137 @@ const ViewQuote = () => {
         y = doc.lastAutoTable.finalY + 8;
 
         checkPageBreak(20);
-
-        // doc.setFont("helvetica", "bold");
-        // doc.text("Auction Participation & Winner Summary", 20, y);
-
-        // y += 6;
-
-        // const summaryTable = [
-        //   ["Total Vendors Invited", invited.length],
-        //   ["Total Vendors Participated", participated.length],
-        //   ["Total Bids Submitted", Object.keys(bids).length],
-        //   [
-        //     "Winner",
-        //     winner
-        //       ? `${winner?.name || "-"} (${winner?.company || "-"})`
-        //       : "N/A",
-        //   ],
-        //   ["Winning Bid", winner ? (bids[winnerId]?.bid ?? "-") : "N/A"],
-        // ];
-
-        // doc.autoTable({
-        //   startY: y,
-        //   head: [["Metric", "Value"]],
-        //   body: summaryTable,
-        //   theme: "grid",
-        //   styles: {
-        //     fontSize: 9,
-        //     cellPadding: 3,
-        //     halign: "left",
-        //   },
-        //   headStyles: {
-        //     fillColor: [68, 114, 196],
-        //     textColor: 255,
-        //     fontStyle: "bold",
-        //   },
-        //   columnStyles: {
-        //     0: { cellWidth: 90, fontStyle: "bold" },
-        //     1: { cellWidth: 120 },
-        //   },
-        //   margin: { left: 20, right: 20 },
-        // });
-
-        // y = doc.lastAutoTable.finalY + 8;
-
         return y;
+      };
+
+      const quotedatalatestFinal = (startY) => {
+        let yPos = startY;
+        const topQuotes = allQuotes; // all vendors
+
+        // 🧩 Combine all columns from all 3 tables
+        const allCols = [
+          "Vendor",
+          "Airline",
+          "Airport",
+          "Chargeable Wt (kg)",
+          "Freight / Kg (INR)",
+          "AMS (INR)",
+          "PAC (INR)",
+          "AWB (INR)",
+          "Other (INR)",
+          "Currency",
+          "DAP/DDP",
+          "Exchange Rate",
+          "Transit Days",
+          "Routing",
+          "Remark / Condition",
+          "Target Price",
+          "Total Charges (INR)",
+          "Total Saving",
+          "Percentage",
+          "Rank",
+          "isAccepted",
+        ];
+
+        // 🧠 Helper to build all rows dynamically
+        const buildRows = (cols) =>
+          topQuotes.map((q, index) => {
+            console.log("Generating row for quote:", q);
+            const lastNegotiation = Array.isArray(q.negotiation)
+              ? q.negotiation.find(
+                  (n) =>
+                    n.vendor_id === q.vendor_id &&
+                    n.airline_name === q.airline_name,
+                )
+              : null;
+
+            const lastPurchase = lastNegotiation?.last_purchase_price || "-";
+            const firstBid = q.FirstBidPrice || 0;
+            const finalBid = q.grandTotalValue || 0;
+            const saving = firstBid - finalBid || 0;
+
+            const isAccepted =
+              q.acceptedDetails?.accepted_at &&
+              q.acceptedDetails?.accepted_airline === q.airline_name;
+
+            const routes = [
+              { route: q.route1, schedule: q.flight_schedule1 },
+              { route: q.route2, schedule: q.flight_schedule2 },
+              { route: q.route3, schedule: q.flight_schedule3 },
+            ]
+              .filter((r) => r.route || r.schedule)
+              .map((r) => {
+                const routeText = r.route || "-";
+                const scheduleText = r.schedule
+                  ? new Date(r.schedule).toLocaleDateString()
+                  : "-";
+                return `${routeText}\n${scheduleText}`;
+              })
+              .join("\n");
+
+            const row = {
+              Vendor: q.vendor_name || "-",
+              Airline: q.airline_name || "-",
+              Airport: q.airport || "-",
+              "Chargeable Wt (kg)": q.chargeable_weight || "-",
+              "Freight / Kg (INR)": q.base_rate || "-",
+              "AMS (INR)": q.ams || "-",
+              "PAC (INR)": q.pac || "-",
+              "AWB (INR)": q.awb || "-",
+              "Other (INR)": q.other_charges || "-",
+              Currency: q.currency || "-",
+              "DAP/DDP": q.dap_ddp_charges || "-",
+              "Exchange Rate": exchangeRate
+                ? exchangeRate
+                : q.exchangeRate || "-",
+              "Transit Days": q.transit_days || "-",
+              Routing: routes || "-",
+              "Remark / Condition": q.remarks || "-",
+              "Target Price": lastPurchase ? lastPurchase : "-",
+              "Total Charges (INR)": finalBid
+                ? parseFloat(finalBid).toFixed(2)
+                : "-",
+              "Total Saving": saving ? saving.toFixed(2) : "-",
+              Percentage: q.percentage ? `${q.percentage}%` : "-",
+              Rank: `L${index + 1}`,
+              isAccepted: isAccepted ? "Yes" : "No",
+            };
+
+            return cols.map((col) => row[col]);
+          });
+
+        // 📄 Draw Combined Table
+        doc.autoTable({
+          startY: yPos,
+          head: [allCols],
+          body: buildRows(allCols),
+          theme: "grid",
+          styles: {
+            fontSize: 8,
+            cellPadding: 2,
+            halign: "center",
+            valign: "middle",
+            lineColor: [200, 200, 200],
+            overflow: "linebreak", // Wrap text
+          },
+          headStyles: {
+            fillColor: [68, 114, 196],
+            textColor: [255, 255, 255],
+            fontStyle: "bold",
+          },
+          alternateRowStyles: { fillColor: [245, 245, 245] },
+          margin: { top: 10, left: 10, right: 10 },
+          tableWidth: "auto", // Fit table to page width
+          showHead: "firstPage",
+          didParseCell: (data) => {
+            // Highlight top vendor (L1)
+            if (data.cell.raw === "L1") {
+              data.cell.styles.fillColor = [210, 255, 210];
+            }
+          },
+        });
+
+        return doc.lastAutoTable.finalY + 10;
       };
 
       /* ==============================
@@ -2299,6 +2439,7 @@ const ViewQuote = () => {
 
       currentY = quotedatalatestFinalNew(currentY);
       currentY = addGeneralDetails(currentY);
+      currentY = quotedatalatestFinal(currentY);
 
       const containerDatat =
         rfq?.package_summary?.packages?.map((pkg) => ({
@@ -2341,6 +2482,8 @@ const ViewQuote = () => {
         row.buyerDocumentsUploadedDetails?.attached_file || [],
       buyerDocSubmittedDate:
         row.buyerDocumentsUploadedDetails?.submitted_at || null,
+      sharedWithAccountsTeamDetails:
+        row.sharedtoAccountsTeamDetails?.attached_file || [],
     }));
 
     console.log("allQuotesWithUniqueId", allQuotesWithUniqueId);
@@ -2376,6 +2519,14 @@ const ViewQuote = () => {
     );
 
     console.log("invoiceDetails", invoiceDetails);
+
+    const sharedWithAccountsTeamDetails = allQuotesWithUniqueId.filter(
+      (row) =>
+        row.sharedWithAccountsTeamDetails &&
+        Object.keys(row.sharedWithAccountsTeamDetails).length >= 0,
+    );
+
+    console.log("sharedWithAccountsTeamDetails", sharedWithAccountsTeamDetails);
 
     const attachedFileName =
       allQuotesWithUniqueId.find((row) => row.attachedFile)?.attachedFile ||
@@ -2720,18 +2871,49 @@ const ViewQuote = () => {
                         : "Received"}
                   </span>
 
-                  <i
-                    className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
+                  {/* <i
+                    className="pi pi-share-alt text-green-600 cursor-pointer text-lg"
                     title="Share with Accounts Team"
                     onClick={() => {
                       setSelectedInvoice(quote.invoiceDetails);
                       setShowShareToAccountsTeamDialog(true);
                     }}
+                  ></i> */}
+
+                  <i
+                    className={`pi pi-share-alt text-lg ${
+                      sharedWithAccountsTeamDetails?.length > 0
+                        ? "text-gray-400 cursor-not-allowed"
+                        : "text-green-600 cursor-pointer"
+                    }`}
+                    title={
+                      sharedWithAccountsTeamDetails?.length > 0
+                        ? "Shared with Accounts Team"
+                        : "Share with Accounts Team"
+                    }
+                    onClick={() => {
+                      if (sharedWithAccountsTeamDetails?.length > 0) return;
+
+                      setSelectedInvoice(quote.invoiceDetails);
+                      setShowShareToAccountsTeamDialog(true);
+                    }}
+                  ></i>
+
+                  <i
+                    className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
+                    title="Approve"
+                    onClick={() => {
+                      setSelectedInvoice(quote.invoiceDetails);
+                      handleInvoiceApproveSubmit(true);
+                    }}
                   ></i>
                   <i
                     className="pi pi-times-circle text-red-600 cursor-pointer text-lg"
                     title="Reject"
-                    onClick={() => setShowRejectDialog(true)}
+                    onClick={() => {
+                      setSelectedInvoice(quote.invoiceDetails);
+                      setShowRejectDialog(true);
+                    }}
                   ></i>
                 </div>
 
@@ -3202,8 +3384,19 @@ const ViewQuote = () => {
                       fontSize: "1.4rem",
                     }}
                   >
-                    <span style={{ color: "green" }} title="HOD Approved">
+                    {/* <span style={{ color: "green" }} title="HOD Approved">
                       ✅
+                    </span> */}
+
+                    <span
+                      style={{
+                        color: "green",
+                        fontWeight: "bold",
+                        fontSize: "0.7rem",
+                      }}
+                      title="HOD Approved"
+                    >
+                      ✅ Approved
                     </span>
 
                     <span
@@ -3255,6 +3448,11 @@ const ViewQuote = () => {
                       className="p-button-success p-button-rounded p-button-sm"
                       tooltip="Approve"
                       style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
+                      disabled={
+                        !selectedVendors?.some(
+                          (item) => item.vendor_id === row.vendor_id,
+                        )
+                      }
                       onClick={() =>
                         openConfirmModal(
                           "hod_approved",
@@ -3270,6 +3468,11 @@ const ViewQuote = () => {
                       className="p-button-danger p-button-rounded p-button-sm"
                       tooltip="Reject"
                       style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
+                      disabled={
+                        !selectedVendors?.some(
+                          (item) => item.vendor_id === row.vendor_id,
+                        )
+                      }
                       onClick={() =>
                         openConfirmModal(
                           "hod_rejected",
@@ -3615,7 +3818,7 @@ const ViewQuote = () => {
 
           {/* {hodQuote && ( */}
           <div>
-            {role === "hod" && (
+            {/* {role === "hod" && (
               <Button
                 label="✅ Accept Quote"
                 className="p-button-success p-button-sm"
@@ -3623,7 +3826,7 @@ const ViewQuote = () => {
                 onClick={() => setShowAcceptDialog(true)}
                 disabled={selectedVendors.length === 0}
               />
-            )}
+            )} */}
 
             <div style={{ display: "flex", gap: "10px" }}>
               {role === "user" && (
@@ -3666,6 +3869,7 @@ const ViewQuote = () => {
             userId={userId}
             vendors={selectedVendors}
             existingAuction={auctionData}
+            invitedVendors={rfq?.invitedVendors || []}
             onAuctionCreated={() => {
               setShowAuctionDialog(false);
               fetchAuctionData();
@@ -4253,6 +4457,7 @@ const ViewQuote = () => {
           userId={userId}
           vendors={selectedVendors}
           existingAuction={auctionData}
+          re_auction={showAuctionDialog}
           onAuctionCreated={() => {
             setShowAuctionDialog(false);
             fetchAuctionData();

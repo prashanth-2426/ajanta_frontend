@@ -553,7 +553,7 @@ export default function Vendor({
         </Card>
       )}
       {/* JOIN AUCTION */}
-      {isLive && (
+      {isLive && !hasJoined && (
         <>
           <Panel header="Join Auction" className="mb-3">
             <div className="p-fluid">
@@ -574,7 +574,7 @@ export default function Vendor({
           <Divider />
         </>
       )}
-      {isLive && (
+      {isLive && hasJoined && (
         <div className="flip-container">
           <div className={`flip-card ${showChat ? "show-chat" : ""}`}>
             {/* FRONT — PLACE BID */}

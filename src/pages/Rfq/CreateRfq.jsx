@@ -1240,7 +1240,7 @@ const CreateRfq = () => {
         //   return;
         // }
 
-        //console.log("RFQ JSON:", rfqJson);
+        console.log("RFQ JSON:", rfqJson);
 
         try {
           const token = localStorage.getItem("USERTOKEN");
@@ -1257,7 +1257,7 @@ const CreateRfq = () => {
             formData.append("attachments", file);
           });
 
-          //console.log("formData value", formData);
+          console.log("formData value", formData);
 
           try {
             const result = await postData("rfqs", formData);

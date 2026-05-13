@@ -19,6 +19,7 @@ import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
 import { BASE_URL, API_URL } from "../../constants";
 import { set } from "react-hook-form";
+import { Tag } from "primereact/tag";
 
 const SERVER = API_URL;
 
@@ -26,6 +27,8 @@ export default function Buyer({
   userId,
   vendors = [],
   existingAuction = null,
+  re_auction = false,
+  invitedVendors = [],
   onAuctionCreated,
   onAuctionUpdated,
 }) {
@@ -50,6 +53,8 @@ export default function Buyer({
   const [users, setUsers] = useState({});
   const [tableRows, setTableRows] = useState([]);
   const [countdownLabel, setCountdownLabel] = useState("");
+  const [isAuctionEnded, setIsAuctionEnded] = useState(false);
+  const [extendMinutes, setExtendMinutes] = useState(null);
 
   const [isAuctionLiveView, setIsAuctionLiveView] = useState(false);
   const [showScheduledCard, setShowScheduledCard] = useState(false);
@@ -366,6 +371,36 @@ export default function Buyer({
     }
   }
 
+  async function extendAuctionTiming() {
+    console.log("Extending auction timing by minutes:", extendMinutes);
+    const newEndTime = new Date(existingAuction.endTime);
+    newEndTime.setMinutes(newEndTime.getMinutes() + extendMinutes);
+    try {
+      const res = await fetch(`${SERVER}/socks/auction/update-auction-data`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          newEndTime,
+          rfqNumber,
+          auctionId: existingAuction?.id,
+        }),
+      });
+
+      const data = await res.json();
+      //setAuction(data.auction);
+      if (data) {
+        dispatch(
+          toastSuccess({ detail: "Auction timing extended successfully!" }),
+        );
+        onAuctionCreated();
+      } else {
+        dispatch(toastError({ detail: "Auction timing extension failed" }));
+      }
+    } catch (error) {
+      dispatch(toastError({ detail: "Something went wrong" }));
+    }
+  }
+
   useEffect(() => {
     if (!auction) return;
 
@@ -407,6 +442,7 @@ export default function Buyer({
     });
 
     socket.current.on("auctionUpdate", (data) => {
+      console.log("Auction Update Received:", data);
       setBids(data.bids);
       setUsers(data.users || {});
       setRanks(data.ranks);
@@ -423,24 +459,37 @@ export default function Buyer({
   }, [auction]);
 
   useEffect(() => {
-    const rows = Object.entries(bids).map(([vendor, b]) => {
-      const vendorUser = Object.values(users).find((u) => u.id === vendor);
+    const sourceBids =
+      bids && Object.keys(bids).length > 0 ? bids : existingAuction?.bids || {};
 
-      console.log("Vendor User:", vendorUser);
+    const sourceUsers =
+      users && Object.keys(users).length > 0
+        ? users
+        : existingAuction?.users || {};
+
+    const sourceRanks =
+      ranks && Object.keys(ranks).length > 0
+        ? ranks
+        : existingAuction?.ranks || {};
+
+    const rows = Object.entries(sourceBids).map(([vendor, b]) => {
+      const vendorUser = Object.values(sourceUsers).find(
+        (u) => u.id === vendor,
+      );
 
       return {
         vendorId: vendor,
         online: vendorUser?.online ?? false,
-        vendorName: vendorUser?.name || vendor,
-        company: vendorUser?.company || "-",
+        vendorName: vendorUser?.name || b?.name || vendor,
+        company: vendorUser?.company || b?.company || "-",
         bid: b?.bid ?? "-",
-        rank: ranks[vendor] || null,
+        rank: sourceRanks[vendor] || null,
         time: b?.time ? new Date(b.time).toLocaleTimeString() : "-",
       };
     });
 
     setTableRows(rows);
-  }, [bids, users, ranks]); // 👈 KEY LINE
+  }, [bids, users, ranks, existingAuction]);
 
   const invitedEmails = existingAuction?.invited || [];
 
@@ -462,11 +511,11 @@ export default function Buyer({
     ? Object.values(existingAuction.bids)
     : [];
 
-  const isAuctionEnded = React.useMemo(() => {
-    if (!existingAuction?.endTime) return false;
+  // const isAuctionEnded = React.useMemo(() => {
+  //   if (!existingAuction?.endTime) return false;
 
-    return Date.now() > new Date(existingAuction.endTime).getTime();
-  }, [existingAuction]);
+  //   return Date.now() > new Date(existingAuction.endTime).getTime();
+  // }, [existingAuction]);
 
   const exportAuctionPDF = async () => {
     const element = document.getElementById("auction-activity-pdf");
@@ -517,40 +566,1298 @@ export default function Buyer({
     }
   }, [startTime]);
 
+  useEffect(() => {
+    if (!existingAuction?.endTime) return;
+
+    const checkAuctionEnd = () => {
+      const ended = Date.now() > new Date(existingAuction.endTime).getTime();
+
+      setIsAuctionEnded(ended);
+    };
+
+    // Initial check
+    checkAuctionEnd();
+
+    // Recheck every second
+    const interval = setInterval(checkAuctionEnd, 1000);
+
+    return () => clearInterval(interval);
+  }, [existingAuction]);
+
   return (
     <div
       style={{
-        display: "flex",
+        //display: "flex",
         gap: "20px",
         padding: "20px",
         alignItems: "flex-start",
       }}
     >
-      {showScheduledCard && (
-        <div
-          className="mb-4 p-4 border-round-xl text-center"
-          style={{
-            background: "linear-gradient(135deg, #0f172a, #1e293b)",
-            color: "#fff",
-          }}
-        >
-          <div className="flex align-items-center justify-content-center gap-2 mb-2">
-            <i className="pi pi-calendar text-lg" />
-            <span className="text-lg font-medium">Scheduled Auction</span>
+      {isAuctionEnded && !re_auction && (
+        <div style={{ flex: 1 }}>
+          <Card className="shadow-3 border-round-2xl">
+            <div id="auction-activity-pdf">
+              {/* ============================ */}
+              {/* HEADER */}
+              {/* ============================ */}
+              <div
+                className="flex justify-content-between align-items-center flex-wrap gap-3 mb-4"
+                style={{
+                  borderBottom: "1px solid #e5e7eb",
+                  paddingBottom: "18px",
+                }}
+              >
+                <div>
+                  <h2
+                    style={{
+                      margin: 0,
+                      fontSize: "28px",
+                      fontWeight: 700,
+                      color: "#1e293b",
+                    }}
+                  >
+                    🏆 Auction Activity Dashboard
+                  </h2>
+
+                  <p
+                    style={{
+                      marginTop: "6px",
+                      color: "#64748b",
+                      fontSize: "14px",
+                    }}
+                  >
+                    Complete overview of auction participation, bidding and
+                    result summary.
+                  </p>
+                </div>
+
+                <div className="flex gap-2 flex-wrap">
+                  <Tag
+                    value={`Auction #${existingAuction?.auction_number}`}
+                    severity="info"
+                    style={{
+                      fontSize: "13px",
+                      padding: "8px 14px",
+                    }}
+                  />
+
+                  <Tag
+                    value={existingAuction?.mode?.toUpperCase()}
+                    severity={
+                      existingAuction?.mode === "reverse" ? "danger" : "success"
+                    }
+                    style={{
+                      fontSize: "13px",
+                      padding: "8px 14px",
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* ============================ */}
+              {/* TOP SUMMARY */}
+              {/* ============================ */}
+              <div className="grid mb-4">
+                {/* Timeline */}
+                <div className="col-12 md:col-4">
+                  <div
+                    className="p-4 border-round-xl h-full"
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div className="flex align-items-center gap-2 mb-3">
+                      <i
+                        className="pi pi-calendar"
+                        style={{
+                          fontSize: "1.3rem",
+                          color: "#2563eb",
+                        }}
+                      />
+
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: "20px",
+                          color: "#1e293b",
+                        }}
+                      >
+                        Auction Timeline
+                      </h3>
+                    </div>
+
+                    <div className="grid text-sm">
+                      <div className="col-5 font-semibold text-700">
+                        Start Time
+                      </div>
+
+                      <div className="col-7 text-600">
+                        {new Date(existingAuction?.startTime).toLocaleString()}
+                      </div>
+
+                      <div className="col-5 font-semibold text-700">
+                        End Time
+                      </div>
+
+                      <div className="col-7 text-600">
+                        {new Date(existingAuction?.endTime).toLocaleString()}
+                      </div>
+
+                      <div className="col-5 font-semibold text-700">
+                        Vendors
+                      </div>
+
+                      <div className="col-7 text-600">
+                        {participatedVendors?.length || 0} Participated
+                      </div>
+
+                      <div className="col-5 font-semibold text-700">
+                        Auction Type
+                      </div>
+
+                      <div className="col-7">
+                        <Tag
+                          value={
+                            existingAuction?.mode === "reverse"
+                              ? "Reverse Auction"
+                              : "Forward Auction"
+                          }
+                          severity={
+                            existingAuction?.mode === "reverse"
+                              ? "danger"
+                              : "success"
+                          }
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Invited Vendors */}
+                <div className="col-12 md:col-4">
+                  <div
+                    className="p-4 border-round-xl h-full"
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div className="flex align-items-center gap-2 mb-3">
+                      <i
+                        className="pi pi-users"
+                        style={{
+                          fontSize: "1.3rem",
+                          color: "#7c3aed",
+                        }}
+                      />
+
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: "20px",
+                          color: "#1e293b",
+                        }}
+                      >
+                        Invited Vendors
+                      </h3>
+                    </div>
+
+                    <div
+                      style={{
+                        maxHeight: "180px",
+                        overflowY: "auto",
+                      }}
+                    >
+                      {invitedEmails?.map((email, index) => (
+                        <div
+                          key={email}
+                          className="flex justify-content-between align-items-center mb-2 p-2 border-round-lg"
+                          style={{
+                            background: "#fff",
+                            border: "1px solid #e5e7eb",
+                          }}
+                        >
+                          <div className="flex align-items-center gap-2">
+                            <i
+                              className="pi pi-envelope"
+                              style={{
+                                color: "#3b82f6",
+                              }}
+                            />
+
+                            <span
+                              style={{
+                                fontSize: "14px",
+                              }}
+                            >
+                              {email}
+                            </span>
+                          </div>
+
+                          <Tag value={`#${index + 1}`} severity="info" />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Winner Summary */}
+                <div className="col-12 md:col-4">
+                  <div
+                    className="p-4 border-round-xl h-full"
+                    style={{
+                      background:
+                        "linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)",
+                      border: "1px solid #bbf7d0",
+                    }}
+                  >
+                    <div className="flex align-items-center gap-2 mb-3">
+                      <i
+                        className="pi pi-trophy"
+                        style={{
+                          fontSize: "1.5rem",
+                          color: "#16a34a",
+                        }}
+                      />
+
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: "20px",
+                          color: "#166534",
+                        }}
+                      >
+                        Auction Winner
+                      </h3>
+                    </div>
+
+                    {Object.entries(existingAuction?.ranks || {})
+                      .filter(([, rank]) => rank === 1)
+                      .map(([vendorId]) => {
+                        const vendor = userst.find(
+                          (u) => String(u.id) === String(vendorId),
+                        );
+
+                        return (
+                          <div key={vendorId}>
+                            <h2
+                              style={{
+                                margin: 0,
+                                color: "#15803d",
+                                fontSize: "28px",
+                              }}
+                            >
+                              {vendor?.name}
+                            </h2>
+
+                            <p
+                              style={{
+                                marginTop: "5px",
+                                color: "#475569",
+                              }}
+                            >
+                              {vendor?.company}
+                            </p>
+
+                            <div
+                              className="mt-4 p-3 border-round-lg"
+                              style={{
+                                background: "#fff",
+                                border: "1px solid #bbf7d0",
+                              }}
+                            >
+                              <div className="text-sm text-500">
+                                Final Bid Amount
+                              </div>
+
+                              <div
+                                style={{
+                                  fontSize: "30px",
+                                  fontWeight: 700,
+                                  color: "#16a34a",
+                                }}
+                              >
+                                ₹
+                                {Number(
+                                  existingAuction?.bids[vendorId]?.bid || 0,
+                                ).toLocaleString()}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================ */}
+              {/* PARTICIPATED VENDORS */}
+              {/* ============================ */}
+              <div
+                className="p-4 border-round-xl"
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e5e7eb",
+                }}
+              >
+                <div className="flex justify-content-between align-items-center mb-3">
+                  <div>
+                    <h5
+                      style={{
+                        margin: 0,
+                        fontSize: "22px",
+                        color: "#1e293b",
+                      }}
+                    >
+                      ✅ Participated Vendors
+                    </h5>
+
+                    <p
+                      style={{
+                        marginTop: "5px",
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Complete vendor participation and ranking details.
+                    </p>
+                  </div>
+
+                  <Tag
+                    value={`${participatedVendors?.length || 0} Vendors`}
+                    severity="success"
+                  />
+                </div>
+
+                <DataTable
+                  value={participatedVendors}
+                  responsiveLayout="scroll"
+                  stripedRows
+                  className="p-datatable-sm"
+                >
+                  <Column field="name" header="Vendor Name" />
+
+                  <Column field="company" header="Company" />
+
+                  <Column
+                    header="Bid Amount"
+                    body={(row) => (
+                      <span
+                        style={{
+                          fontWeight: 700,
+                          color: "#16a34a",
+                        }}
+                      >
+                        ₹
+                        {Number(
+                          existingAuction?.bids[row.id]?.bid || 0,
+                        ).toLocaleString()}
+                      </span>
+                    )}
+                  />
+
+                  <Column
+                    header="Bid Time"
+                    body={(row) =>
+                      existingAuction?.bids[row.id]?.time
+                        ? new Date(
+                            existingAuction?.bids[row.id]?.time,
+                          ).toLocaleString()
+                        : "-"
+                    }
+                  />
+
+                  <Column
+                    header="Rank"
+                    body={(row) => {
+                      const rank = existingAuction?.ranks?.[row.id];
+
+                      return rank ? (
+                        <Tag
+                          value={`L${rank}`}
+                          severity={
+                            rank === 1
+                              ? "success"
+                              : rank === 2
+                                ? "warning"
+                                : "info"
+                          }
+                        />
+                      ) : (
+                        "-"
+                      );
+                    }}
+                  />
+                </DataTable>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
+      {!isAuctionEnded && !re_auction && (
+        <div className="grid">
+          {/* ========================================= */}
+          {/* TOP HEADER + COUNTDOWN */}
+          {/* ========================================= */}
+          <div className="col-12">
+            <Card
+              className="shadow-2 border-round-2xl overflow-hidden"
+              style={{
+                background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
+                color: "#fff",
+              }}
+            >
+              <div className="grid align-items-center">
+                {/* LEFT */}
+                <div className="col-12 lg:col-8">
+                  <div className="flex align-items-center gap-3 mb-3">
+                    <div
+                      style={{
+                        width: "70px",
+                        height: "70px",
+                        borderRadius: "18px",
+                        background: "rgba(255,255,255,0.12)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        border: "1px solid rgba(255,255,255,0.15)",
+                      }}
+                    >
+                      <i
+                        className="pi pi-megaphone"
+                        style={{
+                          fontSize: "32px",
+                          color: "#ffffff",
+                        }}
+                      />
+                    </div>
+
+                    <div>
+                      <h1
+                        style={{
+                          margin: 0,
+                          fontSize: "34px",
+                          fontWeight: 700,
+                          color: "#fff",
+                        }}
+                      >
+                        Live Auction Dashboard
+                      </h1>
+
+                      <p
+                        style={{
+                          marginTop: "8px",
+                          color: "rgba(255,255,255,0.75)",
+                          fontSize: "15px",
+                        }}
+                      >
+                        Auction Title: {auction?.title || "Auction Title"}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* TAGS */}
+                  <div className="flex gap-2 flex-wrap mt-3">
+                    <Tag value={`RFQ : ${rfqNumber}`} severity="info" />
+
+                    <Tag
+                      value={`Auction ID : ${auction?.id}`}
+                      severity="success"
+                    />
+
+                    <Tag value="LIVE AUCTION" severity="danger" />
+                  </div>
+                </div>
+
+                {/* RIGHT TIMER */}
+                <div className="col-12 lg:col-4">
+                  {showScheduledCard && !countdownLabel && (
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: "20px",
+                        padding: "22px",
+                        textAlign: "center",
+                      }}
+                    >
+                      <div className="flex justify-content-center gap-3 flex-wrap">
+                        <div
+                          style={{
+                            fontSize: "14px",
+                            opacity: 0.8,
+                            marginBottom: "10px",
+                            letterSpacing: "1px",
+                          }}
+                        >
+                          AUCTION START TIME
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: "28px",
+                            fontWeight: 700,
+                            lineHeight: 1.4,
+                          }}
+                        >
+                          {new Date(
+                            existingAuction?.startTime,
+                          ).toLocaleString()}
+                        </div>
+
+                        <div
+                          style={{
+                            marginTop: "12px",
+                            fontSize: "13px",
+                            color: "rgba(255,255,255,0.7)",
+                          }}
+                        >
+                          Auction will start automatically
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* AUCTION TIMER + EXTEND CONTROLS */}
+                  {countdownLabel && (
+                    <div
+                      style={{
+                        background: "rgba(255,255,255,0.08)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: "20px",
+                        padding: "22px",
+                        textAlign: "center",
+                        backdropFilter: "blur(10px)",
+                      }}
+                    >
+                      {/* HEADER */}
+                      <div className="flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+                        <div
+                          style={{
+                            fontSize: "15px",
+                            opacity: 0.9,
+                            fontWeight: 500,
+                            textAlign: "left",
+                          }}
+                        >
+                          {countdownLabel}
+                        </div>
+
+                        {/* EXTEND SECTION */}
+                        <div className="flex align-items-center gap-2 flex-wrap">
+                          <Dropdown
+                            value={extendMinutes}
+                            options={[
+                              { label: "+5 Minutes", value: 5 },
+                              { label: "+10 Minutes", value: 10 },
+                              { label: "+15 Minutes", value: 15 },
+                              { label: "+30 Minutes", value: 30 },
+                            ]}
+                            onChange={(e) => setExtendMinutes(e.value)}
+                            placeholder="Extend Time"
+                            className="p-inputtext-sm"
+                            style={{
+                              minWidth: "160px",
+                            }}
+                          />
+
+                          <Button
+                            label="Extend"
+                            icon="pi pi-clock"
+                            severity="warning"
+                            size="small"
+                            className="border-round-xl"
+                            onClick={extendAuctionTiming}
+                          />
+                        </div>
+                      </div>
+
+                      {/* TIMER */}
+                      <div className="flex justify-content-center gap-3 flex-wrap">
+                        {timer.split(" ").map((t, i) => (
+                          <div
+                            key={i}
+                            style={{
+                              minWidth: "90px",
+                              padding: "14px 12px",
+                              borderRadius: "18px",
+                              background: "rgba(255,255,255,0.12)",
+                              border: "1px solid rgba(255,255,255,0.1)",
+                              boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: "30px",
+                                fontWeight: 700,
+                                lineHeight: 1,
+                                color: "#fff",
+                              }}
+                            >
+                              {t.replace(/[hms]/g, "")}
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                letterSpacing: "1px",
+                                marginTop: "8px",
+                                opacity: 0.8,
+                                color: "#cbd5e1",
+                              }}
+                            >
+                              {t.includes("h")
+                                ? "HOURS"
+                                : t.includes("m")
+                                  ? "MINUTES"
+                                  : "SECONDS"}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* INFO */}
+                      <div
+                        className="mt-4 flex align-items-center justify-content-center gap-2"
+                        style={{
+                          fontSize: "12px",
+                          color: "rgba(255,255,255,0.7)",
+                        }}
+                      >
+                        <i className="pi pi-info-circle" />
+                        Extend auction duration in real-time for all
+                        participants
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Card>
           </div>
 
-          <div className="text-2xl font-bold mb-1">
-            {new Date(existingAuction.startTime).toLocaleString()}
+          {/* ========================================= */}
+          {/* MAIN CONTENT ROW */}
+          {/* ========================================= */}
+
+          {/* LEFT SIDE */}
+          <div className="col-12 xl:col-8">
+            <Card className="shadow-2 border-round-2xl h-full">
+              <div className="flex align-items-center justify-content-between mb-4">
+                <div className="flex align-items-center gap-2">
+                  <i
+                    className="pi pi-users"
+                    style={{
+                      fontSize: "1.5rem",
+                      color: "#7c3aed",
+                    }}
+                  />
+
+                  <h3
+                    style={{
+                      margin: 0,
+                      color: "#1e293b",
+                    }}
+                  >
+                    Vendor Summary
+                  </h3>
+                </div>
+
+                <Tag
+                  value={`${(invites?.length || 0) + (tableRows?.length || 0)} Total`}
+                  severity="info"
+                />
+              </div>
+
+              {/* COUNTS */}
+              <div className="grid mb-3">
+                {/* INVITED VENDORS */}
+                <div className="col-12 md:col-6">
+                  <div
+                    className="flex align-items-center justify-content-between p-3 border-round-2xl h-full"
+                    style={{
+                      background: "linear-gradient(135deg,#eff6ff,#dbeafe)",
+                      border: "1px solid #bfdbfe",
+                      minHeight: "90px",
+                    }}
+                  >
+                    {/* LEFT */}
+                    <div className="flex align-items-center gap-3">
+                      <div
+                        className="flex align-items-center justify-content-center"
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "14px",
+                          background: "#2563eb",
+                          color: "#fff",
+                          fontSize: "20px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <i className="pi pi-users" />
+                      </div>
+
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "#475569",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Invited Vendors
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#64748b",
+                            marginTop: "2px",
+                          }}
+                        >
+                          Vendors invited to auction
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT */}
+                    <div
+                      style={{
+                        fontSize: "34px",
+                        fontWeight: 700,
+                        color: "#2563eb",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {invites?.length || 0}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PARTICIPATED VENDORS */}
+                <div className="col-12 md:col-6">
+                  <div
+                    className="flex align-items-center justify-content-between p-3 border-round-2xl h-full"
+                    style={{
+                      background: "linear-gradient(135deg,#ecfdf5,#dcfce7)",
+                      border: "1px solid #bbf7d0",
+                      minHeight: "90px",
+                    }}
+                  >
+                    {/* LEFT */}
+                    <div className="flex align-items-center gap-3">
+                      <div
+                        className="flex align-items-center justify-content-center"
+                        style={{
+                          width: "48px",
+                          height: "48px",
+                          borderRadius: "14px",
+                          background: "#16a34a",
+                          color: "#fff",
+                          fontSize: "20px",
+                          flexShrink: 0,
+                        }}
+                      >
+                        <i className="pi pi-check-circle" />
+                      </div>
+
+                      <div>
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "#475569",
+                            fontWeight: 600,
+                          }}
+                        >
+                          Participated Vendors
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#64748b",
+                            marginTop: "2px",
+                          }}
+                        >
+                          Vendors joined live auction
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* RIGHT */}
+                    <div
+                      style={{
+                        fontSize: "34px",
+                        fontWeight: 700,
+                        color: "#16a34a",
+                        lineHeight: 1,
+                      }}
+                    >
+                      {tableRows?.filter(
+                        (row) =>
+                          row.online &&
+                          row.bid !== null &&
+                          row.bid !== undefined &&
+                          row.bid !== "-",
+                      ).length || 0}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Invited Vendors */}
+              <div className="col-12 md:col-12">
+                <div
+                  className="p-4 border-round-xl h-full"
+                  style={{
+                    background: "#f8fafc",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  {/* HEADER */}
+                  <div className="flex justify-content-between align-items-center mb-3">
+                    <div className="flex align-items-center gap-2">
+                      <i
+                        className="pi pi-users"
+                        style={{
+                          fontSize: "1.3rem",
+                          color: "#7c3aed",
+                        }}
+                      />
+
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: "20px",
+                          color: "#1e293b",
+                        }}
+                      >
+                        Invited Vendors
+                      </h3>
+                    </div>
+
+                    <Tag
+                      value={`${invitedVendors?.length || 0} Vendors`}
+                      severity="info"
+                    />
+                  </div>
+
+                  {/* LIST */}
+                  <div
+                    style={{
+                      maxHeight: "320px",
+                      overflowY: "auto",
+                      paddingRight: "4px",
+                    }}
+                  >
+                    {invitedVendors?.length > 0 ? (
+                      invitedVendors.map((vendor, index) => {
+                        // CHECK WHETHER THIS INVITED VENDOR PARTICIPATED
+                        const participatedVendor = tableRows?.find(
+                          (p) =>
+                            String(p.vendorName || p.name)
+                              .trim()
+                              .toLowerCase() ===
+                              String(vendor.name).trim().toLowerCase() &&
+                            String(p.company).trim().toLowerCase() ===
+                              String(vendor.company).trim().toLowerCase(),
+                        );
+
+                        const isParticipated = Boolean(participatedVendor);
+
+                        return (
+                          <div
+                            key={vendor.id}
+                            className="mb-2 p-3 border-round-xl flex justify-content-between align-items-center flex-wrap"
+                            style={{
+                              background: "#fff",
+                              border: "1px solid #e5e7eb",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                              gap: "12px",
+                            }}
+                          >
+                            {/* LEFT SIDE */}
+                            <div className="flex align-items-center gap-3 flex-wrap">
+                              {/* ICON */}
+                              <div
+                                style={{
+                                  width: "42px",
+                                  height: "42px",
+                                  borderRadius: "10px",
+                                  background: "#ede9fe",
+                                  display: "flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  color: "#7c3aed",
+                                  fontSize: "16px",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <i className="pi pi-user" />
+                              </div>
+
+                              {/* NAME */}
+                              <div>
+                                <div
+                                  style={{
+                                    fontSize: "14px",
+                                    fontWeight: 700,
+                                    color: "#1e293b",
+                                  }}
+                                >
+                                  {vendor.name}
+                                </div>
+
+                                <div
+                                  style={{
+                                    fontSize: "12px",
+                                    color: "#64748b",
+                                  }}
+                                >
+                                  {vendor.company}
+                                </div>
+                              </div>
+
+                              {/* EMAIL */}
+                              <div
+                                className="flex align-items-center gap-2"
+                                style={{
+                                  fontSize: "13px",
+                                  color: "#475569",
+                                }}
+                              >
+                                <i
+                                  className="pi pi-envelope"
+                                  style={{
+                                    color: "#3b82f6",
+                                    fontSize: "12px",
+                                  }}
+                                />
+
+                                <span>{vendor.email}</span>
+                              </div>
+
+                              {/* MOBILE */}
+                              <div
+                                className="flex align-items-center gap-2"
+                                style={{
+                                  fontSize: "13px",
+                                  color: "#475569",
+                                }}
+                              >
+                                <i
+                                  className="pi pi-phone"
+                                  style={{
+                                    color: "#16a34a",
+                                    fontSize: "12px",
+                                  }}
+                                />
+
+                                <span>{vendor.mobile || "-"}</span>
+                              </div>
+                            </div>
+
+                            {/* RIGHT STATUS */}
+                            <div className="flex align-items-center gap-2">
+                              <Tag
+                                value={
+                                  isParticipated
+                                    ? "Participated"
+                                    : "Not Participated"
+                                }
+                                severity={isParticipated ? "success" : "danger"}
+                              />
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div
+                        className="text-center p-4 border-round-xl"
+                        style={{
+                          background: "#f8fafc",
+                          color: "#64748b",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        No invited vendors available
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* PARTICIPATED LIST */}
+              <div className="col-12">
+                <div className="flex justify-content-between align-items-center mb-4">
+                  <div>
+                    <h5
+                      style={{
+                        margin: 0,
+                        color: "#1e293b",
+                      }}
+                    >
+                      ✅ Participating Vendors
+                    </h5>
+
+                    <p
+                      style={{
+                        marginTop: "6px",
+                        color: "#64748b",
+                        fontSize: "14px",
+                      }}
+                    >
+                      Real-time vendor participation and connection status.
+                    </p>
+                  </div>
+
+                  <Tag
+                    value={`${tableRows?.length || 0} Active`}
+                    severity="success"
+                  />
+                </div>
+
+                <DataTable
+                  value={[...tableRows].sort((a, b) => {
+                    const rankA =
+                      parseInt(String(a.rank).replace("L", "")) || 999;
+                    const rankB =
+                      parseInt(String(b.rank).replace("L", "")) || 999;
+
+                    return rankA - rankB; // ascending
+                  })}
+                  stripedRows
+                  responsiveLayout="scroll"
+                  emptyMessage="No bids yet"
+                  className="p-datatable-sm"
+                  sortField="rank"
+                  sortOrder={1}
+                >
+                  <Column
+                    field="vendorId"
+                    header="Vendor ID"
+                    body={(row) => <strong>{row.vendorId}</strong>}
+                  />
+
+                  <Column
+                    header="Status"
+                    body={(row) => (
+                      <Tag
+                        value={row.online ? "ONLINE" : "OFFLINE"}
+                        severity={row.online ? "success" : "danger"}
+                      />
+                    )}
+                  />
+
+                  <Column
+                    field="vendorName"
+                    header="Vendor Details"
+                    body={(row) => (
+                      <div>
+                        <div
+                          style={{
+                            fontWeight: 600,
+                          }}
+                        >
+                          {row.vendorName}
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: "13px",
+                            color: "#64748b",
+                          }}
+                        >
+                          {row.company}
+                        </div>
+                      </div>
+                    )}
+                  />
+
+                  <Column field="bid" header="Bid Amount" />
+
+                  <Column field="rank" header="Rank" sortable />
+
+                  <Column field="time" header="Joined Time" />
+                </DataTable>
+              </div>
+            </Card>
           </div>
 
-          <div className="text-sm text-gray-300">
-            Auction will start automatically
+          {/* RIGHT SIDE */}
+          <div className="col-12 xl:col-4">
+            <Card className="shadow-2 border-round-2xl h-full">
+              <div className="flex align-items-center gap-2 mb-4">
+                <i
+                  className="pi pi-comments"
+                  style={{
+                    fontSize: "1.5rem",
+                    color: "#2563eb",
+                  }}
+                />
+
+                <div>
+                  <h3
+                    style={{
+                      margin: 0,
+                      color: "#1e293b",
+                    }}
+                  >
+                    Vendor Communication
+                  </h3>
+
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: "13px",
+                      color: "#64748b",
+                    }}
+                  >
+                    Real-time messaging with vendors
+                  </p>
+                </div>
+              </div>
+
+              {/* FORM */}
+              <div className="grid mb-3">
+                <div className="col-12">
+                  <label className="font-semibold mb-2 block">Vendor ID</label>
+
+                  {/* <InputText
+                    value={chatVendor}
+                    onChange={(e) => setChatVendor(e.target.value)}
+                    className="w-full"
+                    placeholder="Enter Vendor ID"
+                  /> */}
+
+                  <Dropdown
+                    value={chatVendor}
+                    options={tableRows
+                      .filter((v) => v.online)
+                      .map((v) => ({
+                        label: `${v.vendorName} (${v.company})`,
+                        value: v.vendorId,
+                      }))}
+                    onChange={(e) => setChatVendor(e.value)}
+                    placeholder="Select Online Vendor"
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="col-12">
+                  <label className="font-semibold mb-2 block">Message</label>
+
+                  <InputText
+                    value={chatText}
+                    onChange={(e) => setChatText(e.target.value)}
+                    className="w-full"
+                    placeholder="Type your message"
+                  />
+                </div>
+
+                <div className="col-12">
+                  <Button
+                    label="Send Message"
+                    icon="pi pi-send"
+                    className="w-full"
+                    onClick={() => {
+                      socket.current.emit("chatMessage", {
+                        auctionId: auction.id,
+                        to: chatVendor,
+                        message: chatText,
+                        user_name: user.name,
+                        user_company: user.company,
+                        rfqNumber,
+                      });
+
+                      setChatText("");
+                    }}
+                  />
+                </div>
+              </div>
+
+              <Divider />
+
+              {/* CHAT */}
+              <div
+                style={{
+                  maxHeight: "600px",
+                  overflowY: "auto",
+                  paddingRight: "5px",
+                }}
+              >
+                {messages?.length === 0 ? (
+                  <div
+                    className="text-center p-5"
+                    style={{
+                      color: "#64748b",
+                    }}
+                  >
+                    <i
+                      className="pi pi-comments"
+                      style={{
+                        fontSize: "2rem",
+                        marginBottom: "10px",
+                        display: "block",
+                      }}
+                    />
+                    No messages available
+                  </div>
+                ) : (
+                  messages.map((m, i) => {
+                    const isMine = m.from === userId;
+
+                    return (
+                      <div
+                        key={i}
+                        className={`mb-3 flex ${
+                          isMine
+                            ? "justify-content-end"
+                            : "justify-content-start"
+                        }`}
+                      >
+                        <div
+                          style={{
+                            padding: "12px",
+                            borderRadius: "14px",
+                            background: isMine ? "#2563eb" : "#f1f5f9",
+                            color: isMine ? "#fff" : "#1e293b",
+                            maxWidth: "85%",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              marginBottom: "4px",
+                              fontSize: "13px",
+                            }}
+                          >
+                            {isMine ? "You" : m.user_name}
+                          </div>
+
+                          <div
+                            style={{
+                              fontSize: "14px",
+                              lineHeight: 1.5,
+                            }}
+                          >
+                            {m.message}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </Card>
           </div>
         </div>
       )}
-      <br />
-      {!isAuctionLiveView || isAuctionEnded ? (
-        <div style={{ flex: 1 }}>
+
+      {re_auction && (
+        <>
           <Card title="Auction Details" className="p-3">
             <div className="p-fluid formgrid grid">
               <div className="field col-12">
@@ -627,352 +1934,6 @@ export default function Buyer({
               </div>
             </div>
           </Card>
-        </div>
-      ) : (
-        <>
-          {/* TIMER SECTION */}
-
-          <div style={{ flex: 1 }}>
-            <h4>Auction Details</h4>
-            {/* COUNTDOWN */}
-            {countdownLabel && (
-              <Card
-                className="mb-3 text-center"
-                style={{
-                  background: "linear-gradient(135deg, #1d4ed8, #2563eb)",
-                  color: "#fff",
-                  padding: "0.75rem",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: "0.9rem",
-                    opacity: 0.85,
-                    marginBottom: "0.5rem",
-                  }}
-                >
-                  {countdownLabel}
-                </div>
-
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "10px",
-                  }}
-                >
-                  {timer.split(" ").map((t, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        background: "rgba(255,255,255,0.15)",
-                        border: "1px solid rgba(255,255,255,0.4)",
-                        borderRadius: "8px",
-                        padding: "8px 14px",
-                        minWidth: "70px",
-                      }}
-                    >
-                      <div style={{ fontSize: "1.3rem", fontWeight: 700 }}>
-                        {t.replace(/[hms]/g, "")}
-                      </div>
-                      <div style={{ fontSize: "0.75rem", opacity: 0.85 }}>
-                        {t.includes("h")
-                          ? "HRS"
-                          : t.includes("m")
-                            ? "MIN"
-                            : "SEC"}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Card>
-            )}
-
-            {/* AUCTION DETAILS */}
-            <Card
-              title={
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.5rem",
-                  }}
-                >
-                  🔨 <span>{auction.title}</span>
-                </div>
-              }
-              className="mb-3"
-            >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "1rem",
-                  fontSize: "0.9rem",
-                  color: "#555",
-                }}
-              >
-                <span>
-                  <strong>Auction ID:</strong> {auction.id}
-                </span>
-                <span>
-                  <strong>Status:</strong>{" "}
-                  <span style={{ color: "#16a34a", fontWeight: 600 }}>
-                    LIVE
-                  </span>
-                </span>
-              </div>
-
-              <h5 style={{ marginBottom: "10px" }}>Invited Vendors</h5>
-              {invites?.length > 0 ? (
-                <DataTable
-                  value={invites.map((email) => ({ email }))}
-                  size="small"
-                >
-                  <Column field="email" header="Vendor Email" />
-                </DataTable>
-              ) : (
-                <p>No vendors invited.</p>
-              )}
-
-              <h5 style={{ marginBottom: "10px" }}>Participating Vendors</h5>
-              <DataTable
-                value={tableRows}
-                stripedRows
-                responsiveLayout="scroll"
-                emptyMessage="No bids yet"
-              >
-                <Column
-                  field="vendorId"
-                  header="Vendor ID"
-                  body={(row) => <strong>{row.vendorId}</strong>}
-                />
-
-                <Column
-                  header="Online"
-                  body={(row) => (row.online ? "🟢 Online" : "🔴 Offline")}
-                />
-
-                <Column
-                  field="vendorName"
-                  header="Vendor"
-                  body={(row) => (
-                    <strong>
-                      {row.vendorName} - {row.company}
-                    </strong>
-                  )}
-                />
-
-                {/* <Column
-                  field="bid"
-                  header="Bid"
-                  body={(row) =>
-                    row.bid !== null ? <strong>₹ {row.bid}</strong> : "-"
-                  }
-                />
-
-                <Column
-                  field="rank"
-                  header="Rank"
-                  body={(row) =>
-                    row.rank ? (
-                      <span
-                        style={{
-                          background: "#2563eb",
-                          color: "#fff",
-                          padding: "4px 10px",
-                          borderRadius: "12px",
-                          fontSize: "0.85rem",
-                          fontWeight: 600,
-                        }}
-                      >
-                        L{row.rank}
-                      </span>
-                    ) : (
-                      "-"
-                    )
-                  }
-                /> */}
-
-                <Column field="time" header="Time" />
-              </DataTable>
-            </Card>
-          </div>
-
-          {/* CHAT SECTION */}
-          <div style={{ width: "40%" }}>
-            <Panel header="Chat with Vendors" className="p-3">
-              <div className="grid">
-                <div className="col-12">
-                  <label>Vendor ID : </label>
-                  <InputText
-                    value={chatVendor}
-                    onChange={(e) => setChatVendor(e.target.value)}
-                  />
-                </div>
-
-                <div className="col-12">
-                  <label>Message : </label>
-                  <InputText
-                    value={chatText}
-                    onChange={(e) => setChatText(e.target.value)}
-                  />
-                </div>
-
-                <div className="col-3 flex align-items-end">
-                  <Button
-                    label="Send"
-                    onClick={() => {
-                      socket.current.emit("chatMessage", {
-                        auctionId: auction.id,
-                        to: chatVendor,
-                        message: chatText,
-                        user_name: user.name,
-                        user_company: user.company,
-                        rfqNumber,
-                      });
-                      setChatText("");
-                    }}
-                  />
-                </div>
-              </div>
-              <Divider />
-              {/* CHAT LIST */}
-              <div
-                style={{
-                  maxHeight: "250px",
-                  overflowY: "auto",
-                  padding: "10px",
-                  background: "#f8f9fa",
-                  borderRadius: "8px",
-                }}
-              >
-                {messages.map((m, i) => {
-                  const isMine = m.from === userId;
-                  console.log("Chat Message:", m);
-                  return (
-                    <div
-                      key={i}
-                      className={`mb-2 flex ${
-                        isMine ? "justify-content-end" : "justify-content-start"
-                      }`}
-                    >
-                      <div
-                        style={{
-                          padding: "10px",
-                          borderRadius: "8px",
-                          background: isMine ? "#0078ff" : "#e0e0e0",
-                          color: isMine ? "white" : "black",
-                          maxWidth: "70%",
-                        }}
-                      >
-                        <strong>{isMine ? "You" : m.user_name}</strong>
-                        <br />
-                        {m.message}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Panel>
-            {/* {isAuctionEnded && (
-              <TabView>
-                <TabPanel header="Activity">
-                  {!existingAuction ? (
-                    <p>No auction activity available.</p>
-                  ) : (
-                    <div className="p-fluid" id="auction-activity-pdf">
-                      <Button
-                        label="📄 Export Activity PDF"
-                        icon="pi pi-file-pdf"
-                        severity="danger"
-                        className="mb-3"
-                        onClick={exportAuctionPDF}
-                      />
-                      <Card title="📅 Auction Timeline" className="mb-3">
-                        <p>
-                          <b>Auction Number:</b>{" "}
-                          {existingAuction.auction_number}
-                        </p>
-                        <p>
-                          <b>Mode:</b> {existingAuction.mode.toUpperCase()}
-                        </p>
-                        <p>
-                          <b>Started At:</b>{" "}
-                          {new Date(existingAuction.startTime).toLocaleString()}
-                        </p>
-                        <p>
-                          <b>Ended At:</b>{" "}
-                          {new Date(existingAuction.endTime).toLocaleString()}
-                        </p>
-                      </Card>
-
-                      <Card title="📨 Invited Vendors" className="mb-3">
-                        {invitedEmails?.length === 0 ? (
-                          <p>No vendors invited.</p>
-                        ) : (
-                          <ul className="pl-3">
-                            {invitedEmails?.map((email) => (
-                              <li key={email}>{email}</li>
-                            ))}
-                          </ul>
-                        )}
-                      </Card>
-
-                      <Card title="✅ Participated Vendors" className="mb-3">
-                        {participatedVendors.length === 0 ? (
-                          <p>No vendors participated.</p>
-                        ) : (
-                          <DataTable value={participatedVendors} size="small">
-                            <Column field="name" header="Vendor Name" />
-                            <Column field="company" header="Company" />
-                            <Column
-                              header="Bid Amount"
-                              body={(row) => existingAuction.bids[row.id]?.bid}
-                            />
-                            <Column
-                              header="Bid Time"
-                              body={(row) =>
-                                new Date(
-                                  existingAuction.bids[row.id]?.time,
-                                ).toLocaleString()
-                              }
-                            />
-                            <Column
-                              header="Rank"
-                              body={(row) =>
-                                existingAuction.ranks?.[row.id] ?? "-"
-                              }
-                            />
-                          </DataTable>
-                        )}
-                      </Card>
-
-
-                      {existingAuction.ranks && (
-                        <Card title="🏆 Auction Result">
-                          {Object.entries(existingAuction.ranks)
-                            .filter(([, rank]) => rank === 1)
-                            .map(([vendorId]) => {
-                              const vendor = userst.find(
-                                (u) => u.id === vendorId,
-                              );
-                              return (
-                                <p key={vendorId}>
-                                  <b>Winner:</b> {vendor?.name} (
-                                  {vendor?.company}) — Bid:{" "}
-                                  {existingAuction.bids[vendorId]?.bid}
-                                </p>
-                              );
-                            })}
-                        </Card>
-                      )}
-                    </div>
-                  )}
-                </TabPanel>
-              </TabView>
-            )} */}
-          </div>
         </>
       )}
     </div>

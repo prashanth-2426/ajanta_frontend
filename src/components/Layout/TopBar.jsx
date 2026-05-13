@@ -1,3 +1,4 @@
+import React, { useEffect } from "react";
 import { InputText } from "primereact/inputtext";
 import { forwardRef, useContext, useImperativeHandle, useRef } from "react";
 import { useSelector } from "react-redux";
@@ -13,6 +14,7 @@ import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 import avatar from "../../assets/images/avatar/square/avatar-m-1.jpg";
 import { removeCredentials } from "../../store/authSlice";
 import { useApi } from "../../utils/requests";
+import { BASE_URL, API_URL } from "../../constants";
 //import { postData } from "../../utils/requests";
 
 const TopBar = forwardRef((props, ref) => {
@@ -58,6 +60,41 @@ const TopBar = forwardRef((props, ref) => {
       },
     });
   };
+
+  useEffect(() => {
+    const handleUnload = (event) => {
+      // detect reload vs close
+      const navEntries = performance.getEntriesByType("navigation");
+
+      const navType = navEntries?.[0]?.type;
+
+      // skip reload
+      if (navType === "reload") {
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem("token");
+
+        navigator.sendBeacon(
+          `${BASE_URL}/auth/logout`,
+          JSON.stringify({
+            token,
+          }),
+        );
+
+        dispatch(removeCredentials());
+      } catch (err) {
+        console.log("Logout on close failed", err);
+      }
+    };
+
+    window.addEventListener("unload", handleUnload);
+
+    return () => {
+      window.removeEventListener("unload", handleUnload);
+    };
+  }, [dispatch]);
 
   return (
     <>
