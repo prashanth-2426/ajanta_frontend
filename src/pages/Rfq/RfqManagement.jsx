@@ -2741,260 +2741,273 @@ const RfqManagement = () => {
                           </div>
                         )} */}
 
-                        {row.hodAcceptRequestDetails?.requested_airline && (
-                          <div
-                            className={`mt-4 border-round-xl shadow-2 overflow-hidden border-1 ${
-                              row.hodAcceptRequestDetails?.hod_rejected_on
-                                ? "border-red-200 bg-red-50"
-                                : "border-green-200 bg-green-50"
-                            }`}
-                          >
-                            {/* HEADER */}
+                        {row.hodAcceptRequestDetails?.requested_airline &&
+                          row.hodAcceptRequestDetails?.requested_airline ===
+                            row.airline_name &&
+                          row.buyerDocumentsUploadedDetails?.submitted_at &&
+                          row.buyerDocumentsUploadedDetails?.airline_name ===
+                            row.airline_name && (
                             <div
-                              className="flex justify-content-between align-items-center px-4 py-3"
-                              style={{
-                                background: row.hodAcceptRequestDetails
-                                  ?.hod_rejected_on
-                                  ? "#fee2e2"
-                                  : "#dcfce7",
-                              }}
+                              className={`mt-4 border-round-xl shadow-2 overflow-hidden border-1 ${
+                                row.hodAcceptRequestDetails?.hod_rejected_on
+                                  ? "border-red-200 bg-red-50"
+                                  : "border-green-200 bg-green-50"
+                              }`}
                             >
-                              <div className="flex align-items-center gap-3">
-                                <i
-                                  className={`pi ${
-                                    row.hodAcceptRequestDetails?.hod_rejected_on
-                                      ? "pi-times-circle text-red-600"
-                                      : "pi-check-circle text-green-600"
-                                  }`}
-                                  style={{
-                                    fontSize: "1.6rem",
-                                  }}
-                                />
-
-                                <div>
-                                  <div
+                              {/* HEADER */}
+                              <div
+                                className="flex justify-content-between align-items-center px-4 py-3"
+                                style={{
+                                  background: row.hodAcceptRequestDetails
+                                    ?.hod_rejected_on
+                                    ? "#fee2e2"
+                                    : "#dcfce7",
+                                }}
+                              >
+                                <div className="flex align-items-center gap-3">
+                                  <i
+                                    className={`pi ${
+                                      row.hodAcceptRequestDetails
+                                        ?.hod_rejected_on
+                                        ? "pi-times-circle text-red-600"
+                                        : "pi-check-circle text-green-600"
+                                    }`}
                                     style={{
-                                      fontWeight: 700,
-                                      fontSize: "1rem",
-                                      color: "#1e293b",
+                                      fontSize: "1.6rem",
                                     }}
-                                  >
-                                    {row.hodAcceptRequestDetails
-                                      ?.hod_rejected_on
-                                      ? "Buyer Rejected"
-                                      : "Buyer Approved"}
-                                  </div>
+                                  />
 
-                                  <div
-                                    style={{
-                                      fontSize: "12px",
-                                      color: "#64748b",
-                                      marginTop: "2px",
-                                    }}
-                                  >
-                                    Shipment Approval Workflow
+                                  <div>
+                                    <div
+                                      style={{
+                                        fontWeight: 700,
+                                        fontSize: "1rem",
+                                        color: "#1e293b",
+                                      }}
+                                    >
+                                      {row.hodAcceptRequestDetails
+                                        ?.hod_rejected_on
+                                        ? "Buyer Rejected"
+                                        : "Buyer Approved"}
+                                    </div>
+
+                                    <div
+                                      style={{
+                                        fontSize: "12px",
+                                        color: "#64748b",
+                                        marginTop: "2px",
+                                      }}
+                                    >
+                                      Shipment Approval Workflow
+                                    </div>
                                   </div>
                                 </div>
+
+                                <span
+                                  className={`px-3 py-2 border-round text-sm font-semibold ${
+                                    row.hodAcceptRequestDetails?.hod_rejected_on
+                                      ? "bg-red-100 text-red-700"
+                                      : "bg-green-100 text-green-700"
+                                  }`}
+                                >
+                                  {row.hodAcceptRequestDetails?.hod_rejected_on
+                                    ? "Rejected"
+                                    : "Approved"}
+                                </span>
                               </div>
 
-                              <span
-                                className={`px-3 py-2 border-round text-sm font-semibold ${
-                                  row.hodAcceptRequestDetails?.hod_rejected_on
-                                    ? "bg-red-100 text-red-700"
-                                    : "bg-green-100 text-green-700"
-                                }`}
-                              >
-                                {row.hodAcceptRequestDetails?.hod_rejected_on
-                                  ? "Rejected"
-                                  : "Approved"}
-                              </span>
-                            </div>
-
-                            {/* BODY */}
-                            <div className="p-4">
-                              <div className="grid">
-                                {/* APPROVAL DETAILS */}
-                                <div className="col-12 md:col-6">
-                                  <div
-                                    className="h-full border-round-lg p-3"
-                                    style={{
-                                      background: "#ffffff",
-                                      border: "1px solid #e2e8f0",
-                                    }}
-                                  >
+                              {/* BODY */}
+                              <div className="p-4">
+                                <div className="grid">
+                                  {/* APPROVAL DETAILS */}
+                                  <div className="col-12 md:col-6">
                                     <div
+                                      className="h-full border-round-lg p-3"
                                       style={{
-                                        fontWeight: 700,
-                                        marginBottom: "12px",
-                                        color: "#334155",
-                                        fontSize: "15px",
+                                        background: "#ffffff",
+                                        border: "1px solid #e2e8f0",
                                       }}
                                     >
-                                      Approval Details
-                                    </div>
-
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: "10px",
-                                        fontSize: "14px",
-                                        lineHeight: 1.7,
-                                      }}
-                                    >
-                                      <div>
-                                        <strong>Buyer Comment:</strong>{" "}
-                                        {row.hodAcceptRequestDetails.hod_msg}
-                                      </div>
-
-                                      {row.hodAcceptRequestDetails
-                                        ?.hod_rejected_on ? (
-                                        <div>
-                                          <strong>Rejected On:</strong>{" "}
-                                          {formatDate(
-                                            row.hodAcceptRequestDetails
-                                              .hod_rejected_on,
-                                          )}
-                                        </div>
-                                      ) : (
-                                        <div>
-                                          <strong>Buyer Approved On:</strong>{" "}
-                                          {formatDate(
-                                            row.hodAcceptRequestDetails
-                                              .hod_approved_on,
-                                          )}
-                                        </div>
-                                      )}
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* WORKFLOW STATUS */}
-                                <div className="col-12 md:col-6">
-                                  <div
-                                    className="h-full border-round-lg p-3"
-                                    style={{
-                                      background: "#ffffff",
-                                      border: "1px solid #e2e8f0",
-                                    }}
-                                  >
-                                    <div
-                                      style={{
-                                        fontWeight: 700,
-                                        marginBottom: "12px",
-                                        color: "#334155",
-                                        fontSize: "15px",
-                                      }}
-                                    >
-                                      Shipment Workflow Status
-                                    </div>
-
-                                    {/* REJECTED NOTE */}
-                                    {row.hodAcceptRequestDetails
-                                      ?.hod_rejected_on && (
                                       <div
                                         style={{
-                                          padding: "12px",
-                                          borderRadius: "8px",
-                                          background: "#fef2f2",
-                                          border: "1px solid #fecaca",
-                                          color: "#991b1b",
-                                          lineHeight: 1.8,
+                                          display: "flex",
+                                          flexDirection: "column",
+                                          gap: "10px",
                                           fontSize: "14px",
+                                          lineHeight: 1.7,
                                         }}
                                       >
-                                        <strong>Note:</strong> Buyer Rejected
+                                        <strong>Submitted On:</strong>
+                                        {formatDate(
+                                          row.buyerDocumentsUploadedDetails
+                                            .submitted_at,
+                                        )}
+                                        <br />
+                                        {row.buyerDocumentsUploadedDetails
+                                          .attached_file?.length > 0 && (
+                                          <>
+                                            <strong>Attachments:</strong>
+
+                                            {row.buyerDocumentsUploadedDetails.attached_file.map(
+                                              (file, index) => (
+                                                <div key={index}>
+                                                  <a
+                                                    href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    className="text-blue-700 underline"
+                                                  >
+                                                    {file}
+                                                  </a>
+                                                </div>
+                                              ),
+                                            )}
+                                          </>
+                                        )}
                                       </div>
-                                    )}
+                                    </div>
+                                  </div>
 
-                                    {/* APPROVED + WAITING FLIGHT SCHEDULE */}
-                                    {!row?.hodAcceptRequestDetails
-                                      ?.hod_rejected_on &&
-                                      row?.hodAcceptRequestDetails
-                                        ?.hod_approved_on &&
-                                      !row?.flight_schedule1 &&
-                                      row?.buyerDocumentsUploadedDetails
-                                        ?.attached_file?.length > 0 && (
+                                  {/* WORKFLOW STATUS */}
+                                  <div className="col-12 md:col-6">
+                                    <div
+                                      className="h-full border-round-lg p-3"
+                                      style={{
+                                        background: "#ffffff",
+                                        border: "1px solid #e2e8f0",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          fontWeight: 700,
+                                          marginBottom: "12px",
+                                          color: "#334155",
+                                          fontSize: "15px",
+                                        }}
+                                      >
+                                        Shipment Workflow Status
+                                      </div>
+
+                                      {/* REJECTED NOTE */}
+                                      {row.hodAcceptRequestDetails
+                                        ?.hod_rejected_on && (
                                         <div
                                           style={{
                                             padding: "12px",
                                             borderRadius: "8px",
-                                            background: "#fffbeb",
-                                            border: "1px solid #fde68a",
-                                            color: "#92400e",
+                                            background: "#fef2f2",
+                                            border: "1px solid #fecaca",
+                                            color: "#991b1b",
                                             lineHeight: 1.8,
                                             fontSize: "14px",
                                           }}
                                         >
-                                          <strong>Note:</strong> You are
-                                          nominated for this shipment, kindly
-                                          share earliest flight schedule.
-                                        </div>
-                                      )}
-
-                                    {/* FLIGHT SCHEDULE SUBMITTED */}
-                                    {row?.flight_schedule1 &&
-                                      row?.hodAcceptRequestDetails
-                                        ?.hod_approved_on &&
-                                      !row?.invoiceDetails &&
-                                      Object.keys(
-                                        row?.buyerDocumentsUploadedDetails ||
-                                          {},
-                                      ).length > 0 && (
-                                        <div
-                                          style={{
-                                            padding: "12px",
-                                            borderRadius: "8px",
-                                            background: "#eff6ff",
-                                            border: "1px solid #bfdbfe",
-                                            color: "#1e40af",
-                                            lineHeight: 1.8,
-                                            fontSize: "14px",
-                                          }}
-                                        >
-                                          <strong>Note:</strong> Flight schedule
-                                          has been submitted. Kindly upload the
-                                          invoice and related cost documents
-                                          (Freight, DAP, Custom Duty, Others) at
-                                          the earliest to proceed further.
-                                        </div>
-                                      )}
-
-                                    {/* UPLOAD INVOICE */}
-                                    {row?.hodAcceptRequestDetails
-                                      ?.hod_approved_on &&
-                                      Object.keys(
-                                        row?.buyerDocumentsUploadedDetails ||
-                                          {},
-                                      ).length > 0 && (
-                                        <div className="mt-4">
-                                          <Button
-                                            label="Upload Invoice"
-                                            icon="pi pi-upload"
-                                            className="p-button-sm p-button-success"
-                                            onClick={() => {
-                                              setSelectedRow({
-                                                user,
-                                                rfqNumberForQuoteSummary,
-                                                invoiceDetails:
-                                                  row.invoiceDetails || [],
-                                              });
-
-                                              setShowVendorUpload(true);
+                                          <strong>Note:</strong> Buyer Rejected
+                                          <div
+                                            style={{
+                                              padding: "12px",
+                                              borderRadius: "8px",
+                                              background: "#fffbeb",
+                                              border: "1px solid #fde68a",
+                                              color: "#92400e",
+                                              lineHeight: 1.8,
+                                              fontSize: "14px",
                                             }}
-                                          />
+                                          >
+                                            <strong>Note:</strong>{" "}
+                                            {
+                                              row.hodAcceptRequestDetails
+                                                .hod_msg
+                                            }
+                                          </div>
                                         </div>
                                       )}
+
+                                      {!row?.hodAcceptRequestDetails
+                                        ?.hod_rejected_on &&
+                                        row.hodAcceptRequestDetails
+                                          ?.hod_approved_on && (
+                                          <div
+                                            style={{
+                                              padding: "12px",
+                                              borderRadius: "8px",
+                                              background: "#fffbeb",
+                                              border: "1px solid #fde68a",
+                                              color: "#92400e",
+                                              lineHeight: 1.8,
+                                              fontSize: "14px",
+                                            }}
+                                          >
+                                            <strong>Note:</strong> You are
+                                            nominated for this shipment, kindly
+                                            share earliest flight schedule.
+                                          </div>
+                                        )}
+
+                                      {/* FLIGHT SCHEDULE SUBMITTED */}
+                                      {row?.flight_schedule1 &&
+                                        row?.hodAcceptRequestDetails
+                                          ?.hod_approved_on &&
+                                        !row?.invoiceDetails &&
+                                        Object.keys(
+                                          row?.buyerDocumentsUploadedDetails ||
+                                            {},
+                                        ).length > 0 && (
+                                          <div
+                                            style={{
+                                              padding: "12px",
+                                              borderRadius: "8px",
+                                              background: "#eff6ff",
+                                              border: "1px solid #bfdbfe",
+                                              color: "#1e40af",
+                                              lineHeight: 1.8,
+                                              fontSize: "14px",
+                                            }}
+                                          >
+                                            <strong>Note:</strong> Flight
+                                            schedule has been submitted. Kindly
+                                            upload the invoice and related cost
+                                            documents (Freight, DAP, Custom
+                                            Duty, Others) at the earliest to
+                                            proceed further.
+                                          </div>
+                                        )}
+
+                                      {/* UPLOAD INVOICE */}
+                                      {row?.hodAcceptRequestDetails
+                                        ?.hod_approved_on &&
+                                        Object.keys(
+                                          row?.buyerDocumentsUploadedDetails ||
+                                            {},
+                                        ).length > 0 && (
+                                          <div className="mt-4">
+                                            <Button
+                                              label="Upload Invoice"
+                                              icon="pi pi-upload"
+                                              className="p-button-sm p-button-success"
+                                              onClick={() => {
+                                                setSelectedRow({
+                                                  user,
+                                                  rfqNumberForQuoteSummary,
+                                                  invoiceDetails:
+                                                    row.invoiceDetails || [],
+                                                });
+
+                                                setShowVendorUpload(true);
+                                              }}
+                                            />
+                                          </div>
+                                        )}
+                                    </div>
                                   </div>
                                 </div>
                               </div>
                             </div>
-                          </div>
-                        )}
+                          )}
 
                         <div className="grid">
                           {/* Buyer Documents Card */}
-                          {row?.buyerDocumentsUploadedDetails &&
+                          {/* {row?.buyerDocumentsUploadedDetails &&
                             row.airline_name ===
                               row.buyerDocumentsUploadedDetails
                                 .airline_name && (
@@ -3059,91 +3072,95 @@ const RfqManagement = () => {
                                   </div>
                                 </div>
                               </div>
-                            )}
+                            )} */}
 
                           {/* Invoice Details Card */}
-                          {row?.invoiceDetails?.status && (
-                            <div className="col-12 md:col-6">
-                              <div className="p-3 mt-3 border-round bg-green-50 border-green-300">
-                                <div className="flex justify-content-between align-items-center">
-                                  <strong className="text-green-700">
-                                    Invoice Submitted
-                                  </strong>
-                                  <span
-                                    className={`px-2 py-1 border-round text-sm ${
-                                      row.invoiceDetails?.status ===
+                          {row?.invoiceDetails?.status &&
+                            row.hodAcceptRequestDetails?.requested_airline ===
+                              row.airline_name && (
+                              <div className="col-12 md:col-6">
+                                <div className="p-3 mt-3 border-round bg-green-50 border-green-300">
+                                  <div className="flex justify-content-between align-items-center">
+                                    <strong className="text-green-700">
+                                      Invoice Submitted
+                                    </strong>
+                                    <span
+                                      className={`px-2 py-1 border-round text-sm ${
+                                        row.invoiceDetails?.status ===
+                                        "invoice_rejected"
+                                          ? "bg-red-100 text-red-700"
+                                          : row.invoiceDetails?.status ===
+                                              "invoice_approved"
+                                            ? "bg-green-100 text-green-700"
+                                            : "bg-yellow-100 text-yellow-700"
+                                      }`}
+                                    >
+                                      {row.invoiceDetails?.status ===
                                       "invoice_rejected"
-                                        ? "bg-red-100 text-red-700"
+                                        ? "Rejected"
                                         : row.invoiceDetails?.status ===
                                             "invoice_approved"
-                                          ? "bg-green-100 text-green-700"
-                                          : "bg-yellow-100 text-yellow-700"
-                                    }`}
-                                  >
-                                    {row.invoiceDetails?.status ===
-                                    "invoice_rejected"
-                                      ? "Rejected"
-                                      : row.invoiceDetails?.status ===
-                                          "invoice_approved"
-                                        ? "Approved"
-                                        : "Submitted"}
-                                  </span>
-                                </div>
+                                          ? "Approved"
+                                          : "Submitted"}
+                                    </span>
+                                  </div>
 
-                                {row.invoiceDetails?.status ===
-                                  "invoice_rejected" &&
-                                  row.invoiceDetails?.remarks && (
-                                    <div className="mt-2 p-2 border-round bg-red-50 border-red-300">
-                                      <strong className="text-red-700">
-                                        Rejection Reason:
-                                      </strong>
-                                      <div className="text-red-600 text-sm mt-1">
-                                        {row.invoiceDetails.remarks}
+                                  {row.invoiceDetails?.status ===
+                                    "invoice_rejected" &&
+                                    row.invoiceDetails?.remarks && (
+                                      <div className="mt-2 p-2 border-round bg-red-50 border-red-300">
+                                        <strong className="text-red-700">
+                                          Rejection Reason:
+                                        </strong>
+                                        <div className="text-red-600 text-sm mt-1">
+                                          {row.invoiceDetails.remarks}
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
+                                    )}
 
-                                <div style={{ marginTop: "8px" }}>
-                                  <strong>DAP Amount:</strong>{" "}
-                                  {row.invoiceDetails.dap_amount}
-                                  <br />
-                                  <strong>Freight Amount:</strong>{" "}
-                                  {row.invoiceDetails.freight_amount}
-                                  <br />
-                                  <strong>Custom Duty:</strong>{" "}
-                                  {row.invoiceDetails.custom_duty_amount}
-                                  <br />
-                                  <strong>Other Charges:</strong>{" "}
-                                  {row.invoiceDetails.others_amount}
-                                  <br />
-                                  <strong>Submitted On:</strong>{" "}
-                                  {formatDate(row.invoiceDetails.submitted_on)}
-                                  <br />
-                                  {row.invoiceDetails.attached_file?.length >
-                                    0 && (
-                                    <>
-                                      <strong>Attachments:</strong>
+                                  <div style={{ marginTop: "8px" }}>
+                                    <strong>DAP Amount:</strong>{" "}
+                                    {row.invoiceDetails.dap_amount}
+                                    <br />
+                                    <strong>Freight Amount:</strong>{" "}
+                                    {row.invoiceDetails.freight_amount}
+                                    <br />
+                                    <strong>Custom Duty:</strong>{" "}
+                                    {row.invoiceDetails.custom_duty_amount}
+                                    <br />
+                                    <strong>Other Charges:</strong>{" "}
+                                    {row.invoiceDetails.others_amount}
+                                    <br />
+                                    <strong>Submitted On:</strong>{" "}
+                                    {formatDate(
+                                      row.invoiceDetails.submitted_on,
+                                    )}
+                                    <br />
+                                    {row.invoiceDetails.attached_file?.length >
+                                      0 && (
+                                      <>
+                                        <strong>Attachments:</strong>
 
-                                      {row.invoiceDetails.attached_file.map(
-                                        (file, index) => (
-                                          <div key={index}>
-                                            <a
-                                              href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              className="text-green-700 underline"
-                                            >
-                                              {file}
-                                            </a>
-                                          </div>
-                                        ),
-                                      )}
-                                    </>
-                                  )}
+                                        {row.invoiceDetails.attached_file.map(
+                                          (file, index) => (
+                                            <div key={index}>
+                                              <a
+                                                href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="text-green-700 underline"
+                                              >
+                                                {file}
+                                              </a>
+                                            </div>
+                                          ),
+                                        )}
+                                      </>
+                                    )}
+                                  </div>
                                 </div>
                               </div>
-                            </div>
-                          )}
+                            )}
                         </div>
                       </div>
 
@@ -3821,7 +3838,7 @@ const RfqManagement = () => {
           <VendorCostUpload
             row={selectedRow}
             refreshData={() => {
-              fetchQuoteSummary(selectedRow.rfqNumberForQuoteSummary);
+              fetchQuotesById(selectedRow.rfqNumberForQuoteSummary);
               setShowVendorUpload(false);
             }}
           />

@@ -29,6 +29,7 @@ import { BASE_URL, API_URL } from "../../constants";
 import { Accordion, AccordionTab } from "primereact/accordion";
 import { MultiSelect } from "primereact/multiselect";
 import { set } from "react-hook-form";
+import { Tag } from "primereact/tag";
 
 const ViewQuote = () => {
   const { postData, getData } = useApi();
@@ -72,6 +73,8 @@ const ViewQuote = () => {
   const [dialogParams, setDialogParams] = useState(null);
 
   const [attachment, setAttachment] = useState([]);
+
+  const [activeStep, setActiveStep] = useState("marketing");
 
   const usersdata = useSelector((state) => state.users.data);
   const hodUsers = Array.isArray(usersdata.users)
@@ -183,9 +186,11 @@ const ViewQuote = () => {
             Number(row.other_charges || 0) +
             Number(row.dap_ddp_charges || 0) * Number(exchangeRate);
 
-          const finalGrandTotal = hasExchangeRate
-            ? computedGrandTotal
-            : Number(row.grandTotalValue || 0);
+          // const finalGrandTotal = hasExchangeRate
+          //   ? computedGrandTotal
+          //   : Number(row.grandTotalValue || 0);
+
+          const finalGrandTotal = Number(row.grandTotalValue || 0);
 
           return sum + finalGrandTotal;
         }, 0);
@@ -441,7 +446,7 @@ const ViewQuote = () => {
 
   const submitNegotiation = async () => {
     try {
-      const negotiations = selectedVendors.map((v) => ({
+      const negotiations = selectedVendors?.map((v) => ({
         vendor_id: v.vendor_id,
         airline_name: v.airline_name,
         last_purchase_price: lastPurchasePrice,
@@ -972,20 +977,54 @@ const ViewQuote = () => {
               Number(quote.other_charges || 0) +
               Number(quote.dap_ddp_charges || 0) * Number(exchangeRate);
 
-            const finalGrandTotal = hasExchangeRate
-              ? computedGrandTotal
-              : Number(quote.grandTotalValue || 0);
+            // const finalGrandTotal = hasExchangeRate
+            //   ? computedGrandTotal
+            //   : Number(quote.grandTotalValue || 0);
 
-            const baseAmount = hasShipmentValue ? shipmentValue : invAmount;
+            const finalGrandTotal = Number(quote.grandTotalValue || 0);
 
-            const percent = baseAmount
-              ? (finalGrandTotal / baseAmount) * 100
-              : null;
+            // const baseAmount = hasShipmentValue ? shipmentValue : invAmount;
+
+            // const percent = baseAmount
+            //   ? (finalGrandTotal / baseAmount) * 100
+            //   : null;
+
+            const percent =
+              hasExchangeRate && hasShipmentValue
+                ? (finalGrandTotal / (exchangeRate * shipmentValue)) * 100
+                : null;
+
+            // ✅ Highest quote from current shipment
+            const highestGrandTotal = Math.max(
+              ...(shipment.quotes || []).map((q) =>
+                Number(q.grandTotalValue || 0),
+              ),
+            );
+
+            // ✅ Calculate savings for all quotes
+            const savingsArray = (shipment.quotes || [])
+              .map((q) => ({
+                grandTotalValue: Number(q.grandTotalValue || 0),
+                saving: highestGrandTotal - Number(q.grandTotalValue || 0),
+              }))
+              .sort((a, b) => b.saving - a.saving); // highest saving => L1
+
+            // ✅ Saving = Highest - Current
+            const total_savingtest = highestGrandTotal - finalGrandTotal;
+
+            // ✅ Rank based on saving
+            const savingRankIndex = savingsArray.findIndex(
+              (q) => q.saving === total_savingtest,
+            );
+
+            const savingRank = `L${savingRankIndex + 1}`;
 
             return {
               ...quote,
               ...(hasExchangeRate && { grandTotalValue: finalGrandTotal }), // 🔥 ONLY when exchangeRate exists
               percentage: percent ? Math.round(percent) : null,
+              total_savingtest: total_savingtest,
+              savingRank,
             };
           }) || []
         );
@@ -2008,65 +2047,6 @@ const ViewQuote = () => {
         currentY += 8;
       };
 
-      const quotedatalatestFinalNew = (startY) => {
-        let y = startY;
-
-        doc.setFontSize(12);
-        doc.setFont("helvetica", "bold");
-        doc.text("Participated Vendor and Bid Details", 20, y);
-
-        y += 6;
-
-        const cols = [
-          "Vendor",
-          "Airline",
-          "Transit Days",
-          "Final Bid Price",
-          "Percent %",
-          "Total Saving",
-          "Position",
-        ];
-
-        const rows = allQuotes.map((q, i) => {
-          const first = q.FirstBidPrice || 0;
-          const final = q.grandTotalValue || 0;
-          const saving = first - final;
-
-          return [
-            q.vendor_name || "-",
-            q.airline_name || "-",
-            q.transit_days || "-",
-            final.toFixed(2),
-            q.percentage ? `${q.percentage}%` : "-",
-            saving.toFixed(2),
-            `L${i + 1}`,
-          ];
-        });
-
-        doc.autoTable({
-          startY: y,
-          head: [cols],
-          body: rows,
-          theme: "grid",
-          styles: {
-            fontSize: 8,
-            cellPadding: 2,
-            overflow: "linebreak",
-            halign: "center",
-          },
-          headStyles: {
-            fillColor: [68, 114, 196],
-            textColor: 255,
-            fontStyle: "bold",
-          },
-          alternateRowStyles: { fillColor: [245, 245, 245] },
-          margin: { left: 15, right: 15 },
-          tableWidth: "auto",
-        });
-
-        return doc.lastAutoTable.finalY + 10;
-      };
-
       const addGeneralDetails = (startY) => {
         let y = startY;
 
@@ -2220,7 +2200,7 @@ const ViewQuote = () => {
               ? new Date(rfq.createdDate).toLocaleString()
               : "N/A",
           ],
-          ["Total Saving (INR)", L1TotalSavings ? L1TotalSavings : "-"],
+          //["Total Saving (INR)", L1TotalSavings ? L1TotalSavings : "-"],
         ];
 
         timelineRows.forEach((row) => {
@@ -2258,33 +2238,69 @@ const ViewQuote = () => {
         checkPageBreak(15);
 
         doc.setFont("helvetica", "bold");
-        doc.text("Invited Vendors", 20, y);
-        y += 5;
+        doc.setFontSize(12);
+        doc.text("Vendor Participation Summary", 20, y);
+
+        y += 6;
+
+        // Invited Vendors Details
+        const invitedVendorDetails = (rfq?.invitedVendors || []).map(
+          (v) =>
+            `Company : ${v.company || "-"}\n` +
+            `Vendor : ${v.name || "-"}\n` +
+            `Email : ${v.email || "-"}`,
+        );
+
+        // Participated Vendors Details
+        const participatedVendorDetails = allQuotes.map(
+          (q) =>
+            `Company : ${q.company || "-"}\n` +
+            `Vendor : ${q.vendor_name || "-"}\n` +
+            `Email : ${q.vendor_email || "-"}`,
+        );
+
+        // Max rows
+        const maxRows = Math.max(
+          invitedVendorDetails.length,
+          participatedVendorDetails.length,
+        );
+
+        // Build rows
+        const rows = Array.from({ length: maxRows }, (_, index) => [
+          invitedVendorDetails[index] || "",
+          participatedVendorDetails[index] || "",
+        ]);
 
         doc.autoTable({
           startY: y,
-          head: [["Email"]],
-          body:
-            invited.length > 0
-              ? invited.map((email) => [email])
-              : [["No vendors invited"]],
+          head: [["Invited Vendors", "Participated Vendors"]],
+          body: rows,
           theme: "grid",
           styles: {
             fontSize: 9,
-            cellPadding: 3,
+            cellPadding: 4,
+            textColor: [0, 0, 0],
+            lineColor: [120, 120, 120],
+            lineWidth: 0.2,
+            overflow: "linebreak",
+            valign: "middle",
           },
           headStyles: {
             fillColor: [68, 114, 196],
             textColor: 255,
             fontStyle: "bold",
+            fontSize: 10,
           },
-          margin: { left: 20, right: 20 },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245],
+          },
+          margin: {
+            left: 20,
+            right: 20,
+          },
         });
 
-        y = doc.lastAutoTable.finalY + 8;
-
-        checkPageBreak(20);
-        return y;
+        return doc.lastAutoTable.finalY + 10;
       };
 
       const quotedatalatestFinal = (startY) => {
@@ -2390,8 +2406,9 @@ const ViewQuote = () => {
           body: buildRows(allCols),
           theme: "grid",
           styles: {
-            fontSize: 8,
+            fontSize: 9,
             cellPadding: 2,
+            textColor: [0, 0, 0],
             halign: "center",
             valign: "middle",
             lineColor: [200, 200, 200],
@@ -2414,7 +2431,7 @@ const ViewQuote = () => {
           },
         });
 
-        return doc.lastAutoTable.finalY + 10;
+        return doc.lastAutoTable.finalY;
       };
 
       /* ==============================
@@ -2435,11 +2452,8 @@ const ViewQuote = () => {
 
       addHeader();
       currentY = addAuctionActivitySection(currentY, auctionData);
-      //addAuctionDetails();
-
-      currentY = quotedatalatestFinalNew(currentY);
       currentY = addGeneralDetails(currentY);
-      currentY = quotedatalatestFinal(currentY);
+      //currentY = quotedatalatestFinal(currentY);
 
       const containerDatat =
         rfq?.package_summary?.packages?.map((pkg) => ({
@@ -2452,6 +2466,114 @@ const ViewQuote = () => {
       // if (containerDatat.length) {
       //   currentY = addContainerAndCharges(currentY, containerDatat);
       // }
+
+      const addVendorQuoteSummaryTable = (startY) => {
+        let y = startY;
+
+        checkPageBreak(30);
+
+        doc.setFontSize(12);
+        doc.setFont("helvetica", "bold");
+        doc.text("Vendor Quote Summary", 20, y);
+
+        y += 8;
+
+        const tableColumn = [
+          "Vendor",
+          "Airline",
+          "Airport",
+          "Chargeable Wt",
+          "Freight",
+          "AMS",
+          "PAC",
+          "AWB",
+          "DAP/DDP",
+          "Other",
+          "First Bid",
+          "Final Bid",
+          "Target Price",
+          "Total Saving",
+          "Percent %",
+          "Rank",
+        ];
+
+        const tableRows = allQuotesWithUniqueId.map((row) => {
+          const matchedNegotiation =
+            Array.isArray(row.negotiation) &&
+            row.negotiation.find(
+              (n) =>
+                n.airline_name?.toLowerCase().trim() ===
+                row.airline_name?.toLowerCase().trim(),
+            );
+
+          return [
+            row.vendor_name || "-",
+            row.airline_name || "-",
+            row.airport || "-",
+            row.chargeable_weight || "-",
+            row.base_rate || "-",
+            row.ams || "-",
+            row.pac || "-",
+            row.awb || "-",
+            row.dap_ddp_charges
+              ? `${row.dap_ddp_charges} (${row.currency})`
+              : "-",
+            row.other_charges || "-",
+            `Rs ${parseFloat(row.FirstBidPrice || 0).toFixed(2)}`,
+            `Rs ${parseFloat(row.grandTotalValue || 0).toFixed(2)}`,
+            matchedNegotiation?.last_purchase_price
+              ? `Rs ${matchedNegotiation.last_purchase_price}`
+              : "-",
+            `Rs ${parseFloat(row.total_savingtest || 0).toFixed(2)}`,
+            `${row.percentage || 0}%`,
+            row.savingRank || "-",
+          ];
+        });
+
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+
+        doc.text(`Exchange Rate : ${exchangeRate || "-"}`, 20, y);
+
+        doc.text(`Shipment Value : Rs ${shipmentValue || "-"}`, 120, y);
+
+        doc.text(
+          `Value of Shipment in INR: Rs ${exchangeRate * shipmentValue || "-"}`,
+          220,
+          y,
+        );
+
+        y += 6;
+
+        doc.autoTable({
+          startY: y,
+          head: [tableColumn],
+          body: tableRows,
+          theme: "grid",
+          styles: {
+            fontSize: 9,
+            cellPadding: 2,
+            textColor: [0, 0, 0],
+            overflow: "linebreak",
+          },
+          headStyles: {
+            fillColor: [41, 128, 185],
+            textColor: 255,
+            fontStyle: "bold",
+          },
+          alternateRowStyles: {
+            fillColor: [245, 245, 245],
+          },
+          margin: {
+            left: 10,
+            right: 10,
+          },
+        });
+
+        return doc.lastAutoTable.finalY;
+      };
+
+      currentY = addVendorQuoteSummaryTable(currentY);
 
       const totalPages = doc.internal.getNumberOfPages();
 
@@ -2475,6 +2597,7 @@ const ViewQuote = () => {
         row.sharedtoMarketingTeamDetails?.accepted_at || null,
       hodApprovalDataRemarks: row.hodAcceptRequestDetails?.remarks || null,
       hodApprovalDataDate: row.hodAcceptRequestDetails?.accepted_at || null,
+      hodApprovedOnDate: row.hodAcceptRequestDetails?.hod_approved_on || null,
       hodApprovalDataRejectedDate:
         row.hodAcceptRequestDetails?.hod_rejected_on || null,
       hodApprovalDataMessage: row.hodAcceptRequestDetails?.hod_msg || null,
@@ -2489,9 +2612,16 @@ const ViewQuote = () => {
     console.log("allQuotesWithUniqueId", allQuotesWithUniqueId);
 
     const hodApprovalQuotes = allQuotesWithUniqueId.filter(
-      (row) =>
+      (row, index, self) =>
         row.hodAcceptRequestDetails &&
-        Object.keys(row.hodAcceptRequestDetails).length > 0,
+        Object.keys(row.hodAcceptRequestDetails).length > 0 &&
+        index ===
+          self.findIndex(
+            (r) =>
+              r.vendor_id === row.vendor_id &&
+              r.hodAcceptRequestDetails?.requested_airline ===
+                row.hodAcceptRequestDetails?.requested_airline,
+          ),
     );
 
     console.log("hodApprovalQuotes", hodApprovalQuotes);
@@ -2503,27 +2633,68 @@ const ViewQuote = () => {
     console.log("hasHodApproved value::", hasHodApproved);
 
     const buyerDocumentsQuotes = allQuotesWithUniqueId.filter(
-      (row) => row.buyerDocumentsSubmitted?.length > 0,
+      (row, index, self) =>
+        row.buyerDocumentsSubmitted?.length > 0 &&
+        index ===
+          self.findIndex(
+            (r) =>
+              r.vendor_id === row.vendor_id &&
+              r.buyerDocumentsUploadedDetails?.airline_name ===
+                row.buyerDocumentsUploadedDetails?.airline_name,
+          ),
     );
 
     console.log("buyerDocumentsQuotes", buyerDocumentsQuotes);
 
     const marketingTeamStatusQuotes = allQuotesWithUniqueId.filter(
-      (row) => row.marketingAttachedFile?.length > 0,
+      (row, index, self) =>
+        row.marketingAttachedFile?.length > 0 &&
+        index ===
+          self.findIndex(
+            (r) =>
+              r.vendor_id === row.vendor_id &&
+              r.sharedtoMarketingTeamDetails?.marketing_email ===
+                row.sharedtoMarketingTeamDetails?.marketing_email,
+          ),
     );
 
     console.log("marketingTeamStatusQuotes", marketingTeamStatusQuotes);
 
     const invoiceDetails = allQuotesWithUniqueId.filter(
-      (row) => row.invoiceDetails && Object.keys(row.invoiceDetails).length > 0,
+      (row, index, self) =>
+        row.invoiceDetails &&
+        Object.keys(row.invoiceDetails).length > 0 &&
+        index ===
+          self.findIndex(
+            (r) =>
+              r.vendor_id === row.vendor_id &&
+              r.invoiceDetails?.vendor_email ===
+                row.invoiceDetails?.vendor_email,
+          ),
     );
 
     console.log("invoiceDetails", invoiceDetails);
 
     const sharedWithAccountsTeamDetails = allQuotesWithUniqueId.filter(
-      (row) =>
-        row.sharedWithAccountsTeamDetails &&
-        Object.keys(row.sharedWithAccountsTeamDetails).length >= 0,
+      (row, index, self) => {
+        // check object has actual values
+        const hasAccountsData =
+          row.sharedtoAccountsTeamDetails &&
+          Object.keys(row.sharedtoAccountsTeamDetails).length > 0;
+
+        if (!hasAccountsData) return false;
+
+        // avoid duplicate vendor/account rows
+        return (
+          index ===
+          self.findIndex(
+            (r) =>
+              r.vendor_id === row.vendor_id &&
+              r.sharedtoAccountsTeamDetails?.shared_on ===
+                row.sharedtoAccountsTeamDetails?.shared_on,
+          )
+        );
+      },
     );
 
     console.log("sharedWithAccountsTeamDetails", sharedWithAccountsTeamDetails);
@@ -2581,6 +2752,10 @@ const ViewQuote = () => {
       allQuotesWithUniqueId.find((row) => row.hodApprovalDataDate)
         ?.hodApprovalDataDate || null;
 
+    const hodApprovedOnDate =
+      allQuotesWithUniqueId.find((row) => row.hodApprovedOnDate)
+        ?.hodApprovedOnDate || null;
+
     const hodRejectedOn =
       allQuotesWithUniqueId.find((row) => row.hodApprovalDataRejectedDate)
         ?.hodApprovalDataRejectedDate || null;
@@ -2605,369 +2780,636 @@ const ViewQuote = () => {
             <span className="text">{auctionPulse.text}</span>
           </div>
         )}
-        <h4 className="mb-3">✈️ All Shipment Quotes (Flat View)</h4>
-        <div className="grid">
-          <div className="col-12 md:col-3">
-            <label htmlFor="exchangeRate">Exchange Rate</label>
-            <input
-              id="exchangeRate"
-              type="number"
-              value={exchangeRate || ""}
-              onChange={(e) => setExchangeRate(Number(e.target.value))}
-              className="p-inputtext p-component w-full"
-              placeholder="Enter Exchange Rate"
-            />
-          </div>
 
-          <div className="col-12 md:col-3">
-            <label htmlFor="shipmentValue">Value of Shipment</label>
-            <input
-              id="shipmentValue"
-              type="number"
-              value={shipmentValue || ""}
-              onChange={(e) => setShipmentValue(Number(e.target.value))}
-              className="p-inputtext p-component w-full"
-              placeholder="Enter Shipment Value"
-            />
-          </div>
-        </div>
+        {auctionData && (
+          <Buyer
+            userId={userId}
+            vendors={selectedVendors}
+            existingAuction={auctionData}
+            invitedVendors={rfq?.invitedVendors || []}
+            onAuctionCreated={() => {
+              setShowAuctionDialog(false);
+              fetchAuctionData();
+            }}
+            onAuctionUpdated={handleAuctionUpdated}
+          />
+        )}
 
-        <div className="flex justify-content-between align-items-center mb-3">
-          <h3>RFQ Quotes Summary</h3>
-          <Button
+        {/* <h4 className="mb-3">✈️ All Shipment Quotes (Flat View)</h4> */}
+        {/* <div className="flex justify-content-between align-items-center mb-3"> */}
+        {/* <h3>RFQ Quotes Summary</h3> */}
+        {/* <Button
             label="Download PDF"
             icon="pi pi-download"
             className="p-button-sm p-button-success"
             onClick={() => exportToPDF(allQuotes, rfq?.rfq_number)}
             disabled={allQuotes.length === 0}
           />
-          {}
-        </div>
+          {} */}
+        {/* </div> */}
 
-        <h6 className="mb-3 mt-4">Approvals :</h6>
-        <div className="grid">
-          {hodApprovalQuotes?.map((quote) => (
-            <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
-              <div className="p-3 border-round shadow-1 surface-card h-full">
-                <div className="flex align-items-center justify-content-between mb-2">
-                  <strong>HOD Status:</strong>
+        <div className="overflow-x-auto">
+          <div
+            className="flex gap-4 align-items-start mt-5"
+            style={{ minWidth: "1100px" }}
+          >
+            {/* ================= MARKETING TEAM ================= */}
+            {marketingTeamStatusQuotes?.length > 0 && (
+              <div
+                className="surface-card border-round shadow-2 p-3 min-w-20rem flex-1 border-1 border-indigo-300"
+                style={{
+                  maxHeight: "650px",
+                  minHeight: "368px",
+                  overflowY: "auto",
+                }}
+              >
+                {/* Header */}
 
-                  <span
-                    className={`px-2 py-1 border-round text-sm ${
-                      quote.hodApprovalDataRejectedDate
-                        ? "bg-red-100 text-red-700"
-                        : "bg-green-100 text-green-700"
-                    }`}
-                  >
-                    {quote.hodApprovalDataRejectedDate
-                      ? "Rejected"
-                      : quote.hodApprovalDataMessage
-                        ? "Approved"
-                        : "Pending Approval"}
-                  </span>
-                </div>
+                {marketingTeamStatusQuotes.map((quote) => {
+                  const marketing = quote.sharedtoMarketingTeamDetails;
 
-                <div className="text-sm">
-                  <div>
-                    <strong>HOD:</strong>{" "}
-                    {quote.hodAcceptRequestDetails?.hod_email}
-                  </div>
-
-                  <div>
-                    <strong>HOD Comment:</strong> {quote.hodApprovalDataMessage}
-                  </div>
-
-                  <div>
-                    <strong>Export Team Buyer Comment:</strong>{" "}
-                    {quote.hodApprovalDataRemarks}
-                  </div>
-
-                  <div>
-                    <strong>Date:</strong>{" "}
-                    {formatDate(
-                      quote.hodApprovalDataRejectedDate ||
-                        quote.hodApprovalDataDate,
-                    )}
-                  </div>
-                </div>
-
-                {quote.attachedFile?.length > 0 && (
-                  <div className="mt-2">
-                    <strong>Attachments:</strong>
-                    {quote.attachedFile.map((file, i) => (
-                      <div key={i}>
-                        <a
-                          href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline text-sm"
-                        >
-                          {file}
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-
-          {marketingTeamStatusQuotes?.map((quote) => {
-            const marketing = quote.sharedtoMarketingTeamDetails;
-
-            return (
-              <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
-                <div className="p-3 border-round shadow-1 surface-card h-full">
-                  {/* Header */}
-                  <div className="flex align-items-center justify-content-between mb-2">
-                    <strong>Marketing Status:</strong>
-
-                    <span
-                      className={`px-2 py-1 border-round text-sm ${
-                        marketing?.status === "marketingteam_rejected"
-                          ? "bg-red-100 text-red-700"
-                          : marketing?.status === "marketingteam_approved"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-yellow-100 text-yellow-700"
-                      }`}
+                  return (
+                    <div
+                      key={quote.uniqueId}
+                      className="border-round border-1 surface-border p-3 mb-3"
                     >
-                      {/* {marketing?.status === "marketingteam_rejected"
+                      <div className="flex align-items-center justify-content-between mb-3">
+                        <div className="flex align-items-center gap-2">
+                          <i className="pi pi-send text-yellow-600 text-xl"></i>
+                          <h5 className="m-0">Marketing Team</h5>
+                        </div>
+
+                        <Tag
+                          className={`px-2 py-1 border-round text-sm ${
+                            marketing?.status === "marketingteam_rejected"
+                              ? "bg-red-100 text-red-700"
+                              : marketing?.status === "marketingteam_approved"
+                                ? "bg-green-100 text-green-700"
+                                : "bg-yellow-100 text-yellow-700"
+                          }`}
+                        >
+                          {/* {marketing?.status === "marketingteam_rejected"
                         ? "Rejected"
                         : marketing?.status === "marketingteam_approved"
                           ? "Approved"
                           : "Pending Approval"} */}
-                      Submited
-                    </span>
+                          Submitted
+                        </Tag>
+                      </div>
+                      {/* Vendor Info */}
+                      {/* <div className="mb-3">
+                        <div>
+                          <strong>Vendor:</strong> {quote.vendor_name}
+                        </div>
 
-                    {/* <i
-                      className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
-                      title="Approve"
-                      onClick={() => setShowApproveDialog(true)}
-                    ></i>
-                    <i
-                      className="pi pi-times-circle text-red-600 cursor-pointer text-lg"
-                      title="Reject"
-                      onClick={() => setShowRejectDialog(true)}
-                    ></i> */}
-                  </div>
+                        <div>
+                          <strong>Airline:</strong> {quote.airline_name}
+                        </div>
+                      </div> */}
 
-                  {/* Details */}
-                  <div className="text-sm">
-                    <div>
-                      <strong>Marketing Name:</strong>{" "}
-                      {marketing?.marketing_name}
-                    </div>
+                      {/* Details */}
+                      <div className="text-sm line-height-3">
+                        <div>
+                          <strong>Marketing Name:</strong>{" "}
+                          {marketing?.marketing_name || "-"}
+                        </div>
 
-                    <div>
-                      <strong>Marketing Email:</strong>{" "}
-                      {marketing?.marketing_email}
-                    </div>
+                        <div>
+                          <strong>Marketing Email:</strong>{" "}
+                          {marketing?.marketing_email || "-"}
+                        </div>
 
-                    <div>
-                      <strong>Marketing Comment:</strong> {marketing?.remarks}
-                    </div>
+                        <div>
+                          <strong>Comment:</strong> {marketing?.remarks || "-"}
+                        </div>
 
-                    <div>
-                      <strong>Date:</strong>{" "}
-                      {formatDate(
-                        marketing?.approved_on ||
-                          marketing?.rejected_on ||
-                          marketing?.accepted_at,
+                        <div>
+                          <strong>Date:</strong>{" "}
+                          {formatDate(
+                            marketing?.approved_on ||
+                              marketing?.rejected_on ||
+                              marketing?.accepted_at,
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Files */}
+                      {marketing?.attached_file?.length > 0 && (
+                        <div
+                          className="mt-3 p-2 border-round-lg"
+                          style={{
+                            background: "#f8fafc",
+                            border: "1px solid #e2e8f0",
+                          }}
+                        >
+                          <div
+                            style={{
+                              fontSize: "12px",
+                              fontWeight: 700,
+                              marginBottom: "6px",
+                              color: "#334155",
+                            }}
+                          >
+                            Attachments
+                          </div>
+
+                          <div
+                            style={{
+                              maxHeight: "90px",
+                              overflowY: "auto",
+                              paddingRight: "4px",
+                            }}
+                          >
+                            {marketing.attached_file.map((file, i) => (
+                              <div key={i}>
+                                <a
+                                  href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
+                                    file,
+                                  )}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-blue-600 underline text-sm"
+                                >
+                                  {file}
+                                </a>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
-                  </div>
-
-                  {/* Attachments */}
-                  {marketing?.attached_file?.length > 0 && (
-                    <div className="mt-2">
-                      <strong>Attachments:</strong>
-                      {marketing.attached_file.map((file, i) => (
-                        <div key={i}>
-                          <a
-                            href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-600 underline text-sm"
-                          >
-                            {file}
-                          </a>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+                  );
+                })}
               </div>
-            );
-          })}
-        </div>
+            )}
 
-        <div className="grid"></div>
-
-        <h6 className="mb-3 mt-5">Buyer to Vendor Documents Submission :</h6>
-        <div className="grid">
-          {buyerDocumentsQuotes.map((quote) => (
-            <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
-              <div className="p-3 border-round shadow-1 surface-card h-full border-green-300 bg-green-50">
-                {/* Header */}
-                <div className="flex align-items-center justify-content-between mb-2">
-                  <strong>{quote.vendor_name}</strong>
-
-                  <span className="px-2 py-1 border-round text-sm bg-green-100 text-green-700">
-                    Documents Submitted
-                  </span>
-                </div>
-
-                {/* Details */}
-                <div className="text-sm mb-2">
-                  <strong>Submitted On:</strong>{" "}
-                  {formatDate(quote.buyerDocSubmittedDate)}
-                </div>
-
-                {/* Attachments */}
-                {quote.buyerDocumentsSubmitted?.length > 0 && (
-                  <div>
-                    <strong>Files:</strong>
-
-                    {quote.buyerDocumentsSubmitted.map((file, i) => (
-                      <div key={i}>
-                        <a
-                          href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(file)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline text-sm"
-                        >
-                          {file}
-                        </a>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <h6 className="mb-3 mt-5">Vendor to Buyer Invoice Submission :</h6>
-        <div className="grid">
-          {invoiceDetails.map((quote) => (
-            <div key={quote.uniqueId} className="col-12 md:col-6 lg:col-4">
-              <div className="p-3 border-round shadow-1 surface-card h-full border-blue-300 bg-blue-50">
-                {/* Header */}
-                <div className="flex align-items-center justify-content-between mb-2">
-                  <strong>{quote.vendor_name}</strong>
-                  <span
-                    className={`px-2 py-1 border-round text-sm ${
-                      quote.invoiceDetails?.status === "invoice_rejected"
-                        ? "bg-red-100 text-red-700"
-                        : quote.invoiceDetails?.status === "invoice_approved"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-yellow-100 text-yellow-700"
-                    }`}
+            {/* ================= HOD APPROVAL ================= */}
+            {hodApprovalQuotes?.length > 0 && (
+              <div
+                className="surface-card border-round shadow-2 p-3 min-w-20rem flex-1 border-1 border-indigo-300"
+                style={{
+                  maxHeight: "650px",
+                  minHeight: "368px",
+                  overflowY: "auto",
+                }}
+              >
+                {hodApprovalQuotes.map((quote) => (
+                  <div
+                    key={quote.uniqueId}
+                    className="border-round border-1 surface-border p-3 mb-3"
                   >
-                    {quote.invoiceDetails?.status === "invoice_rejected"
-                      ? "Rejected"
-                      : quote.invoiceDetails?.status === "invoice_approved"
-                        ? "Approved"
-                        : "Received"}
-                  </span>
-
-                  {/* <i
-                    className="pi pi-share-alt text-green-600 cursor-pointer text-lg"
-                    title="Share with Accounts Team"
-                    onClick={() => {
-                      setSelectedInvoice(quote.invoiceDetails);
-                      setShowShareToAccountsTeamDialog(true);
-                    }}
-                  ></i> */}
-
-                  <i
-                    className={`pi pi-share-alt text-lg ${
-                      sharedWithAccountsTeamDetails?.length > 0
-                        ? "text-gray-400 cursor-not-allowed"
-                        : "text-green-600 cursor-pointer"
-                    }`}
-                    title={
-                      sharedWithAccountsTeamDetails?.length > 0
-                        ? "Shared with Accounts Team"
-                        : "Share with Accounts Team"
-                    }
-                    onClick={() => {
-                      if (sharedWithAccountsTeamDetails?.length > 0) return;
-
-                      setSelectedInvoice(quote.invoiceDetails);
-                      setShowShareToAccountsTeamDialog(true);
-                    }}
-                  ></i>
-
-                  <i
-                    className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
-                    title="Approve"
-                    onClick={() => {
-                      setSelectedInvoice(quote.invoiceDetails);
-                      handleInvoiceApproveSubmit(true);
-                    }}
-                  ></i>
-                  <i
-                    className="pi pi-times-circle text-red-600 cursor-pointer text-lg"
-                    title="Reject"
-                    onClick={() => {
-                      setSelectedInvoice(quote.invoiceDetails);
-                      setShowRejectDialog(true);
-                    }}
-                  ></i>
-                </div>
-
-                {/* Submitted Date */}
-                <div className="text-sm mb-2">
-                  <strong>Submitted On:</strong>{" "}
-                  {formatDate(quote.invoiceDetails?.submitted_on)}
-                </div>
-
-                {/* Cost Breakdown */}
-                <div className="text-sm mb-2">
-                  <div>
-                    <strong>Freight:</strong>{" "}
-                    {quote.invoiceDetails?.freight_amount || "-"}
-                  </div>
-
-                  <div>
-                    <strong>DAP:</strong>{" "}
-                    {quote.invoiceDetails?.dap_amount || "-"}
-                  </div>
-
-                  <div>
-                    <strong>Custom Duty:</strong>{" "}
-                    {quote.invoiceDetails?.custom_duty_amount || "-"}
-                  </div>
-
-                  <div>
-                    <strong>Others:</strong>{" "}
-                    {quote.invoiceDetails?.others_amount || "-"}
-                  </div>
-                </div>
-
-                {/* Attachments */}
-                {quote.invoiceDetails?.attached_file?.length > 0 && (
-                  <div>
-                    <strong>Files:</strong>
-
-                    {quote.invoiceDetails.attached_file.map((file, i) => (
-                      <div key={i}>
-                        <a
-                          href={`${BASE_URL}/uploads/invoices/${encodeURIComponent(file)}`}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 underline text-sm"
-                        >
-                          {file}
-                        </a>
+                    <div className="flex align-items-center justify-content-between mb-3">
+                      <div className="flex align-items-center gap-2">
+                        <i className="pi pi-check-circle text-green-600 text-xl"></i>
+                        <h5 className="m-0">HOD Approval</h5>
                       </div>
-                    ))}
+
+                      <Tag
+                        className={`px-2 py-1 border-round text-sm ${
+                          quote.hodApprovalDataRejectedDate
+                            ? "bg-red-100 text-red-700"
+                            : "bg-green-100 text-green-700"
+                        }`}
+                      >
+                        {quote.hodApprovalDataRejectedDate
+                          ? "Rejected"
+                          : quote.hodApprovalDataMessage
+                            ? "Approved"
+                            : "Pending Approval"}
+                      </Tag>
+                    </div>
+                    <div className="mb-3">
+                      <div>
+                        <strong>Vendor:</strong> {quote.vendor_name}
+                      </div>
+
+                      <div>
+                        <strong>Airline:</strong> {quote.requested_airline}
+                      </div>
+                    </div>
+
+                    <div className="text-sm line-height-3">
+                      <div>
+                        <strong>HOD Email:</strong>{" "}
+                        {quote.hodAcceptRequestDetails?.hod_email}
+                      </div>
+
+                      <div>
+                        <strong>HOD Comment:</strong>{" "}
+                        {quote.hodApprovalDataMessage}
+                      </div>
+
+                      <div>
+                        <strong>Buyer Comment:</strong>{" "}
+                        {quote.hodApprovalDataRemarks}
+                      </div>
+
+                      <div>
+                        <strong>Requested Date:</strong>{" "}
+                        {formatDate(
+                          quote.hodApprovalDataRejectedDate ||
+                            quote.hodApprovalDataDate,
+                        )}
+                      </div>
+                      <div>
+                        <strong>HOD Approved Date:</strong>{" "}
+                        {formatDate(quote.hodApprovedOnDate)}
+                      </div>
+                    </div>
+
+                    {quote.attachedFile?.length > 0 && (
+                      <div
+                        className="mt-3 p-2 border-round-lg"
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            marginBottom: "6px",
+                            color: "#334155",
+                          }}
+                        >
+                          Attachments
+                        </div>
+
+                        <div
+                          style={{
+                            maxHeight: "90px",
+                            overflowY: "auto",
+                            paddingRight: "4px",
+                          }}
+                        >
+                          {quote.attachedFile.map((file, i) => (
+                            <div key={i}>
+                              <a
+                                href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
+                                  file,
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline text-sm"
+                              >
+                                {file}
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                )}
+                ))}
               </div>
-            </div>
-          ))}
+            )}
+
+            {/* ================= BUYER DOCS ================= */}
+            {buyerDocumentsQuotes?.length > 0 && (
+              <div
+                className="surface-card border-round shadow-2 p-3 min-w-20rem flex-1 border-1 border-indigo-300"
+                style={{
+                  maxHeight: "650px",
+                  minHeight: "368px",
+                  overflowY: "auto",
+                }}
+              >
+                {buyerDocumentsQuotes.map((quote) => (
+                  <div
+                    key={quote.uniqueId}
+                    className="border-round border-1 surface-border p-3 mb-3"
+                  >
+                    <div className="flex align-items-center justify-content-between mb-3">
+                      <div className="flex align-items-center gap-2">
+                        <i className="pi pi-folder-open text-blue-600 text-xl"></i>
+                        <h5 className="m-0">Buyer → Vendor Docs</h5>
+                      </div>
+
+                      <Tag
+                        value="Uploaded"
+                        severity="info"
+                        className="text-sm"
+                      />
+                    </div>
+                    <div className="mb-3">
+                      <div>
+                        <strong>Vendor:</strong> {quote.vendor_name}
+                      </div>
+
+                      <div>
+                        <strong>Airline:</strong> {quote.airline_name}
+                      </div>
+                    </div>
+
+                    <div className="text-sm mb-3">
+                      <strong>Submitted On:</strong>{" "}
+                      {formatDate(quote.buyerDocSubmittedDate)}
+                    </div>
+
+                    {quote.buyerDocumentsSubmitted?.length > 0 && (
+                      <div
+                        className="mt-3 p-2 border-round-lg"
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            marginBottom: "6px",
+                            color: "#334155",
+                          }}
+                        >
+                          Attachments
+                        </div>
+                        <div
+                          style={{
+                            maxHeight: "90px",
+                            overflowY: "auto",
+                            paddingRight: "4px",
+                          }}
+                        >
+                          {quote.buyerDocumentsSubmitted.map((file, i) => (
+                            <div key={i}>
+                              <a
+                                href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
+                                  file,
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 underline text-sm"
+                              >
+                                {file}
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ================= INVOICE SUBMISSION ================= */}
+            {invoiceDetails?.length > 0 && (
+              <div
+                className="surface-card border-round shadow-2 p-3 min-w-20rem flex-1 border-1 border-indigo-300"
+                style={{
+                  maxHeight: "650px",
+                  overflowY: "auto",
+                }}
+              >
+                {invoiceDetails.map((quote) => (
+                  <div
+                    key={quote.uniqueId}
+                    className="border-round-xl border-1 surface-border p-3 mb-3"
+                    style={{
+                      background: "#ffffff",
+                      border: "1px solid #dbeafe",
+                    }}
+                  >
+                    {/* HEADER */}
+                    <div className="flex align-items-start justify-content-between gap-3 mb-2">
+                      {/* LEFT */}
+                      <div className="flex align-items-start gap-2">
+                        <div>
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              fontSize: "15px",
+                              color: "#1e293b",
+                            }}
+                          >
+                            <i className="pi pi-folder-open text-blue-600 text-xl"></i>{" "}
+                            Vendor Invoice
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* RIGHT */}
+                      <div className="flex align-items-center gap-2 flex-wrap justify-content-end">
+                        <Tag
+                          value={
+                            quote.invoiceDetails?.status === "invoice_rejected"
+                              ? "Rejected"
+                              : quote.invoiceDetails?.status ===
+                                  "invoice_approved"
+                                ? "Approved"
+                                : "Received"
+                          }
+                          severity={
+                            quote.invoiceDetails?.status === "invoice_rejected"
+                              ? "danger"
+                              : quote.invoiceDetails?.status ===
+                                  "invoice_approved"
+                                ? "success"
+                                : "warning"
+                          }
+                        />
+
+                        {/* SHARE */}
+                        <i
+                          className={`pi pi-share-alt text-lg ${
+                            sharedWithAccountsTeamDetails?.length > 0
+                              ? "text-gray-400 cursor-not-allowed"
+                              : "text-blue-600 cursor-pointer"
+                          }`}
+                          title={
+                            sharedWithAccountsTeamDetails?.length > 0
+                              ? `Shared with Accounts Team: ${
+                                  quote?.sharedtoAccountsTeamDetails
+                                    ?.accounts_team_details || "-"
+                                }
+Shared On: ${
+                                  quote?.sharedtoAccountsTeamDetails?.shared_on
+                                    ? new Date(
+                                        quote.sharedtoAccountsTeamDetails
+                                          .shared_on,
+                                      ).toLocaleString()
+                                    : "-"
+                                }`
+                              : "Share with Accounts Team"
+                          }
+                          onClick={() => {
+                            if (sharedWithAccountsTeamDetails?.length > 0)
+                              return;
+
+                            setSelectedInvoice(quote.invoiceDetails);
+                            setShowShareToAccountsTeamDialog(true);
+                          }}
+                        ></i>
+
+                        {/* APPROVE */}
+                        <i
+                          className="pi pi-check-circle text-green-600 cursor-pointer text-lg"
+                          title="Approve"
+                          onClick={() => {
+                            setSelectedInvoice(quote.invoiceDetails);
+                            handleInvoiceApproveSubmit(true);
+                          }}
+                        ></i>
+
+                        {/* REJECT */}
+                        <i
+                          className="pi pi-times-circle text-red-600 cursor-pointer text-lg"
+                          title="Reject"
+                          onClick={() => {
+                            setSelectedInvoice(quote.invoiceDetails);
+                            setShowRejectDialog(true);
+                          }}
+                        ></i>
+                      </div>
+                    </div>
+
+                    {/* SUMMARY */}
+                    <div
+                      className="grid mt-2"
+                      style={{
+                        fontSize: "12px",
+                        color: "#334155",
+                        rowGap: "6px",
+                      }}
+                    >
+                      <div className="col-6">
+                        <strong>Freight:</strong>{" "}
+                        {quote.invoiceDetails?.freight_amount || "-"}
+                      </div>
+
+                      <div className="col-6">
+                        <strong>DAP:</strong>{" "}
+                        {quote.invoiceDetails?.dap_amount || "-"}
+                      </div>
+
+                      <div className="col-6">
+                        <strong>Custom:</strong>{" "}
+                        {quote.invoiceDetails?.custom_duty_amount || "-"}
+                      </div>
+
+                      <div className="col-6">
+                        <strong>Others:</strong>{" "}
+                        {quote.invoiceDetails?.others_amount || "-"}
+                      </div>
+
+                      <div className="col-12">
+                        <strong>Submitted:</strong>{" "}
+                        {formatDate(quote.invoiceDetails?.submitted_on)}
+                      </div>
+                    </div>
+
+                    {/* FILES */}
+                    {quote.invoiceDetails?.attached_file?.length > 0 && (
+                      <div
+                        className="mt-3 p-2 border-round-lg"
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                        }}
+                      >
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            marginBottom: "6px",
+                            color: "#334155",
+                          }}
+                        >
+                          Attachments
+                        </div>
+
+                        <div
+                          style={{
+                            maxHeight: "90px",
+                            overflowY: "auto",
+                            paddingRight: "4px",
+                          }}
+                        >
+                          {quote.invoiceDetails.attached_file.map((file, i) => (
+                            <div
+                              key={i}
+                              style={{
+                                marginBottom: "4px",
+                              }}
+                            >
+                              <a
+                                href={`${BASE_URL}/uploads/invoices/${encodeURIComponent(
+                                  file,
+                                )}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 text-sm"
+                                style={{
+                                  wordBreak: "break-word",
+                                  textDecoration: "underline",
+                                  fontSize: "12px",
+                                }}
+                              >
+                                {file}
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ================= ACCOUNTS TEAM ================= */}
+            {/* {sharedWithAccountsTeamDetails?.length > 0 && (
+              <div className="surface-card border-round shadow-2 p-3 min-w-20rem flex-1 border-1 border-purple-300">
+                <div className="flex align-items-center justify-content-between mb-3">
+                  <div className="flex align-items-center gap-2">
+                    <i className="pi pi-wallet text-purple-600 text-xl"></i>
+                    <h5 className="m-0">Accounts Team</h5>
+                  </div>
+
+                  <Tag value="Shared" severity="help" className="text-sm" />
+                </div>
+
+                {sharedWithAccountsTeamDetails.map((quote) => {
+                  const accounts = quote.sharedtoAccountsTeamDetails;
+
+                  return (
+                    <div
+                      key={quote.uniqueId}
+                      className="border-round border-1 surface-border p-3 mb-3"
+                    >
+                      <div className="mb-3">
+                        <div>
+                          <strong>Vendor:</strong> {quote.vendor_name}
+                        </div>
+
+                        <div>
+                          <strong>Airline:</strong> {quote.airline_name}
+                        </div>
+                      </div>
+
+                      <div className="text-sm line-height-3">
+                        <div>
+                          <strong>Accounts Team:</strong>{" "}
+                          {accounts?.accounts_team_details || "-"}
+                        </div>
+
+                        <div>
+                          <strong>Remarks:</strong> {accounts?.remarks || "-"}
+                        </div>
+
+                        <div>
+                          <strong>Shared On:</strong>{" "}
+                          {formatDate(accounts?.shared_on)}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )} */}
+          </div>
         </div>
 
         {/* {attachedFiles.length > 0 && (
@@ -3171,13 +3613,74 @@ const ViewQuote = () => {
           </div>
         )} */}
 
+        <hr />
+
+        <div className="flex justify-content-end align-items-center gap-4 mb-3 mt-5 flex-wrap">
+          <div className="flex align-items-center gap-2">
+            <label
+              htmlFor="exchangeRate"
+              style={{ minWidth: "110px", fontWeight: 600 }}
+            >
+              Exchange Rate
+            </label>
+
+            <input
+              id="exchangeRate"
+              type="number"
+              value={exchangeRate || ""}
+              onChange={(e) => setExchangeRate(Number(e.target.value))}
+              className="p-inputtext p-component"
+              placeholder="Enter Exchange Rate"
+              style={{ width: "180px" }}
+            />
+          </div>
+
+          <div className="flex align-items-center gap-2">
+            <label
+              htmlFor="shipmentValue"
+              style={{ minWidth: "130px", fontWeight: 600 }}
+            >
+              Shipment Value
+            </label>
+
+            <input
+              id="shipmentValue"
+              type="number"
+              value={shipmentValue || ""}
+              onChange={(e) => setShipmentValue(Number(e.target.value))}
+              className="p-inputtext p-component"
+              placeholder="Enter Shipment Value"
+              style={{ width: "180px" }}
+            />
+          </div>
+
+          <Button
+            label="Download PDF"
+            icon="pi pi-download"
+            className="p-button-sm p-button-success"
+            onClick={() => exportToPDF(allQuotes, rfq?.rfq_number)}
+            disabled={allQuotes.length === 0}
+          />
+        </div>
+
         <DataTable
           value={allQuotesWithUniqueId}
           responsiveLayout="scroll"
           className="p-datatable-sm"
           emptyMessage="No shipment quotes available"
           selection={selectedVendors}
-          onSelectionChange={(e) => setSelectedVendors(e.value)}
+          onSelectionChange={(e) => {
+            console.log("DataTable onSelectionChange triggered", auctionData);
+
+            // if auctionData exists → allow multiple selection
+            if (auctionData && Object.keys(auctionData).length > 0) {
+              const latestSelection = e.value?.slice(-1) || [];
+              setSelectedVendors(latestSelection);
+            } else {
+              // otherwise allow only latest selected row
+              setSelectedVendors(e.value || []);
+            }
+          }}
           dataKey="uniqueId" // make sure vendor_id is unique in your data
           expandedRows={expandedRows}
           onRowToggle={(e) => setExpandedRows(e.data)}
@@ -3194,7 +3697,20 @@ const ViewQuote = () => {
           }}
           footerColumnGroup={footerGroup}
         >
-          <Column expander style={{ width: "3rem" }} />
+          <Column
+            expander={(rowData) => {
+              const hasFlightDetails =
+                rowData.route1 ||
+                rowData.route2 ||
+                rowData.route3 ||
+                rowData.flight_schedule1 ||
+                rowData.flight_schedule2 ||
+                rowData.flight_schedule3;
+
+              return hasFlightDetails;
+            }}
+            style={{ width: "3rem" }}
+          />
           <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
           <Column header="Vendor" body={(row) => row.vendor_name} />
           <Column
@@ -3313,7 +3829,7 @@ const ViewQuote = () => {
                 <strong
                   className={saving > 0 ? "text-green-600" : "text-red-500"}
                 >
-                  ₹ {saving.toFixed(2)}
+                  ₹ {row.total_savingtest.toFixed(2)}
                 </strong>
               );
             }}
@@ -3326,12 +3842,12 @@ const ViewQuote = () => {
           <Column
             header="Rank"
             body={(row) =>
-              row.rank === "L1" ? (
+              row.savingRank === "L1" ? (
                 <span style={{ color: "green", fontWeight: "bold" }}>
-                  {row.rank}
+                  {row.savingRank}
                 </span>
               ) : (
-                row.rank || "-"
+                row.savingRank || "-"
               )
             }
           />
@@ -3450,7 +3966,9 @@ const ViewQuote = () => {
                       style={{ width: "1.5rem", height: "1.5rem", padding: 0 }}
                       disabled={
                         !selectedVendors?.some(
-                          (item) => item.vendor_id === row.vendor_id,
+                          (item) =>
+                            item.vendor_id === row.vendor_id &&
+                            item.airline_name === row.airline_name,
                         )
                       }
                       onClick={() =>
@@ -3734,14 +4252,14 @@ const ViewQuote = () => {
   );
 
   return (
-    <div className="p-4">
-      <h3 className="mb-2">
+    <>
+      {/* <h3 className="mb-2">
         Quote Summary - {rfq?.rfq_number}{" "}
         <span className="text-gray-500 text-sm">({rfq?.title})</span>
-      </h3>
+      </h3> */}
 
-      <div className="flex justify-content-between align-items-center mb-3">
-        {/* <ToggleButton
+      {/* <div className="flex justify-content-between align-items-center mb-3"> */}
+      {/* <ToggleButton
           onLabel="Per Item L1/L2 View"
           offLabel="Total L1/L2 View"
           onIcon="pi pi-eye"
@@ -3761,7 +4279,7 @@ const ViewQuote = () => {
           className="mb-3"
         /> */}
 
-        <span className="p-input-icon-left">
+      {/* <span className="p-input-icon-left">
           <i className="pi pi-search" />
           <input
             type="text"
@@ -3770,31 +4288,31 @@ const ViewQuote = () => {
             value={globalFilter}
             onChange={(e) => setGlobalFilter(e.target.value)}
           />
-        </span>
-      </div>
+        </span> */}
+      {/* </div> */}
 
-      <Panel
+      {/* <Panel
         header={`${rfq?.title || ""} (${rfq?.rfq_number})`}
         toggleable
         collapsed={false}
-      >
-        <p className="mb-3 text-sm text-gray-600">{rfq?.description}</p>
+      > */}
+      {/* <p className="mb-3 text-sm text-gray-600">{rfq?.description}</p> */}
 
-        {!rfq?.isShipmentBased && (
-          <>
-            {!viewItemLevel
-              ? "" //vendorTable
-              : rfq.rfq_items?.length
-                ? itemLevelL1L2Table()
-                : roadTransportL1L2Table()}
-            {packageQuoteL1L2Table()}
-          </>
-        )}
+      {!rfq?.isShipmentBased && (
+        <>
+          {!viewItemLevel
+            ? "" //vendorTable
+            : rfq.rfq_items?.length
+              ? itemLevelL1L2Table()
+              : roadTransportL1L2Table()}
+          {packageQuoteL1L2Table()}
+        </>
+      )}
 
-        {/* {shipmentWiseQuoteTable()} */}
-        {isFlatView ? shipmentLevelL1L2Table() : shipmentWiseQuoteTable()}
+      {/* {shipmentWiseQuoteTable()} */}
+      {isFlatView ? shipmentLevelL1L2Table() : shipmentWiseQuoteTable()}
 
-        {/* {hodQuote && (
+      {/* {hodQuote && (
           <div className="p-3 bg-yellow-100 border border-yellow-400 rounded mt-3">
             <strong>HOD Approval Requested For:</strong>{" "}
             {hodQuote.hodAcceptRequestDetails.requested_airline}
@@ -3806,19 +4324,19 @@ const ViewQuote = () => {
           </div>
         )} */}
 
-        <div className="mt-4 flex flex-wrap gap-3 justify-content-end">
-          {role === "user" && (
-            <Button
-              label="Share To Marketing Team"
-              icon="pi pi-download"
-              className="p-button-sm p-button-success"
-              onClick={() => setShowShareToMarketTeamDialog(true)}
-            />
-          )}
+      <div className="mt-4 flex flex-wrap gap-3 justify-content-end">
+        {role === "user" && (
+          <Button
+            label="Share To Marketing Team"
+            icon="pi pi-download"
+            className="p-button-sm p-button-success"
+            onClick={() => setShowShareToMarketTeamDialog(true)}
+          />
+        )}
 
-          {/* {hodQuote && ( */}
-          <div>
-            {/* {role === "hod" && (
+        {/* {hodQuote && ( */}
+        <div>
+          {/* {role === "hod" && (
               <Button
                 label="✅ Accept Quote"
                 className="p-button-success p-button-sm"
@@ -3828,31 +4346,31 @@ const ViewQuote = () => {
               />
             )} */}
 
-            <div style={{ display: "flex", gap: "10px" }}>
-              {role === "user" && (
-                <>
-                  <Button
-                    label={auctionData ? "✏️ Re-Auction" : "🏆 Conduct Auction"}
-                    className="p-button-success p-button-sm"
-                    onClick={() => setShowAuctionDialog(true)}
-                    disabled={!auctionData && selectedVendors.length === 0}
-                  />
-                </>
-              )}
-            </div>
+          <div style={{ display: "flex", gap: "10px" }}>
+            {role === "user" && (
+              <>
+                <Button
+                  label={auctionData ? "✏️ Re-Auction" : "🏆 Conduct Auction"}
+                  className="p-button-success p-button-sm"
+                  onClick={() => setShowAuctionDialog(true)}
+                  disabled={!auctionData && selectedVendors.length === 0}
+                />
+              </>
+            )}
           </div>
+        </div>
 
-          {role !== "hod" && (
-            <Button
-              label="Send For HOD Approval"
-              className="p-button-info p-button-sm"
-              onClick={() => setShowHodApprovalDialog(true)}
-              //disabled={selectedVendors.length === 0}
-            />
-          )}
-          {/* )} */}
+        {role !== "hod" && (
+          <Button
+            label="Send For HOD Approval"
+            className="p-button-info p-button-sm"
+            onClick={() => setShowHodApprovalDialog(true)}
+            //disabled={selectedVendors.length === 0}
+          />
+        )}
+        {/* )} */}
 
-          {/* <Button
+        {/* <Button
             label="⚖️ Move to Auction"
             className="p-button-info p-button-sm"
             onClick={() => handleAction("auction", rfq.rfq_number)}
@@ -3862,22 +4380,9 @@ const ViewQuote = () => {
             className="p-button-danger p-button-sm"
             onClick={() => handleAction("reject", rfq.rfq_number)}
           /> */}
-        </div>
-        <hr />
-        {auctionData && (
-          <Buyer
-            userId={userId}
-            vendors={selectedVendors}
-            existingAuction={auctionData}
-            invitedVendors={rfq?.invitedVendors || []}
-            onAuctionCreated={() => {
-              setShowAuctionDialog(false);
-              fetchAuctionData();
-            }}
-            onAuctionUpdated={handleAuctionUpdated}
-          />
-        )}
-      </Panel>
+      </div>
+      <hr />
+      {/* </Panel> */}
 
       {/* <Dialog
         header="Send Negotiation Request"
@@ -4075,7 +4580,7 @@ const ViewQuote = () => {
         style={{ width: "35vw" }}
       >
         <div className="mb-3">
-          {selectedVendors.map((v) => (
+          {selectedVendors?.map((v) => (
             <div key={v.vendor_id} className="mb-2">
               <i className="pi pi-user mr-2" />
               <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
@@ -4333,7 +4838,7 @@ const ViewQuote = () => {
       >
         <div className="mb-3">
           <h5>Selected Vendors</h5>
-          {selectedVendors.map((v) => (
+          {selectedVendors?.map((v) => (
             <div key={v.vendor_id} className="mb-2">
               <i className="pi pi-user mr-2" />
               <strong>{v.vendor_name}</strong> — {v.airline_name || "N/A"}
@@ -4360,8 +4865,8 @@ const ViewQuote = () => {
               await postData("quotesummary/update-rfq-status", {
                 rfq_number: rfq.rfq_number,
                 action: "accept_l1",
-                vendors: selectedVendors.map((v) => v.vendor_id),
-                acceptedAirline: selectedVendors.map((v) => v.airline_name),
+                vendors: selectedVendors?.map((v) => v.vendor_id),
+                acceptedAirline: selectedVendors?.map((v) => v.airline_name),
                 remarks: acceptRemarks,
               });
               dispatch(
@@ -4598,7 +5103,7 @@ const ViewQuote = () => {
           </div>
         </div>
       </Dialog>
-    </div>
+    </>
   );
 };
 

@@ -20,6 +20,7 @@ import html2canvas from "html2canvas";
 import { BASE_URL, API_URL } from "../../constants";
 import { set } from "react-hook-form";
 import { Tag } from "primereact/tag";
+import { formatDate } from "../../utils/local";
 
 const SERVER = API_URL;
 
@@ -588,8 +589,8 @@ export default function Buyer({
     <div
       style={{
         //display: "flex",
-        gap: "20px",
-        padding: "20px",
+        gap: "0px",
+        padding: "0px",
         alignItems: "flex-start",
       }}
     >
@@ -894,7 +895,7 @@ export default function Buyer({
               {/* ============================ */}
               {/* PARTICIPATED VENDORS */}
               {/* ============================ */}
-              <div
+              {/* <div
                 className="p-4 border-round-xl"
                 style={{
                   background: "#ffffff",
@@ -990,7 +991,7 @@ export default function Buyer({
                     }}
                   />
                 </DataTable>
-              </div>
+              </div> */}
             </div>
           </Card>
         </div>
@@ -1060,7 +1061,10 @@ export default function Buyer({
 
                   {/* TAGS */}
                   <div className="flex gap-2 flex-wrap mt-3">
-                    <Tag value={`RFQ : ${rfqNumber}`} severity="info" />
+                    <Tag
+                      value={`AUCTION NUMBER : ${auction?.auction_number}`}
+                      severity="info"
+                    />
 
                     <Tag
                       value={`Auction ID : ${auction?.id}`}
@@ -1068,6 +1072,14 @@ export default function Buyer({
                     />
 
                     <Tag value="LIVE AUCTION" severity="danger" />
+                  </div>
+                  <div className="flex gap-2 flex-wrap mt-3">
+                    <Tag value={`AUCTION START TIME :`} severity="success" /> :{" "}
+                    {formatDate(auction?.startTime)}
+                    <Tag
+                      value={`AUCTION END TIME :`}
+                      severity="success"
+                    />: {formatDate(auction?.endTime)}
                   </div>
                 </div>
 
@@ -1078,8 +1090,8 @@ export default function Buyer({
                       style={{
                         background: "rgba(255,255,255,0.08)",
                         border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: "20px",
-                        padding: "22px",
+                        borderRadius: "5px",
+                        padding: "9px",
                         textAlign: "center",
                       }}
                     >
@@ -1126,8 +1138,8 @@ export default function Buyer({
                       style={{
                         background: "rgba(255,255,255,0.08)",
                         border: "1px solid rgba(255,255,255,0.1)",
-                        borderRadius: "20px",
-                        padding: "22px",
+                        borderRadius: "5px",
+                        padding: "7px",
                         textAlign: "center",
                         backdropFilter: "blur(10px)",
                       }}
@@ -1182,7 +1194,7 @@ export default function Buyer({
                             style={{
                               minWidth: "90px",
                               padding: "14px 12px",
-                              borderRadius: "18px",
+                              borderRadius: "5px",
                               background: "rgba(255,255,255,0.12)",
                               border: "1px solid rgba(255,255,255,0.1)",
                               boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
@@ -1244,12 +1256,13 @@ export default function Buyer({
           {/* LEFT SIDE */}
           <div className="col-12 xl:col-8">
             <Card className="shadow-2 border-round-2xl h-full">
-              <div className="flex align-items-center justify-content-between mb-4">
+              {/* HEADER */}
+              <div className="flex align-items-center justify-content-between mb-3">
                 <div className="flex align-items-center gap-2">
                   <i
                     className="pi pi-users"
                     style={{
-                      fontSize: "1.5rem",
+                      fontSize: "1.3rem",
                       color: "#7c3aed",
                     }}
                   />
@@ -1258,6 +1271,7 @@ export default function Buyer({
                     style={{
                       margin: 0,
                       color: "#1e293b",
+                      fontSize: "20px",
                     }}
                   >
                     Vendor Summary
@@ -1270,30 +1284,26 @@ export default function Buyer({
                 />
               </div>
 
-              {/* COUNTS */}
+              {/* TOP COUNTS */}
               <div className="grid mb-3">
-                {/* INVITED VENDORS */}
+                {/* INVITED */}
                 <div className="col-12 md:col-6">
                   <div
-                    className="flex align-items-center justify-content-between p-3 border-round-2xl h-full"
+                    className="flex align-items-center justify-content-between p-3 border-round-xl"
                     style={{
                       background: "linear-gradient(135deg,#eff6ff,#dbeafe)",
                       border: "1px solid #bfdbfe",
-                      minHeight: "90px",
                     }}
                   >
-                    {/* LEFT */}
                     <div className="flex align-items-center gap-3">
                       <div
                         className="flex align-items-center justify-content-center"
                         style={{
-                          width: "48px",
-                          height: "48px",
-                          borderRadius: "14px",
+                          width: "42px",
+                          height: "42px",
+                          borderRadius: "12px",
                           background: "#2563eb",
                           color: "#fff",
-                          fontSize: "20px",
-                          flexShrink: 0,
                         }}
                       >
                         <i className="pi pi-users" />
@@ -1303,8 +1313,8 @@ export default function Buyer({
                         <div
                           style={{
                             fontSize: "13px",
-                            color: "#475569",
                             fontWeight: 600,
+                            color: "#475569",
                           }}
                         >
                           Invited Vendors
@@ -1314,50 +1324,43 @@ export default function Buyer({
                           style={{
                             fontSize: "12px",
                             color: "#64748b",
-                            marginTop: "2px",
                           }}
                         >
-                          Vendors invited to auction
+                          Auction invitations sent
                         </div>
                       </div>
                     </div>
 
-                    {/* RIGHT */}
                     <div
                       style={{
-                        fontSize: "34px",
+                        fontSize: "28px",
                         fontWeight: 700,
                         color: "#2563eb",
-                        lineHeight: 1,
                       }}
                     >
-                      {invites?.length || 0}
+                      {invitedVendors?.length || 0}
                     </div>
                   </div>
                 </div>
 
-                {/* PARTICIPATED VENDORS */}
+                {/* PARTICIPATED */}
                 <div className="col-12 md:col-6">
                   <div
-                    className="flex align-items-center justify-content-between p-3 border-round-2xl h-full"
+                    className="flex align-items-center justify-content-between p-3 border-round-xl"
                     style={{
                       background: "linear-gradient(135deg,#ecfdf5,#dcfce7)",
                       border: "1px solid #bbf7d0",
-                      minHeight: "90px",
                     }}
                   >
-                    {/* LEFT */}
                     <div className="flex align-items-center gap-3">
                       <div
                         className="flex align-items-center justify-content-center"
                         style={{
-                          width: "48px",
-                          height: "48px",
-                          borderRadius: "14px",
+                          width: "42px",
+                          height: "42px",
+                          borderRadius: "12px",
                           background: "#16a34a",
                           color: "#fff",
-                          fontSize: "20px",
-                          flexShrink: 0,
                         }}
                       >
                         <i className="pi pi-check-circle" />
@@ -1367,8 +1370,8 @@ export default function Buyer({
                         <div
                           style={{
                             fontSize: "13px",
-                            color: "#475569",
                             fontWeight: 600,
+                            color: "#475569",
                           }}
                         >
                           Participated Vendors
@@ -1378,21 +1381,18 @@ export default function Buyer({
                           style={{
                             fontSize: "12px",
                             color: "#64748b",
-                            marginTop: "2px",
                           }}
                         >
-                          Vendors joined live auction
+                          Joined live auction
                         </div>
                       </div>
                     </div>
 
-                    {/* RIGHT */}
                     <div
                       style={{
-                        fontSize: "34px",
+                        fontSize: "28px",
                         fontWeight: 700,
                         color: "#16a34a",
-                        lineHeight: 1,
                       }}
                     >
                       {tableRows?.filter(
@@ -1407,62 +1407,48 @@ export default function Buyer({
                 </div>
               </div>
 
-              {/* Invited Vendors */}
-              <div className="col-12 md:col-12">
-                <div
-                  className="p-4 border-round-xl h-full"
-                  style={{
-                    background: "#f8fafc",
-                    border: "1px solid #e2e8f0",
-                  }}
-                >
-                  {/* HEADER */}
-                  <div className="flex justify-content-between align-items-center mb-3">
-                    <div className="flex align-items-center gap-2">
-                      <i
-                        className="pi pi-users"
-                        style={{
-                          fontSize: "1.3rem",
-                          color: "#7c3aed",
-                        }}
-                      />
-
-                      <h3
+              {/* SIDE BY SIDE CONTENT */}
+              <div className="grid">
+                {/* INVITED LIST */}
+                <div className="col-12 xl:col-5">
+                  <div
+                    className="p-3 border-round-xl h-full"
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div className="flex justify-content-between align-items-center mb-3">
+                      <h5
                         style={{
                           margin: 0,
-                          fontSize: "20px",
+                          fontSize: "16px",
                           color: "#1e293b",
                         }}
                       >
                         Invited Vendors
-                      </h3>
+                      </h5>
+
+                      <Tag
+                        value={`${invitedVendors?.length || 0}`}
+                        severity="info"
+                      />
                     </div>
 
-                    <Tag
-                      value={`${invitedVendors?.length || 0} Vendors`}
-                      severity="info"
-                    />
-                  </div>
-
-                  {/* LIST */}
-                  <div
-                    style={{
-                      maxHeight: "320px",
-                      overflowY: "auto",
-                      paddingRight: "4px",
-                    }}
-                  >
-                    {invitedVendors?.length > 0 ? (
-                      invitedVendors.map((vendor, index) => {
-                        // CHECK WHETHER THIS INVITED VENDOR PARTICIPATED
+                    <div
+                      style={{
+                        maxHeight: "520px",
+                        overflowY: "auto",
+                        paddingRight: "4px",
+                      }}
+                    >
+                      {invitedVendors?.map((vendor) => {
                         const participatedVendor = tableRows?.find(
                           (p) =>
                             String(p.vendorName || p.name)
                               .trim()
                               .toLowerCase() ===
-                              String(vendor.name).trim().toLowerCase() &&
-                            String(p.company).trim().toLowerCase() ===
-                              String(vendor.company).trim().toLowerCase(),
+                            String(vendor.name).trim().toLowerCase(),
                         );
 
                         const isParticipated = Boolean(participatedVendor);
@@ -1470,40 +1456,18 @@ export default function Buyer({
                         return (
                           <div
                             key={vendor.id}
-                            className="mb-2 p-3 border-round-xl flex justify-content-between align-items-center flex-wrap"
+                            className="mb-2 p-2 border-round-lg"
                             style={{
                               background: "#fff",
                               border: "1px solid #e5e7eb",
-                              boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
-                              gap: "12px",
                             }}
                           >
-                            {/* LEFT SIDE */}
-                            <div className="flex align-items-center gap-3 flex-wrap">
-                              {/* ICON */}
-                              <div
-                                style={{
-                                  width: "42px",
-                                  height: "42px",
-                                  borderRadius: "10px",
-                                  background: "#ede9fe",
-                                  display: "flex",
-                                  alignItems: "center",
-                                  justifyContent: "center",
-                                  color: "#7c3aed",
-                                  fontSize: "16px",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <i className="pi pi-user" />
-                              </div>
-
-                              {/* NAME */}
-                              <div>
+                            <div className="flex justify-content-between align-items-start gap-2">
+                              <div style={{ minWidth: 0 }}>
                                 <div
                                   style={{
-                                    fontSize: "14px",
                                     fontWeight: 700,
+                                    fontSize: "13px",
                                     color: "#1e293b",
                                   }}
                                 >
@@ -1518,338 +1482,397 @@ export default function Buyer({
                                 >
                                   {vendor.company}
                                 </div>
-                              </div>
 
-                              {/* EMAIL */}
-                              <div
-                                className="flex align-items-center gap-2"
-                                style={{
-                                  fontSize: "13px",
-                                  color: "#475569",
-                                }}
-                              >
-                                <i
-                                  className="pi pi-envelope"
+                                <div
                                   style={{
-                                    color: "#3b82f6",
-                                    fontSize: "12px",
+                                    fontSize: "11px",
+                                    color: "#64748b",
+                                    marginTop: "3px",
+                                    wordBreak: "break-word",
                                   }}
-                                />
-
-                                <span>{vendor.email}</span>
+                                >
+                                  {vendor.email}
+                                </div>
                               </div>
 
-                              {/* MOBILE */}
-                              <div
-                                className="flex align-items-center gap-2"
-                                style={{
-                                  fontSize: "13px",
-                                  color: "#475569",
-                                }}
-                              >
-                                <i
-                                  className="pi pi-phone"
-                                  style={{
-                                    color: "#16a34a",
-                                    fontSize: "12px",
-                                  }}
-                                />
-
-                                <span>{vendor.mobile || "-"}</span>
-                              </div>
-                            </div>
-
-                            {/* RIGHT STATUS */}
-                            <div className="flex align-items-center gap-2">
                               <Tag
-                                value={
-                                  isParticipated
-                                    ? "Participated"
-                                    : "Not Participated"
-                                }
+                                value={isParticipated ? "Joined" : "Pending"}
                                 severity={isParticipated ? "success" : "danger"}
                               />
                             </div>
                           </div>
                         );
-                      })
-                    ) : (
-                      <div
-                        className="text-center p-4 border-round-xl"
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* PARTICIPATED TABLE */}
+                <div className="col-12 xl:col-7">
+                  <div
+                    className="p-3 border-round-xl h-full"
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div className="flex justify-content-between align-items-center mb-3">
+                      <h5
                         style={{
-                          background: "#f8fafc",
-                          color: "#64748b",
-                          border: "1px solid #e2e8f0",
+                          margin: 0,
+                          fontSize: "16px",
+                          color: "#1e293b",
                         }}
                       >
-                        No invited vendors available
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
+                        Participating Vendors
+                      </h5>
 
-              {/* PARTICIPATED LIST */}
-              <div className="col-12">
-                <div className="flex justify-content-between align-items-center mb-4">
-                  <div>
-                    <h5
-                      style={{
-                        margin: 0,
-                        color: "#1e293b",
-                      }}
-                    >
-                      ✅ Participating Vendors
-                    </h5>
-
-                    <p
-                      style={{
-                        marginTop: "6px",
-                        color: "#64748b",
-                        fontSize: "14px",
-                      }}
-                    >
-                      Real-time vendor participation and connection status.
-                    </p>
-                  </div>
-
-                  <Tag
-                    value={`${tableRows?.length || 0} Active`}
-                    severity="success"
-                  />
-                </div>
-
-                <DataTable
-                  value={[...tableRows].sort((a, b) => {
-                    const rankA =
-                      parseInt(String(a.rank).replace("L", "")) || 999;
-                    const rankB =
-                      parseInt(String(b.rank).replace("L", "")) || 999;
-
-                    return rankA - rankB; // ascending
-                  })}
-                  stripedRows
-                  responsiveLayout="scroll"
-                  emptyMessage="No bids yet"
-                  className="p-datatable-sm"
-                  sortField="rank"
-                  sortOrder={1}
-                >
-                  <Column
-                    field="vendorId"
-                    header="Vendor ID"
-                    body={(row) => <strong>{row.vendorId}</strong>}
-                  />
-
-                  <Column
-                    header="Status"
-                    body={(row) => (
                       <Tag
-                        value={row.online ? "ONLINE" : "OFFLINE"}
-                        severity={row.online ? "success" : "danger"}
+                        value={`${tableRows?.length || 0}`}
+                        severity="success"
                       />
-                    )}
-                  />
+                    </div>
 
-                  <Column
-                    field="vendorName"
-                    header="Vendor Details"
-                    body={(row) => (
-                      <div>
-                        <div
-                          style={{
-                            fontWeight: 600,
-                          }}
-                        >
-                          {row.vendorName}
-                        </div>
+                    <DataTable
+                      value={[
+                        ...Object.values(
+                          tableRows.reduce((acc, row) => {
+                            // unique key based on vendor + company
+                            const key = `${row.vendorName}_${row.company}`;
 
-                        <div
-                          style={{
-                            fontSize: "13px",
-                            color: "#64748b",
-                          }}
-                        >
-                          {row.company}
-                        </div>
-                      </div>
-                    )}
-                  />
+                            // if no row exists yet → add
+                            if (!acc[key]) {
+                              acc[key] = row;
+                            }
+                            // if existing row is offline and new row is online → replace
+                            else if (!acc[key].online && row.online) {
+                              acc[key] = row;
+                            }
 
-                  <Column field="bid" header="Bid Amount" />
+                            return acc;
+                          }, {}),
+                        ),
+                      ].sort((a, b) => {
+                        const rankA =
+                          parseInt(String(a.rank).replace("L", "")) || 999;
 
-                  <Column field="rank" header="Rank" sortable />
+                        const rankB =
+                          parseInt(String(b.rank).replace("L", "")) || 999;
 
-                  <Column field="time" header="Joined Time" />
-                </DataTable>
+                        return rankA - rankB;
+                      })}
+                      responsiveLayout="scroll"
+                      stripedRows
+                      scrollable
+                      scrollHeight="520px"
+                      className="p-datatable-sm"
+                      emptyMessage="No bids yet"
+                    >
+                      <Column
+                        header="Vendor"
+                        body={(row) => (
+                          <div>
+                            <div
+                              style={{
+                                fontWeight: 600,
+                                fontSize: "13px",
+                              }}
+                            >
+                              {row.vendorName}
+                            </div>
+
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#64748b",
+                              }}
+                            >
+                              {row.company}
+                            </div>
+                          </div>
+                        )}
+                      />
+
+                      <Column
+                        header="Status"
+                        body={(row) => (
+                          <Tag
+                            value={row.online ? "ONLINE" : "OFFLINE"}
+                            severity={row.online ? "success" : "danger"}
+                          />
+                        )}
+                      />
+
+                      {/* <Column field="bid" header="Bid" />
+
+                      <Column field="rank" header="Rank" /> */}
+
+                      <Column field="time" header="Time" />
+                    </DataTable>
+                  </div>
+                </div>
               </div>
             </Card>
           </div>
 
           {/* RIGHT SIDE */}
           <div className="col-12 xl:col-4">
-            <Card className="shadow-2 border-round-2xl h-full">
-              <div className="flex align-items-center gap-2 mb-4">
-                <i
-                  className="pi pi-comments"
-                  style={{
-                    fontSize: "1.5rem",
-                    color: "#2563eb",
-                  }}
-                />
-
-                <div>
-                  <h3
-                    style={{
-                      margin: 0,
-                      color: "#1e293b",
-                    }}
-                  >
-                    Vendor Communication
-                  </h3>
-
-                  <p
-                    style={{
-                      margin: 0,
-                      fontSize: "13px",
-                      color: "#64748b",
-                    }}
-                  >
-                    Real-time messaging with vendors
-                  </p>
-                </div>
-              </div>
-
-              {/* FORM */}
-              <div className="grid mb-3">
-                <div className="col-12">
-                  <label className="font-semibold mb-2 block">Vendor ID</label>
-
-                  {/* <InputText
-                    value={chatVendor}
-                    onChange={(e) => setChatVendor(e.target.value)}
-                    className="w-full"
-                    placeholder="Enter Vendor ID"
-                  /> */}
-
-                  <Dropdown
-                    value={chatVendor}
-                    options={tableRows
-                      .filter((v) => v.online)
-                      .map((v) => ({
-                        label: `${v.vendorName} (${v.company})`,
-                        value: v.vendorId,
-                      }))}
-                    onChange={(e) => setChatVendor(e.value)}
-                    placeholder="Select Online Vendor"
-                    className="w-full"
-                  />
-                </div>
-
-                <div className="col-12">
-                  <label className="font-semibold mb-2 block">Message</label>
-
-                  <InputText
-                    value={chatText}
-                    onChange={(e) => setChatText(e.target.value)}
-                    className="w-full"
-                    placeholder="Type your message"
-                  />
-                </div>
-
-                <div className="col-12">
-                  <Button
-                    label="Send Message"
-                    icon="pi pi-send"
-                    className="w-full"
-                    onClick={() => {
-                      socket.current.emit("chatMessage", {
-                        auctionId: auction.id,
-                        to: chatVendor,
-                        message: chatText,
-                        user_name: user.name,
-                        user_company: user.company,
-                        rfqNumber,
-                      });
-
-                      setChatText("");
-                    }}
-                  />
-                </div>
-              </div>
-
-              <Divider />
-
-              {/* CHAT */}
-              <div
-                style={{
-                  maxHeight: "600px",
-                  overflowY: "auto",
-                  paddingRight: "5px",
-                }}
-              >
-                {messages?.length === 0 ? (
+            <Card
+              className="shadow-2 border-round-2xl h-full"
+              style={{
+                height: "760px",
+                display: "flex",
+                flexDirection: "column",
+              }}
+            >
+              {/* HEADER */}
+              <div className="flex align-items-center justify-content-between mb-3">
+                <div className="flex align-items-center gap-2">
                   <div
-                    className="text-center p-5"
+                    className="flex align-items-center justify-content-center"
                     style={{
-                      color: "#64748b",
+                      width: "42px",
+                      height: "42px",
+                      borderRadius: "12px",
+                      background: "#dbeafe",
+                      color: "#2563eb",
+                      flexShrink: 0,
                     }}
                   >
                     <i
                       className="pi pi-comments"
                       style={{
-                        fontSize: "2rem",
-                        marginBottom: "10px",
-                        display: "block",
+                        fontSize: "1.2rem",
                       }}
                     />
-                    No messages available
                   </div>
-                ) : (
-                  messages.map((m, i) => {
-                    const isMine = m.from === userId;
 
-                    return (
+                  <div>
+                    <h3
+                      style={{
+                        margin: 0,
+                        fontSize: "18px",
+                        color: "#1e293b",
+                      }}
+                    >
+                      Vendor Communication
+                    </h3>
+
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: "12px",
+                        color: "#64748b",
+                      }}
+                    >
+                      Real-time vendor messaging
+                    </p>
+                  </div>
+                </div>
+
+                <Tag
+                  value={`${messages?.length || 0} Messages`}
+                  severity="info"
+                />
+              </div>
+
+              {/* CHAT FORM */}
+              <div
+                className="border-round-xl p-3 mb-3"
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                }}
+              >
+                <div className="grid">
+                  {/* VENDOR */}
+                  <div className="col-12">
+                    <label
+                      className="block mb-2"
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#334155",
+                      }}
+                    >
+                      Select Vendor
+                    </label>
+
+                    <Dropdown
+                      value={chatVendor}
+                      options={tableRows
+                        .filter((v) => v.online)
+                        .map((v) => ({
+                          label: `${v.vendorName} (${v.company})`,
+                          value: v.vendorId,
+                        }))}
+                      onChange={(e) => setChatVendor(e.value)}
+                      placeholder="Select Online Vendor"
+                      className="w-full"
+                    />
+                  </div>
+
+                  {/* MESSAGE + BUTTON INLINE */}
+                  <div className="col-12">
+                    <label
+                      className="block mb-2"
+                      style={{
+                        fontSize: "13px",
+                        fontWeight: 600,
+                        color: "#334155",
+                      }}
+                    >
+                      Message
+                    </label>
+
+                    <div className="flex gap-2">
+                      <InputText
+                        value={chatText}
+                        onChange={(e) => setChatText(e.target.value)}
+                        className="w-full"
+                        placeholder="Type your message"
+                      />
+
+                      <Button
+                        icon="pi pi-send"
+                        severity="primary"
+                        onClick={() => {
+                          socket.current.emit("chatMessage", {
+                            auctionId: auction.id,
+                            to: chatVendor,
+                            message: chatText,
+                            user_name: user.name,
+                            user_company: user.company,
+                            rfqNumber,
+                          });
+
+                          setChatText("");
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* CHAT BODY */}
+              <div
+                className="border-round-xl p-3"
+                style={{
+                  background: "#f8fafc",
+                  border: "1px solid #e2e8f0",
+                  height: "220px", // fixed compact height
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {/* SCROLLABLE MESSAGES */}
+                <div
+                  style={{
+                    overflowY: "auto",
+                    height: "100%",
+                    paddingRight: "4px",
+                  }}
+                >
+                  {messages?.length === 0 ? (
+                    <div
+                      className="flex flex-column align-items-center justify-content-center h-full"
+                      style={{
+                        color: "#64748b",
+                        minHeight: "300px",
+                      }}
+                    >
+                      <i
+                        className="pi pi-comments"
+                        style={{
+                          fontSize: "2rem",
+                          marginBottom: "12px",
+                        }}
+                      />
+
                       <div
-                        key={i}
-                        className={`mb-3 flex ${
-                          isMine
-                            ? "justify-content-end"
-                            : "justify-content-start"
-                        }`}
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: 600,
+                        }}
                       >
+                        No messages available
+                      </div>
+
+                      <div
+                        style={{
+                          fontSize: "12px",
+                          marginTop: "4px",
+                        }}
+                      >
+                        Start conversation with vendors
+                      </div>
+                    </div>
+                  ) : (
+                    messages.map((m, i) => {
+                      const isMine = m.from === userId;
+
+                      return (
                         <div
-                          style={{
-                            padding: "12px",
-                            borderRadius: "14px",
-                            background: isMine ? "#2563eb" : "#f1f5f9",
-                            color: isMine ? "#fff" : "#1e293b",
-                            maxWidth: "85%",
-                          }}
+                          key={i}
+                          className={`mb-2 flex ${
+                            isMine
+                              ? "justify-content-end"
+                              : "justify-content-start"
+                          }`}
                         >
                           <div
                             style={{
-                              fontWeight: 600,
-                              marginBottom: "4px",
-                              fontSize: "13px",
+                              padding: "10px 12px",
+                              borderRadius: "14px",
+                              background: isMine ? "#2563eb" : "#ffffff",
+                              color: isMine ? "#fff" : "#1e293b",
+                              maxWidth: "82%",
+                              border: isMine ? "none" : "1px solid #e2e8f0",
+                              boxShadow: "0 1px 2px rgba(0,0,0,0.05)",
                             }}
                           >
-                            {isMine ? "You" : m.user_name}
-                          </div>
+                            {/* NAME */}
+                            <div
+                              style={{
+                                fontWeight: 700,
+                                marginBottom: "4px",
+                                fontSize: "12px",
+                                opacity: isMine ? 0.95 : 1,
+                              }}
+                            >
+                              {isMine ? "You" : m.user_name}
+                            </div>
 
-                          <div
-                            style={{
-                              fontSize: "14px",
-                              lineHeight: 1.5,
-                            }}
-                          >
-                            {m.message}
+                            {/* COMPANY */}
+                            {!isMine && (
+                              <div
+                                style={{
+                                  fontSize: "11px",
+                                  marginBottom: "4px",
+                                  color: "#64748b",
+                                }}
+                              >
+                                {m.user_company}
+                              </div>
+                            )}
+
+                            {/* MESSAGE */}
+                            <div
+                              style={{
+                                fontSize: "13px",
+                                lineHeight: 1.5,
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {m.message}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
-                  })
-                )}
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </Card>
           </div>

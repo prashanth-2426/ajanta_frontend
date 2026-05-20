@@ -84,9 +84,9 @@ const Layout = () => {
       document.body.className = document.body.className.replace(
         new RegExp(
           "(^|\\b)" + "blocked-scroll".split(" ").join("|") + "(\\b|$)",
-          "gi"
+          "gi",
         ),
-        " "
+        " ",
       );
     }
   };
@@ -151,10 +151,10 @@ const Layout = () => {
         <AppConfig />
 
         <div className="layout-content-wrapper">
-          <div className="layout-content">
-            <AppBreadCrumb></AppBreadCrumb>
-            <Outlet />
-          </div>
+          {/* <div className="layout-content"> */}
+          {/* <AppBreadCrumb></AppBreadCrumb> */}
+          <Outlet />
+          {/* </div> */}
         </div>
         <AppRightMenu />
 
