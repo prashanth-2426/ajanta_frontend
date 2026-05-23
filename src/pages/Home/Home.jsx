@@ -14,6 +14,7 @@ import { useNavigate } from "react-router-dom";
 import { InputText } from "primereact/inputtext";
 
 import { OverlayPanel } from "primereact/overlaypanel";
+import { Tag } from "primereact/tag";
 
 const Home = () => {
   const navigate = useNavigate();
@@ -746,24 +747,91 @@ const Home = () => {
             </Card>
           ))}
 
-          <OverlayPanel ref={op} style={{ width: "300px" }}>
+          <OverlayPanel
+            ref={op}
+            showCloseIcon
+            dismissable
+            style={{
+              width: "360px",
+              borderRadius: "16px",
+              overflow: "hidden",
+            }}
+          >
             {selectedItem?.details?.length ? (
-              <div className="flex flex-column gap-2">
-                {selectedItem.details.map((d, i) => (
-                  <div
-                    key={i}
-                    className="p-2 border-bottom-1 cursor-pointer hover:bg-gray-100"
-                    onClick={
-                      () => navigate(`/quote-summary/${d.rfq_number}`) // ✅ CLICK WORKS
-                    }
-                  >
-                    {d.rfq_number}{" "}
-                    {d.auction_number?.trim() ? `(${d.auction_number})` : ""}
+              <div>
+                {/* HEADER */}
+                <div
+                  className="flex justify-content-between align-items-center mb-3 pb-2"
+                  style={{
+                    borderBottom: "1px solid #e2e8f0",
+                  }}
+                >
+                  <div>
+                    <div className="text-lg font-semibold text-900">
+                      {selectedItem?.label}
+                    </div>
+
+                    <small className="text-500">RFQ / Auction Details</small>
                   </div>
-                ))}
+
+                  <Tag
+                    value={selectedItem?.details?.length || 0}
+                    severity="info"
+                  />
+                </div>
+
+                {/* SCROLLABLE LIST */}
+                <div
+                  className="flex flex-column gap-2 custom-scroll"
+                  style={{
+                    maxHeight: "320px",
+                    overflowY: "auto",
+                    paddingRight: "4px",
+                  }}
+                >
+                  {selectedItem.details.map((d, i) => (
+                    <div
+                      key={i}
+                      onClick={() => navigate(`/quote-summary/${d.rfq_number}`)}
+                      className="
+              p-3
+              border-1
+              border-200
+              border-round-xl
+              cursor-pointer
+              transition-all
+              hover:surface-100
+            "
+                      style={{
+                        background: "#f8fafc",
+                      }}
+                    >
+                      <div className="flex justify-content-between align-items-center">
+                        <div className="overflow-hidden">
+                          <div className="font-semibold text-900">
+                            {d.rfq_number}
+                          </div>
+
+                          <small className="text-500">
+                            {d.auction_number?.trim()
+                              ? `Auction : ${d.auction_number}`
+                              : "Direct RFQ"}
+                          </small>
+                        </div>
+
+                        <i
+                          className="pi pi-arrow-right text-500"
+                          style={{
+                            fontSize: "0.9rem",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
-              <span>{selectedItem?.label}</span>
+              <div className="text-center p-4 text-500">No data available</div>
             )}
           </OverlayPanel>
         </div>

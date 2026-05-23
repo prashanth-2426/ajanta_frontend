@@ -25,6 +25,7 @@ const ResetPassword = () => {
   const [securityAnswer, setSecurityAnswer] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [otp, setOtp] = useState("");
 
   // Retrieve the email from location state
   const email = location.state?.email || "";
@@ -39,11 +40,22 @@ const ResetPassword = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+
+    if (!otp || otp.length !== 6) {
+      dispatch(
+        toastError({
+          detail: "Please enter valid 6 digit OTP",
+        }),
+      );
+
+      return;
+    }
+
     if (newPassword !== confirmPassword) {
       dispatch(
         toastError({
           detail: "New password and confirm password do not match.",
-        })
+        }),
       );
       return;
     }
@@ -52,6 +64,7 @@ const ResetPassword = () => {
       const { isSuccess, msg } = await postData("auth/update-password", {
         email,
         newPassword,
+        otp,
       });
 
       if (isSuccess) {
@@ -117,6 +130,28 @@ const ResetPassword = () => {
                   />
                 </span>
               </div>
+
+              <div className="p-field mt-3">
+                <span className="p-input-icon-left mt-2">
+                  <i className="pi pi-shield"></i>
+
+                  <InputText
+                    id="otp"
+                    value={otp}
+                    onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
+                    placeholder="Enter 6 Digit OTP"
+                    maxLength={6}
+                    keyfilter="int"
+                    className="w-full md:w-25rem text-color-secondary surface-50 border-200"
+                    autoComplete="off"
+                  />
+                </span>
+
+                <small className="text-500 block mt-2">
+                  OTP sent to your registered email
+                </small>
+              </div>
+
               <div className="button-group mt-3">
                 <Button
                   type="submit"

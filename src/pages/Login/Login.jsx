@@ -133,7 +133,7 @@ const Login = () => {
               </div>
 
               <div className="flex justify-content-between align-items-center mb-5">
-                <div className="flex align-items-center">
+                {/* <div className="flex align-items-center">
                   <Checkbox
                     inputId="remember"
                     checked={remember}
@@ -143,11 +143,8 @@ const Login = () => {
                   <label htmlFor="remember" className="text-sm">
                     Remember me
                   </label>
-                </div>
-                <Link
-                  to="/forget-password"
-                  className="font-medium text-sm text-300 mt-3"
-                >
+                </div> */}
+                <Link to="/forget-password" className="">
                   Forgot password?
                 </Link>
               </div>
