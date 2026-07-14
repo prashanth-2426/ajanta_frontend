@@ -68,6 +68,54 @@ export default function Vendor({
   }, [auctionData?.id]);
 
   useEffect(() => {
+    if (
+      !auctionData?.bids ||
+      !auctionData?.users ||
+      !user?.email ||
+      !airlineName ||
+      !auctionId
+    ) {
+      return;
+    }
+
+    // Find logged-in vendor inside auction users
+    const vendorEntry = Object.values(auctionData.users).find(
+      (u) =>
+        u.role === "vendor" &&
+        String(u.email).toLowerCase() === String(user.email).toLowerCase(),
+    );
+
+    if (!vendorEntry?.id) {
+      console.log("Vendor not found in auction users");
+      return;
+    }
+
+    const vendorBidId = vendorEntry.id;
+
+    const latestBid = auctionData.bids?.[vendorBidId]?.[airlineName]?.latestBid;
+
+    const vendorBidCount = Number(latestBid?.vendorBidCount) || 0;
+
+    const key = `auction_bidcount_${auctionId}_${user.id}_${airlineName}`;
+
+    localStorage.setItem(key, String(vendorBidCount));
+
+    //setBidCount(vendorBidCount);
+
+    console.log("Restored bid count");
+    console.log("Vendor Bid Id :", vendorBidId);
+    console.log("Airline :", airlineName);
+    console.log("Bid Count :", vendorBidCount);
+    console.log("Storage Key :", key);
+  }, [
+    auctionData?.bids,
+    auctionData?.users,
+    auctionId,
+    airlineName,
+    user?.email,
+  ]);
+
+  useEffect(() => {
     if (bidValue !== undefined && bidValue !== null) {
       setMyBid(bidValue);
     }
@@ -310,12 +358,20 @@ export default function Vendor({
     //   `auction_bidcount_${auctionId}_${user.id}`,
     //   bidCount + 1,
     // );
-    const key = `auction_bidcount_${auctionId}_${user.id}`;
+    // const key = `auction_bidcount_${auctionId}_${user.id}`;
 
-    localStorage.setItem(key, Number(localStorage.getItem(key) || 0) + 1);
+    // localStorage.setItem(key, Number(localStorage.getItem(key) || 0) + 1);
+
+    const key = `auction_bidcount_${auctionId}_${user.id}_${airlineName}`;
+    const updatedBidCount = Number(localStorage.getItem(key) || 0) + 1;
+    setBidCount(updatedBidCount);
+    localStorage.setItem(key, updatedBidCount);
+
     socket.emit("placeBid", {
       auctionId,
       bid: Number(myBid),
+      airlineName,
+      vendorBidCount: updatedBidCount,
       user: {
         id: user.id,
         name: user.name,
@@ -384,6 +440,15 @@ export default function Vendor({
         setCountdownLabel("✅ Auction Ended");
         setTimer("0h 0m 0s");
         setIsLive(false);
+
+        Object.keys(localStorage).forEach((key) => {
+          if (
+            key.startsWith(`auction_bidcount_${auctionData?.id}_${user.id}_`)
+          ) {
+            localStorage.removeItem(key);
+          }
+        });
+
         return;
       }
 
@@ -524,7 +589,7 @@ export default function Vendor({
 
           <hr />
 
-          {isAuctionEnded && isAirlineInvited && isWinner && (
+          {isAuctionEnded && isWinner && (
             <Card
               title="🏆 Congratulations!"
               className="mb-3 border-round-xl shadow-3"
@@ -535,7 +600,7 @@ export default function Vendor({
             </Card>
           )}
 
-          {isAuctionEnded && isAirlineInvited && !isWinner && myRank && (
+          {isAuctionEnded && !isWinner && myRank && (
             <Card
               title="📊 Auction Result"
               className="mb-3 border-round-xl shadow-2"
@@ -611,7 +676,7 @@ export default function Vendor({
                       {maxBids -
                         Number(
                           localStorage.getItem(
-                            `auction_bidcount_${auctionId}_${user.id}`,
+                            `auction_bidcount_${auctionId}_${user.id}_${airlineName}`,
                           ) ??
                             bidCount ??
                             0,
@@ -623,6 +688,15 @@ export default function Vendor({
                     label="Submit Bid"
                     icon="pi pi-check"
                     onClick={placeBid}
+                    disabled={
+                      Number(
+                        localStorage.getItem(
+                          `auction_bidcount_${auctionId}_${user.id}_${airlineName}`,
+                        ) ??
+                          bidCount ??
+                          0,
+                      ) >= maxBids
+                    }
                     className="p-button-success w-full"
                   />
 

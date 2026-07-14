@@ -91,7 +91,9 @@ const ViewQuote = () => {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   //console.log("hodUsers in View Quote:", hodUsers);
   const [selectedHod, setSelectedHod] = useState(null);
-  const [marketingHead, setMarketingHead] = useState(null);
+  const [marketingHead, setMarketingHead] = useState([]);
+
+  const [hodHead, setHODHead] = useState([]);
 
   const [accountsTeam, setAccountsTeam] = useState([]);
   const [marketingRemarks, setMarketingRemarks] = useState("");
@@ -2082,12 +2084,12 @@ const ViewQuote = () => {
             `Material : ${rfq?.material || "-"}`,
             `HS Code : ${rfq?.hs_code || "-"}`,
           ],
-          [
-            {
-              content: `Volumetric Factor : ${rfq?.volumetricFactor || "-"}`,
-              colSpan: 3,
-            },
-          ],
+          // [
+          //   {
+          //     content: `Volumetric Factor : ${rfq?.volumetricFactor || "-"}`,
+          //     colSpan: 3,
+          //   },
+          // ],
         ];
 
         doc.autoTable({
@@ -2245,18 +2247,16 @@ const ViewQuote = () => {
 
         // Invited Vendors Details
         const invitedVendorDetails = (rfq?.invitedVendors || []).map(
-          (v) =>
-            `Company : ${v.company || "-"}\n` +
-            `Vendor : ${v.name || "-"}\n` +
-            `Email : ${v.email || "-"}`,
+          (v) => `Company : ${v.company || "-"}\n`,
+          // `Vendor : ${v.name || "-"}\n` +
+          // `Email : ${v.email || "-"}`,
         );
 
         // Participated Vendors Details
         const participatedVendorDetails = allQuotes.map(
-          (q) =>
-            `Company : ${q.company || "-"}\n` +
-            `Vendor : ${q.vendor_name || "-"}\n` +
-            `Email : ${q.vendor_email || "-"}`,
+          (q) => `Company : ${q.company || "-"}\n`,
+          // `Vendor : ${q.vendor_name || "-"}\n` +
+          // `Email : ${q.vendor_email || "-"}`,
         );
 
         // Max rows
@@ -2369,7 +2369,7 @@ const ViewQuote = () => {
               .join("\n");
 
             const row = {
-              Vendor: q.vendor_name || "-",
+              Vendor: q.company_name || "-",
               Airline: q.airline_name || "-",
               Airport: q.airport || "-",
               "Chargeable Wt (kg)": q.chargeable_weight || "-",
@@ -2507,7 +2507,7 @@ const ViewQuote = () => {
             );
 
           return [
-            row.vendor_name || "-",
+            row.company || "-",
             row.airline_name || "-",
             row.airport || "-",
             row.chargeable_weight || "-",
@@ -2538,7 +2538,7 @@ const ViewQuote = () => {
         doc.text(`Shipment Value : Rs ${shipmentValue || "-"}`, 120, y);
 
         doc.text(
-          `Value of Shipment in INR: Rs ${exchangeRate * shipmentValue || "-"}`,
+          `Value of Shipment:  ${exchangeRate * shipmentValue || "-"}`,
           220,
           y,
         );
@@ -2646,6 +2646,17 @@ const ViewQuote = () => {
 
     console.log("buyerDocumentsQuotes", buyerDocumentsQuotes);
 
+    // const marketingTeamStatusQuotes = allQuotesWithUniqueId.filter(
+    //   (row, index, self) =>
+    //     row.marketingAttachedFile?.length > 0 &&
+    //     index ===
+    //       self.findIndex(
+    //         (r) =>
+    //           r.vendor_id === row.vendor_id &&
+    //           r.sharedtoMarketingTeamDetails?.marketing_email ===
+    //             row.sharedtoMarketingTeamDetails?.marketing_email,
+    //       ),
+    // );
     const marketingTeamStatusQuotes = allQuotesWithUniqueId.filter(
       (row, index, self) =>
         row.marketingAttachedFile?.length > 0 &&
@@ -2653,8 +2664,13 @@ const ViewQuote = () => {
           self.findIndex(
             (r) =>
               r.vendor_id === row.vendor_id &&
-              r.sharedtoMarketingTeamDetails?.marketing_email ===
-                row.sharedtoMarketingTeamDetails?.marketing_email,
+              JSON.stringify(
+                r.sharedtoMarketingTeamDetails?.marketing_team_details || [],
+              ) ===
+                JSON.stringify(
+                  row.sharedtoMarketingTeamDetails?.marketing_team_details ||
+                    [],
+                ),
           ),
     );
 
@@ -2869,7 +2885,7 @@ const ViewQuote = () => {
 
                       {/* Details */}
                       <div className="text-sm line-height-3">
-                        <div>
+                        {/* <div>
                           <strong>Marketing Name:</strong>{" "}
                           {marketing?.marketing_name || "-"}
                         </div>
@@ -2877,7 +2893,25 @@ const ViewQuote = () => {
                         <div>
                           <strong>Marketing Email:</strong>{" "}
                           {marketing?.marketing_email || "-"}
-                        </div>
+                        </div> */}
+                        {marketing?.marketing_team_details?.length > 0 ? (
+                          <div className="mt-2 flex flex-column gap-2">
+                            {marketing.marketing_team_details.map(
+                              (email, idx) => (
+                                <div
+                                  key={idx}
+                                  className="p-2 border-round surface-100"
+                                >
+                                  <div>
+                                    <strong>Email:</strong> {email}
+                                  </div>
+                                </div>
+                              ),
+                            )}
+                          </div>
+                        ) : (
+                          <span>-</span>
+                        )}
 
                         <div>
                           <strong>Comment:</strong> {marketing?.remarks || "-"}
@@ -4175,10 +4209,13 @@ Shared On: ${
     try {
       const form = new FormData();
       form.append("rfq_number", rfq.rfq_number);
+      form.append("rfq_title", rfq.title || "");
       form.append("action", "shared_to_marketing_team");
       form.append("remarks", marketingRemarks || "");
-      form.append("marketing_name", marketingHead?.name || "");
-      form.append("marketing_email", marketingHead?.email || "");
+      form.append("marketing_team_details", marketingHead || []);
+      form.append("hod_team_details", hodHead || []);
+      //form.append("marketing_name", marketingHead?.name || "");
+      //form.append("marketing_email", marketingHead?.email || "");
 
       if (attachment) {
         //form.append("attachment", attachment);
@@ -4656,7 +4693,7 @@ Shared On: ${
           <label>
             <strong>Select Marketing Team</strong>
           </label>
-          <Dropdown
+          {/* <Dropdown
             value={marketingHead}
             options={marketingUsers?.map((user) => ({
               label: `${user.name} (${user.email})`,
@@ -4667,6 +4704,33 @@ Shared On: ${
             className="w-full"
             optionLabel="label"
             filter
+          /> */}
+          <MultiSelect
+            value={marketingHead}
+            options={marketingUsers?.map((user) => ({
+              label: `${user.name} (${user.email})`,
+              value: user.email, // ✅ store only email
+            }))}
+            onChange={(e) => setMarketingHead(e.value)}
+            placeholder="Select Marketing Team"
+            className="w-full"
+            filter
+            display="chip"
+          />
+          <label>
+            <strong>Select HOD</strong>
+          </label>
+          <MultiSelect
+            value={hodHead}
+            options={hodUsers?.map((user) => ({
+              label: `${user.name} (${user.email})`,
+              value: user.email, // ✅ store only email
+            }))}
+            onChange={(e) => setHODHead(e.value)}
+            placeholder="Select HOD"
+            className="w-full"
+            filter
+            display="chip"
           />
         </div>
 

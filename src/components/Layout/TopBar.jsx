@@ -166,58 +166,133 @@ const TopBar = forwardRef((props, ref) => {
                   <Ripple />
                 </a>
               </StyleClass>
-              <ul className="topbar-menu active-topbar-menu p-4 w-22rem z-5 hidden">
-                <li className="mb-3 border-bottom pb-3">
-                  <div className="flex align-items-center">
-                    <i
-                      className="pi pi-user mr-2"
-                      style={{ fontSize: "1.2rem" }}
-                    ></i>
-                    <div className="flex flex-column">
-                      <span className="font-bold text-lg">
+              <ul
+                className="topbar-menu active-topbar-menu p-4 w-22rem z-5 hidden"
+                style={{ bottom: "-9.8rem" }}
+              >
+                <li
+                  className="mb-3 pb-3"
+                  style={{
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <div className="flex align-items-center gap-3">
+                    {/* Avatar */}
+                    <div
+                      className="flex align-items-center justify-content-center"
+                      style={{
+                        width: "52px",
+                        height: "52px",
+                        borderRadius: "14px",
+                        background: "#eef2ff",
+                        color: "#4338ca",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i
+                        className="pi pi-user"
+                        style={{
+                          fontSize: "1.4rem",
+                        }}
+                      />
+                    </div>
+
+                    {/* User Details */}
+                    <div className="flex flex-column flex-1">
+                      <span
+                        style={{
+                          fontSize: "16px",
+                          fontWeight: 700,
+                          color: "#1e293b",
+                        }}
+                      >
                         {user?.name || "User"}
                       </span>
 
                       <span
-                        className="text-sm"
-                        style={{ whiteSpace: "normal" }}
+                        style={{
+                          fontSize: "13px",
+                          color: "#64748b",
+                          whiteSpace: "normal",
+                          wordBreak: "break-word",
+                        }}
                       >
                         {user?.email}
                       </span>
 
-                      <span
-                        className="text-xs mt-1"
-                        style={{
-                          background: "#eef2ff",
-                          padding: "2px 6px",
-                          borderRadius: "4px",
-                          color: "#4338ca",
-                          width: "fit-content",
-                        }}
-                      >
-                        {user?.role?.toUpperCase()}
-                      </span>
+                      <div className="mt-2">
+                        <span
+                          style={{
+                            background: "#eef2ff",
+                            color: "#4338ca",
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            fontSize: "11px",
+                            fontWeight: 600,
+                            letterSpacing: "0.5px",
+                            display: "inline-block",
+                          }}
+                        >
+                          {user?.role?.toLowerCase() === "user"
+                            ? "BUYER"
+                            : user?.role?.toUpperCase()}
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </li>
-                <li role="menuitem" className="m-0" onClick={logoutHandler}>
-                  <StyleClass
-                    nodeRef={logoutRef}
-                    selector="@grandparent"
-                    enterClassName="hidden"
-                    enterActiveClassName="px-scalein"
-                    leaveToClassName="hidden"
-                    leaveActiveClassName="px-fadeout"
-                    hideOnOutsideClick
-                  >
+                <li
+                  className="m-0"
+                  style={{
+                    borderTop: "1px solid #e5e7eb",
+                    marginTop: "0.5rem",
+                    paddingTop: "0.75rem",
+                  }}
+                >
+                  <div className="flex align-items-center justify-content-between">
                     <a
                       ref={logoutRef}
+                      onClick={logoutHandler}
                       className="flex align-items-center hover:text-primary-500 transition-duration-200 cursor-pointer"
                     >
                       <i className="pi pi-fw pi-sign-out mr-2"></i>
                       <span>Logout</span>
                     </a>
-                  </StyleClass>
+                    <div className="flex align-items-center text-600">
+                      <i
+                        className="pi pi-envelope mr-2"
+                        style={{
+                          fontSize: "0.9rem",
+                          alignSelf: "flex-start",
+                          marginTop: "2px",
+                        }}
+                      />
+
+                      <div className="flex flex-column">
+                        <a
+                          href="mailto:support@coact.co.in"
+                          className="text-primary text-sm"
+                          style={{
+                            textDecoration: "none",
+                            lineHeight: "1.2",
+                          }}
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          support@coact.co.in
+                        </a>
+
+                        <span
+                          style={{
+                            fontSize: "11px",
+                            color: "#6b7280",
+                            marginTop: "2px",
+                          }}
+                        >
+                          Version: V2.0.0
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </li>
               </ul>
             </li>

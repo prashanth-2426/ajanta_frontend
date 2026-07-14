@@ -459,6 +459,39 @@ export default function Buyer({
     return () => socket.current.disconnect();
   }, [auction]);
 
+  // useEffect(() => {
+  //   const sourceBids =
+  //     bids && Object.keys(bids).length > 0 ? bids : existingAuction?.bids || {};
+
+  //   const sourceUsers =
+  //     users && Object.keys(users).length > 0
+  //       ? users
+  //       : existingAuction?.users || {};
+
+  //   const sourceRanks =
+  //     ranks && Object.keys(ranks).length > 0
+  //       ? ranks
+  //       : existingAuction?.ranks || {};
+
+  //   const rows = Object.entries(sourceBids).map(([vendor, b]) => {
+  //     const vendorUser = Object.values(sourceUsers).find(
+  //       (u) => u.id === vendor,
+  //     );
+
+  //     return {
+  //       vendorId: vendor,
+  //       online: vendorUser?.online ?? false,
+  //       vendorName: vendorUser?.name || b?.name || vendor,
+  //       company: vendorUser?.company || b?.company || "-",
+  //       bid: b?.bid ?? "-",
+  //       rank: sourceRanks[vendor] || null,
+  //       time: b?.time ? new Date(b.time).toLocaleTimeString() : "-",
+  //     };
+  //   });
+
+  //   setTableRows(rows);
+  // }, [bids, users, ranks, existingAuction]);
+
   useEffect(() => {
     const sourceBids =
       bids && Object.keys(bids).length > 0 ? bids : existingAuction?.bids || {};
@@ -473,20 +506,49 @@ export default function Buyer({
         ? ranks
         : existingAuction?.ranks || {};
 
-    const rows = Object.entries(sourceBids).map(([vendor, b]) => {
+    const rows = [];
+
+    Object.entries(sourceBids).forEach(([vendorBidId, airlines]) => {
       const vendorUser = Object.values(sourceUsers).find(
-        (u) => u.id === vendor,
+        (u) => String(u.id) === String(vendorBidId),
       );
 
-      return {
-        vendorId: vendor,
-        online: vendorUser?.online ?? false,
-        vendorName: vendorUser?.name || b?.name || vendor,
-        company: vendorUser?.company || b?.company || "-",
-        bid: b?.bid ?? "-",
-        rank: sourceRanks[vendor] || null,
-        time: b?.time ? new Date(b.time).toLocaleTimeString() : "-",
-      };
+      Object.entries(airlines || {}).forEach(([airlineName, airlineData]) => {
+        const latestBid = airlineData?.latestBid;
+
+        if (!latestBid) return;
+
+        rows.push({
+          // IMPORTANT
+          // use database id for chat communication
+          vendorId:
+            Object.keys(sourceUsers).find(
+              (key) => String(sourceUsers[key]?.id) === String(vendorBidId),
+            ) || vendorBidId,
+
+          vendorBidId,
+
+          airlineName,
+
+          online: vendorUser?.online ?? false,
+
+          vendorName: vendorUser?.name || latestBid?.name || "-",
+
+          company: vendorUser?.company || latestBid?.company || "-",
+
+          bid: latestBid?.bid ?? "-",
+
+          rank: sourceRanks?.[vendorBidId]?.[airlineName] ?? null,
+
+          vendorBidCount: latestBid?.vendorBidCount ?? 0,
+
+          time: latestBid?.time
+            ? new Date(latestBid.time).toLocaleTimeString()
+            : "-",
+
+          socketId: latestBid?.socketId || "",
+        });
+      });
     });
 
     setTableRows(rows);
@@ -594,7 +656,7 @@ export default function Buyer({
         alignItems: "flex-start",
       }}
     >
-      {isAuctionEnded && !re_auction && (
+      {isAuctionEnded && (
         <div style={{ flex: 1 }}>
           <Card className="shadow-3 border-round-2xl">
             <div id="auction-activity-pdf">
@@ -833,61 +895,78 @@ export default function Buyer({
                       </h3>
                     </div>
 
-                    {Object.entries(existingAuction?.ranks || {})
-                      .filter(([, rank]) => rank === 1)
-                      .map(([vendorId]) => {
-                        const vendor = userst.find(
-                          (u) => String(u.id) === String(vendorId),
-                        );
+                    {Object.entries(existingAuction?.ranks || {}).flatMap(
+                      ([vendorId, airlines]) =>
+                        Object.entries(airlines || {})
+                          .filter(([, rank]) => rank === 1)
+                          .map(([airlineName]) => {
+                            const vendor = userst.find(
+                              (u) => String(u.id) === String(vendorId),
+                            );
 
-                        return (
-                          <div key={vendorId}>
-                            <h2
-                              style={{
-                                margin: 0,
-                                color: "#15803d",
-                                fontSize: "28px",
-                              }}
-                            >
-                              {vendor?.name}
-                            </h2>
+                            const latestBid =
+                              existingAuction?.bids?.[vendorId]?.[airlineName]
+                                ?.latestBid;
 
-                            <p
-                              style={{
-                                marginTop: "5px",
-                                color: "#475569",
-                              }}
-                            >
-                              {vendor?.company}
-                            </p>
+                            return (
+                              <div key={`${vendorId}-${airlineName}`}>
+                                <h2
+                                  style={{
+                                    margin: 0,
+                                    color: "#15803d",
+                                    fontSize: "28px",
+                                  }}
+                                >
+                                  {vendor?.name || latestBid?.name || "-"}
+                                </h2>
 
-                            <div
-                              className="mt-4 p-3 border-round-lg"
-                              style={{
-                                background: "#fff",
-                                border: "1px solid #bbf7d0",
-                              }}
-                            >
-                              <div className="text-sm text-500">
-                                Final Bid Amount
+                                <p
+                                  style={{
+                                    marginTop: "5px",
+                                    color: "#475569",
+                                  }}
+                                >
+                                  {vendor?.company || latestBid?.company || "-"}
+                                </p>
+
+                                <p
+                                  style={{
+                                    marginTop: "5px",
+                                    color: "#64748b",
+                                    fontSize: "14px",
+                                  }}
+                                >
+                                  Airline : {airlineName}
+                                </p>
+
+                                <div
+                                  className="mt-4 p-3 border-round-lg"
+                                  style={{
+                                    background: "#fff",
+                                    border: "1px solid #bbf7d0",
+                                  }}
+                                >
+                                  <div className="text-sm text-500">
+                                    Final Bid Amount
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      fontSize: "30px",
+                                      fontWeight: 700,
+                                      color: "#16a34a",
+                                    }}
+                                  >
+                                    ₹
+                                    {Number(
+                                      latestBid?.bid || 0,
+                                    ).toLocaleString()}
+                                  </div>
+                                </div>
                               </div>
-
-                              <div
-                                style={{
-                                  fontSize: "30px",
-                                  fontWeight: 700,
-                                  color: "#16a34a",
-                                }}
-                              >
-                                ₹
-                                {Number(
-                                  existingAuction?.bids[vendorId]?.bid || 0,
-                                ).toLocaleString()}
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
+                            );
+                          }),
+                    )}
                   </div>
                 </div>
               </div>
@@ -997,7 +1076,7 @@ export default function Buyer({
         </div>
       )}
 
-      {!isAuctionEnded && !re_auction && (
+      {!isAuctionEnded && (
         <div className="grid">
           {/* ========================================= */}
           {/* TOP HEADER + COUNTDOWN */}
@@ -1703,8 +1782,8 @@ export default function Buyer({
                       options={tableRows
                         .filter((v) => v.online)
                         .map((v) => ({
-                          label: `${v.vendorName} (${v.company})`,
-                          value: v.vendorId,
+                          label: `${v.vendorName} (${v.company} - ${v.vendorBidId})`,
+                          value: v.vendorBidId,
                         }))}
                       onChange={(e) => setChatVendor(e.value)}
                       placeholder="Select Online Vendor"

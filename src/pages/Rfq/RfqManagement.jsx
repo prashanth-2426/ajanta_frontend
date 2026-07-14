@@ -2296,7 +2296,9 @@ const RfqManagement = () => {
                           disabled={
                             rowData.status === "accepted" ||
                             !airlineData[shipmentIndex] ||
-                            airlineData[shipmentIndex].length === 0
+                            airlineData[shipmentIndex].length === 0 ||
+                            (rowData.close_date_time &&
+                              new Date(rowData.close_date_time) < new Date())
                           }
                           onClick={() =>
                             handlePackageSubmit(shipmentIndex, rowData)
@@ -2304,11 +2306,24 @@ const RfqManagement = () => {
                         />
                       )}
 
-                      <Button
+                      {/* <Button
                         label="Add Airline"
                         icon="pi pi-plus"
                         className="p-button-sm p-button-secondary"
                         disabled={rowData.status == "accepted"}
+                        onClick={() => handleAddAirline(shipmentIndex)}
+                      /> */}
+                      <Button
+                        label="Add Airline"
+                        icon="pi pi-plus"
+                        className="p-button-sm p-button-secondary"
+                        disabled={
+                          (rowData.close_date_time &&
+                            new Date(rowData.close_date_time) < new Date()) ||
+                          rowData.status === "accepted" ||
+                          (!rowData.allow_multiple_airline_quote &&
+                            (airlineData?.[shipmentIndex]?.length || 0) >= 1)
+                        }
                         onClick={() => handleAddAirline(shipmentIndex)}
                       />
                     </div>
