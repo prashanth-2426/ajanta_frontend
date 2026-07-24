@@ -4,6 +4,7 @@ export const getVendorStatusFromBuyerStatus = (buyerStatus = "") => {
   const statusMap = {
     draft: null, // Hide RFQ for vendors
     submitted: "OPEN",
+    reauction_submitted: "RE AUCTION OPEN",
     received_quotes: "QUOTE SUBMITTED", // Default for vendors until they submit
     evaluated: "UNDER REVIEW",
     negotiation: "NEGOTIATION REQUESTED",

@@ -9,7 +9,7 @@ import { Divider } from "primereact/divider";
 import { Panel } from "primereact/panel";
 import { BASE_URL, API_URL } from "../../constants";
 import { useApi } from "../../utils/requests";
-import { toastError, toastSuccess } from "../../store/toastSlice";
+import { toastError, toastSuccess, toastInfo } from "../../store/toastSlice";
 
 const SERVER = API_URL;
 
@@ -345,6 +345,21 @@ export default function Vendor({
         const isIncoming = msg.from !== userId;
         setUnreadCount((prev) => prev + 1);
       }
+    });
+
+    s.on("auctionTimeExtended", (data) => {
+      auctionData.endTime = data.endTime;
+      dispatch(
+        toastInfo({
+          sticky: true,
+          life: 10000,
+          detail: data?.endTime
+            ? `📢 The auction closing time has been extended ${data.extendMinutes} minutes by the buyer. The new closing time is ${new Date(
+                data.endTime,
+              ).toLocaleString()}.`
+            : "",
+        }),
+      );
     });
   }
 

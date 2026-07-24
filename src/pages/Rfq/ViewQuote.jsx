@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { Dropdown } from "primereact/dropdown";
 import { DataTable } from "primereact/datatable";
@@ -45,6 +46,7 @@ const ViewQuote = () => {
   const [selectedVendors, setSelectedVendors] = useState([]);
   const [lastPurchasePrice, setLastPurchasePrice] = useState("");
   const [negotiationRemarks, setNegotiationRemarks] = useState("");
+  const [selectedCurrency, setSelectedCurrency] = useState(null);
 
   const [isFlatView, setIsFlatView] = useState(true);
   const [invAmount, setInvAmount] = useState(null);
@@ -116,6 +118,179 @@ const ViewQuote = () => {
   const [showApproveDialog, setShowApproveDialog] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
   const [hodStatusData, setHodStatusData] = useState([]);
+
+  const navigate = useNavigate();
+
+  const currencyOptions = [
+    { label: "None", value: "" },
+    { label: "AED - United Arab Emirates Dirham د.إ", value: "AED" },
+    { label: "AS - Asia", value: "AS" },
+    { label: "AF - Africa", value: "AF" },
+    { label: "AFN - Afghan Afghani ؋", value: "AFN" },
+    { label: "ALL - Albanian Lek L", value: "ALL" },
+    { label: "AMD - Armenian Dram ֏", value: "AMD" },
+    { label: "ANG - Netherlands Antillean Guilder ƒ", value: "ANG" },
+    { label: "AOA - Angolan Kwanza Kz", value: "AOA" },
+    { label: "ARS - Argentine Peso $", value: "ARS" },
+    { label: "AUD - Australian Dollar $", value: "AUD" },
+    { label: "AWG - Aruban Florin ƒ", value: "AWG" },
+    { label: "AZN - Azerbaijani Manat ₼", value: "AZN" },
+    { label: "BAM - Bosnia and Herzegovina Convertible Mark KM", value: "BAM" },
+    { label: "BBD - Barbadian Dollar $", value: "BBD" },
+    { label: "BDT - Bangladeshi Taka ৳", value: "BDT" },
+    { label: "BGN - Bulgarian Lev лв", value: "BGN" },
+    { label: "BHD - Bahraini Dinar .د.ب", value: "BHD" },
+    { label: "BIF - Burundian Franc ₣", value: "BIF" },
+    { label: "BMD - Bermudian Dollar $", value: "BMD" },
+    { label: "BND - Brunei Dollar $", value: "BND" },
+    { label: "BOB - Bolivian Boliviano Bs.", value: "BOB" },
+    { label: "BRL - Brazilian Real R$", value: "BRL" },
+    { label: "BSD - Bahamian Dollar $", value: "BSD" },
+    { label: "BTN - Bhutanese Ngultrum Nu.", value: "BTN" },
+    { label: "BWP - Botswana Pula P", value: "BWP" },
+    { label: "BYN - Belarusian Ruble Br", value: "BYN" },
+    { label: "BZD - Belize Dollar $", value: "BZD" },
+    { label: "CAD - Canadian Dollar $", value: "CAD" },
+    { label: "CDF - Congolese Franc ₣", value: "CDF" },
+    { label: "CHF - Swiss Franc CHF", value: "CHF" },
+    { label: "CLP - Chilean Peso $", value: "CLP" },
+    { label: "CNY - Chinese Yuan ¥", value: "CNY" },
+    { label: "COP - Colombian Peso $", value: "COP" },
+    { label: "CRC - Costa Rican Colón ₡", value: "CRC" },
+    { label: "CUP - Cuban Peso ₱", value: "CUP" },
+    { label: "CVE - Cape Verdean Escudo $", value: "CVE" },
+    { label: "CZK - Czech Koruna Kč", value: "CZK" },
+    { label: "DJF - Djiboutian Franc ₣", value: "DJF" },
+    { label: "DKK - Danish Krone kr", value: "DKK" },
+    { label: "DOP - Dominican Peso $", value: "DOP" },
+    { label: "DZD - Algerian Dinar دج", value: "DZD" },
+    { label: "EGP - Egyptian Pound £", value: "EGP" },
+    { label: "ERN - Eritrean Nakfa Nfk", value: "ERN" },
+    { label: "ETB - Ethiopian Birr Br", value: "ETB" },
+    { label: "EU - Europe", value: "EU" },
+    { label: "EUR - Euro €", value: "EUR" },
+    { label: "FJD - Fijian Dollar $", value: "FJD" },
+    { label: "FKP - Falkland Islands Pound £", value: "FKP" },
+    { label: "FOK - Faroese Króna kr", value: "FOK" },
+    { label: "GBP - British Pound Sterling £", value: "GBP" },
+    { label: "GEL - Georgian Lari ₾", value: "GEL" },
+    { label: "GGP - Guernsey Pound £", value: "GGP" },
+    { label: "GHS - Ghanaian Cedi ₵", value: "GHS" },
+    { label: "GIP - Gibraltar Pound £", value: "GIP" },
+    { label: "GF - Gulf", value: "GF" },
+    { label: "GMD - Gambian Dalasi D", value: "GMD" },
+    { label: "GNF - Guinean Franc ₣", value: "GNF" },
+    { label: "GTQ - Guatemalan Quetzal Q", value: "GTQ" },
+    { label: "GYD - Guyanese Dollar $", value: "GYD" },
+    { label: "HKD - Hong Kong Dollar $", value: "HKD" },
+    { label: "HNL - Honduran Lempira L", value: "HNL" },
+    { label: "HRK - Croatian Kuna kn", value: "HRK" },
+    { label: "HTG - Haitian Gourde G", value: "HTG" },
+    { label: "HUF - Hungarian Forint Ft", value: "HUF" },
+    { label: "IDR - Indonesian Rupiah Rp", value: "IDR" },
+    { label: "ILS - Israeli New Shekel ₪", value: "ILS" },
+    { label: "IMP - Isle of Man Pound £", value: "IMP" },
+    { label: "INR - Indian Rupee ₹", value: "INR" },
+    { label: "IQD - Iraqi Dinar ع.د", value: "IQD" },
+    { label: "IRR - Iranian Rial ﷼", value: "IRR" },
+    { label: "ISK - Icelandic Króna kr", value: "ISK" },
+    { label: "JEP - Jersey Pound £", value: "JEP" },
+    { label: "JMD - Jamaican Dollar $", value: "JMD" },
+    { label: "JOD - Jordanian Dinar د.ا", value: "JOD" },
+    { label: "JPY - Japanese Yen ¥", value: "JPY" },
+    { label: "KES - Kenyan Shilling Sh", value: "KES" },
+    { label: "KGS - Kyrgyzstani Som ⃀", value: "KGS" },
+    { label: "KHR - Cambodian Riel ៛", value: "KHR" },
+    { label: "KID - Kiribati Dollar $", value: "KID" },
+    { label: "KMF - Comorian Franc ₣", value: "KMF" },
+    { label: "KRW - South Korean Won ₩", value: "KRW" },
+    { label: "KWD - Kuwaiti Dinar د.ك", value: "KWD" },
+    { label: "KYD - Cayman Islands Dollar $", value: "KYD" },
+    { label: "KZT - Kazakhstani Tenge ₸", value: "KZT" },
+    { label: "LAK - Lao Kip ₭", value: "LAK" },
+    { label: "LBP - Lebanese Pound ل.ل", value: "LBP" },
+    { label: "LKR - Sri Lankan Rupee Rs", value: "LKR" },
+    { label: "LRD - Liberian Dollar $", value: "LRD" },
+    { label: "LSL - Lesotho Loti L", value: "LSL" },
+    { label: "LYD - Libyan Dinar ل.د", value: "LYD" },
+    { label: "MAD - Moroccan Dirham د.م.", value: "MAD" },
+    { label: "MDL - Moldovan Leu L", value: "MDL" },
+    { label: "MGA - Malagasy Ariary Ar", value: "MGA" },
+    { label: "MKD - Macedonian Denar ден", value: "MKD" },
+    { label: "MMK - Burmese Kyat Ks", value: "MMK" },
+    { label: "MNT - Mongolian Tögrög ₮", value: "MNT" },
+    { label: "MOP - Macanese Pataca P", value: "MOP" },
+    { label: "MED - Mediterranean Region", value: "MED" },
+    { label: "MRU - Mauritanian Ouguiya UM", value: "MRU" },
+    { label: "MUR - Mauritian Rupee ₨", value: "MUR" },
+    { label: "MVR - Maldivian Rufiyaa .ރ", value: "MVR" },
+    { label: "MWK - Malawian Kwacha MK", value: "MWK" },
+    { label: "MXN - Mexican Peso $", value: "MXN" },
+    { label: "MYR - Malaysian Ringgit RM", value: "MYR" },
+    { label: "MZN - Mozambican Metical MT", value: "MZN" },
+    { label: "NAD - Namibian Dollar $", value: "NAD" },
+    { label: "NGN - Nigerian Naira ₦", value: "NGN" },
+    { label: "NIO - Nicaraguan Córdoba C$", value: "NIO" },
+    { label: "NOK - Norwegian Krone kr", value: "NOK" },
+    { label: "NPR - Nepalese Rupee ₨", value: "NPR" },
+    { label: "NZD - New Zealand Dollar $", value: "NZD" },
+    { label: "OC - Oceania", value: "OC" },
+    { label: "OMR - Omani Rial ﷼", value: "OMR" },
+    { label: "PAB - Panamanian Balboa B/.", value: "PAB" },
+    { label: "PEN - Peruvian Sol S/", value: "PEN" },
+    { label: "PGK - Papua New Guinean Kina K", value: "PGK" },
+    { label: "PHP - Philippine Peso ₱", value: "PHP" },
+    { label: "PKR - Pakistani Rupee ₨", value: "PKR" },
+    { label: "PLN - Polish Złoty zł", value: "PLN" },
+    { label: "PYG - Paraguayan Guaraní ₲", value: "PYG" },
+    { label: "QAR - Qatari Riyal ﷼", value: "QAR" },
+    { label: "RON - Romanian Leu lei", value: "RON" },
+    { label: "RSD - Serbian Dinar din", value: "RSD" },
+    { label: "RUB - Russian Ruble ₽", value: "RUB" },
+    { label: "RWF - Rwandan Franc ₣", value: "RWF" },
+    { label: "SAR - Saudi Riyal ﷼", value: "SAR" },
+    { label: "SBD - Solomon Islands Dollar $", value: "SBD" },
+    { label: "SCR - Seychellois Rupee ₨", value: "SCR" },
+    { label: "SDG - Sudanese Pound ج.س.", value: "SDG" },
+    { label: "SEK - Swedish Krona kr", value: "SEK" },
+    { label: "SGD - Singapore Dollar $", value: "SGD" },
+    { label: "SHP - Saint Helena Pound £", value: "SHP" },
+    { label: "SLL - Sierra Leonean Leone Le", value: "SLL" },
+    { label: "SOS - Somali Shilling Sh", value: "SOS" },
+    { label: "SRD - Surinamese Dollar $", value: "SRD" },
+    { label: "SSP - South Sudanese Pound £", value: "SSP" },
+    { label: "STN - São Tomé and Príncipe Dobra Db", value: "STN" },
+    { label: "SYP - Syrian Pound £", value: "SYP" },
+    { label: "SZL - Swazi Lilangeni E", value: "SZL" },
+    { label: "THB - Thai Baht ฿", value: "THB" },
+    { label: "TJS - Tajikistani Somoni ЅМ", value: "TJS" },
+    { label: "TMT - Turkmenistani Manat m", value: "TMT" },
+    { label: "TND - Tunisian Dinar د.ت", value: "TND" },
+    { label: "TOP - Tongan Paʻanga T$", value: "TOP" },
+    { label: "TRY - Turkish Lira ₺", value: "TRY" },
+    { label: "TTD - Trinidad and Tobago Dollar $", value: "TTD" },
+    { label: "TVD - Tuvaluan Dollar $", value: "TVD" },
+    { label: "TWD - New Taiwan Dollar $", value: "TWD" },
+    { label: "TZS - Tanzanian Shilling Sh", value: "TZS" },
+    { label: "UAH - Ukrainian Hryvnia ₴", value: "UAH" },
+    { label: "USEC - United States East Coast", value: "USEC" },
+    { label: "UGX - Ugandan Shilling Sh", value: "UGX" },
+    { label: "USD - United States Dollar $", value: "USD" },
+    { label: "UYU - Uruguayan Peso $U", value: "UYU" },
+    { label: "UZS - Uzbekistani Soʻm so'm", value: "UZS" },
+    { label: "VES - Venezuelan Bolívar Bs.S", value: "VES" },
+    { label: "VND - Vietnamese Đồng ₫", value: "VND" },
+    { label: "VUV - Vanuatu Vatu VT", value: "VUV" },
+    { label: "WST - Samoan Tālā T", value: "WST" },
+    { label: "XAF - Central African CFA Franc ₣", value: "XAF" },
+    { label: "XCD - East Caribbean Dollar $", value: "XCD" },
+    { label: "XOF - West African CFA Franc ₣", value: "XOF" },
+    { label: "XPF - CFP Franc ₣", value: "XPF" },
+    { label: "YER - Yemeni Rial ﷼", value: "YER" },
+    { label: "ZAR - South African Rand R", value: "ZAR" },
+    { label: "ZMW - Zambian Kwacha ZK", value: "ZMW" },
+    { label: "ZWL - Zimbabwean Dollar $", value: "ZWL" },
+  ];
 
   const openConfirmModal = (actionType, rfqNumber, vendor_id, airline_name) => {
     setDialogParams({ actionType, rfqNumber, vendor_id, airline_name });
@@ -227,6 +402,22 @@ const ViewQuote = () => {
       const data = await getData(`quotesummary/quotes-summary/${rfqNumber}`);
       //console.log("RFQ Quote Summary:", data);
       setRfq(data);
+      const firstQuote = data?.shipments
+        ?.flatMap((shipment) => shipment.quotes || [])
+        ?.find(
+          (quote) =>
+            quote.saveAndDownloadPdfDetails &&
+            Object.keys(quote.saveAndDownloadPdfDetails).length > 0,
+        );
+
+      if (firstQuote?.saveAndDownloadPdfDetails) {
+        setExchangeRate(
+          firstQuote.saveAndDownloadPdfDetails.exchangeRate || "",
+        );
+        setSelectedCurrency(
+          firstQuote.saveAndDownloadPdfDetails.currency || null,
+        );
+      }
     } catch (error) {
       //console.error("Failed to fetch quote summary", error);
     }
@@ -1021,11 +1212,19 @@ const ViewQuote = () => {
 
             const savingRank = `L${savingRankIndex + 1}`;
 
+            const firstBidPriceVal =
+              quote.FirstBidPrice + exchangeRate * quote.dap_ddp_charges;
+
+            const lastBidPriceVal =
+              quote.grandTotalValue + exchangeRate * quote.dap_ddp_charges;
+
             return {
               ...quote,
               ...(hasExchangeRate && { grandTotalValue: finalGrandTotal }), // 🔥 ONLY when exchangeRate exists
               percentage: percent ? Math.round(percent) : null,
               total_savingtest: total_savingtest,
+              FirstBidPrice: firstBidPriceVal || 0,
+              grandTotalValue: lastBidPriceVal || 0,
               savingRank,
             };
           }) || []
@@ -1915,6 +2114,33 @@ const ViewQuote = () => {
     // };
 
     const exportToPDF = async (auctionDetails = {}, companyDetails = {}) => {
+      const confirmed = window.confirm(
+        `Do you want to save and download the PDF with:\n\n`,
+      );
+
+      if (!confirmed) {
+        return;
+      } else {
+        try {
+          const token = localStorage.getItem("USERTOKEN");
+          await postData(
+            "quotesummary/update-rfq-status",
+            {
+              shipment: shipmentValue,
+              currency: selectedCurrency,
+              exchangeRate: exchangeRate,
+              rfq_number: rfq.rfq_number,
+              action: "save_and_download_pdf",
+            },
+            {
+              headers: {
+                Authorization: `Bearer ${token}`,
+              },
+            },
+          );
+        } catch (error) {}
+      }
+
       const doc = new jsPDF("l", "mm", "a4");
       const pageWidth = doc.internal.pageSize.getWidth();
       const pageHeight = doc.internal.pageSize.getHeight();
@@ -2075,8 +2301,8 @@ const ViewQuote = () => {
             `Destuffing : ${rfq?.destuffing_location || "-"}`,
           ],
           [
-            // `Total Weight : ${rfq?.totalGrossWeight} KG`,
-            // `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
+            `Total Weight : ${rfq?.totalGrossWeight} KG`,
+            `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
             `Chargable Weight : ${rfq?.chargeable_weight || "-"} KG`,
             `Value of Shipment : INR ${rfq?.value_of_shipment || "-"}`,
           ],
@@ -2189,7 +2415,7 @@ const ViewQuote = () => {
           ],
           ["Country", rfq?.country ? rfq.country : "N/A"],
           ["Industry", rfq?.subindustry ? rfq.subindustry : "N/A"],
-          ["Hide Current Bid", rfq?.hideCurrentBid ? "Yes" : "No"],
+          //["Hide Current Bid", rfq?.hideCurrentBid ? "Yes" : "No"],
           [
             "Description",
             rfq?.description
@@ -2491,11 +2717,14 @@ const ViewQuote = () => {
           "Other",
           "First Bid",
           "Final Bid",
-          "Target Price",
+          //"Target Price",
           "Total Saving",
           "Percent %",
           "Rank",
         ];
+
+        const totalSavingValueCheck =
+          allQuotes.find((item) => item.rank === "L1")?.total_savingtest || 0;
 
         const tableRows = allQuotesWithUniqueId.map((row) => {
           const matchedNegotiation =
@@ -2521,9 +2750,9 @@ const ViewQuote = () => {
             row.other_charges || "-",
             `Rs ${parseFloat(row.FirstBidPrice || 0).toFixed(2)}`,
             `Rs ${parseFloat(row.grandTotalValue || 0).toFixed(2)}`,
-            matchedNegotiation?.last_purchase_price
-              ? `Rs ${matchedNegotiation.last_purchase_price}`
-              : "-",
+            // matchedNegotiation?.last_purchase_price
+            //   ? `Rs ${matchedNegotiation.last_purchase_price}`
+            //   : "-",
             `Rs ${parseFloat(row.total_savingtest || 0).toFixed(2)}`,
             `${row.percentage || 0}%`,
             row.savingRank || "-",
@@ -2533,12 +2762,21 @@ const ViewQuote = () => {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
 
-        doc.text(`Exchange Rate : ${exchangeRate || "-"}`, 20, y);
-
-        doc.text(`Shipment Value : Rs ${shipmentValue || "-"}`, 120, y);
+        doc.text(`Total Saving : ${totalSavingValueCheck || 0}`, 20, y);
+        doc.text(
+          `Exchange Rate (${selectedCurrency || ""}) : ${exchangeRate || "-"}`,
+          60,
+          y,
+        );
 
         doc.text(
-          `Value of Shipment:  ${exchangeRate * shipmentValue || "-"}`,
+          `Shipment Value (${selectedCurrency || ""}) : ${shipmentValue || "-"}`,
+          120,
+          y,
+        );
+
+        doc.text(
+          `Value of Shipment (${"INR"}):  ${exchangeRate * shipmentValue || "-"}`,
           220,
           y,
         );
@@ -2607,6 +2845,7 @@ const ViewQuote = () => {
         row.buyerDocumentsUploadedDetails?.submitted_at || null,
       sharedWithAccountsTeamDetails:
         row.sharedtoAccountsTeamDetails?.attached_file || [],
+      saveAndDownloadPdfDetails: row.saveAndDownloadPdfDetails,
     }));
 
     console.log("allQuotesWithUniqueId", allQuotesWithUniqueId);
@@ -3012,7 +3251,7 @@ const ViewQuote = () => {
                             : "Pending Approval"}
                       </Tag>
                     </div>
-                    <div className="mb-3">
+                    {/* <div className="mb-3">
                       <div>
                         <strong>Vendor:</strong> {quote.vendor_name}
                       </div>
@@ -3020,7 +3259,7 @@ const ViewQuote = () => {
                       <div>
                         <strong>Airline:</strong> {quote.requested_airline}
                       </div>
-                    </div>
+                    </div> */}
 
                     <div className="text-sm line-height-3">
                       <div>
@@ -3655,7 +3894,7 @@ Shared On: ${
               htmlFor="exchangeRate"
               style={{ minWidth: "110px", fontWeight: 600 }}
             >
-              Exchange Rate
+              Exchange Rate :
             </label>
 
             <input
@@ -3671,10 +3910,32 @@ Shared On: ${
 
           <div className="flex align-items-center gap-2">
             <label
+              htmlFor="currency"
+              style={{ minWidth: "110px", fontWeight: 600 }}
+            >
+              Currency :
+            </label>
+
+            <Dropdown
+              id="currency"
+              value={selectedCurrency}
+              options={currencyOptions}
+              onChange={(e) => setSelectedCurrency(e.value)}
+              optionLabel="label"
+              placeholder="Select Currency"
+              filter
+              showClear
+              className="w-12rem"
+            />
+          </div>
+
+          <div className="flex align-items-center gap-2">
+            <label
               htmlFor="shipmentValue"
               style={{ minWidth: "130px", fontWeight: 600 }}
             >
-              Shipment Value
+              Shipment Value ({rfq?.package_summary?.shipment_currency || "N/A"}
+              ):
             </label>
 
             <input
@@ -3689,7 +3950,7 @@ Shared On: ${
           </div>
 
           <Button
-            label="Download PDF"
+            label="Save & Download PDF"
             icon="pi pi-download"
             className="p-button-sm p-button-success"
             onClick={() => exportToPDF(allQuotes, rfq?.rfq_number)}
@@ -3786,7 +4047,14 @@ Shared On: ${
           <Column header="Airport" body={(row) => row.airport || "-"} />
           <Column
             header="Chargeable Wt"
-            body={(row) => `${row.chargeable_weight || "-"} kg`}
+            body={(row) =>
+              row.chargeable_weight != null
+                ? `${Number(row.chargeable_weight).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })} kg`
+                : "-"
+            }
           />
           <Column
             header="Freight (Rs/Kg)"
@@ -3814,7 +4082,13 @@ Shared On: ${
           <Column
             header="Final Bid Price"
             body={(row) => (
-              <strong>₹ {parseFloat(row.grandTotalValue).toFixed(2)}</strong>
+              <strong>
+                ₹{" "}
+                {parseFloat(row.grandTotalValue).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </strong>
             )}
             style={{ minWidth: "120px" }}
             headerStyle={{ minWidth: "120px", textAlign: "center" }}
@@ -4049,7 +4323,6 @@ Shared On: ${
   const handleHodDecisionSubmit = async () => {
     try {
       const form = new FormData();
-
       form.append("rfq_number", rfq.rfq_number);
       form.append("action", dialogParams.actionType);
       form.append("vendors", dialogParams.vendor_id);
@@ -4386,10 +4659,21 @@ Shared On: ${
           <div style={{ display: "flex", gap: "10px" }}>
             {role === "user" && (
               <>
-                <Button
+                {/* <Button
                   label={auctionData ? "✏️ Re-Auction" : "🏆 Conduct Auction"}
                   className="p-button-success p-button-sm"
                   onClick={() => setShowAuctionDialog(true)}
+                  disabled={!auctionData && selectedVendors.length === 0}
+                /> */}
+
+                <Button
+                  label="✏️ Edit-Re-Auction"
+                  className="p-button-success p-button-sm"
+                  onClick={() =>
+                    navigate(
+                      `/rfq/view/${rfq?.rfq_number}?source=auction&edit=true`,
+                    )
+                  }
                   disabled={!auctionData && selectedVendors.length === 0}
                 />
               </>

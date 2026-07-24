@@ -107,6 +107,7 @@ const countryCurrencyMap = {
   "Burkina Faso": "XOF",
   Burundi: "BIF",
   "Cabo Verde": "CVE",
+  Chad: "XAF",
   Cambodia: "KHR",
   Cameroon: "XAF",
   Canada: "CAD",
@@ -296,6 +297,7 @@ const currencyOptions = [
   { label: "BWP - Botswana Pula P", value: "BWP" },
   { label: "BYN - Belarusian Ruble Br", value: "BYN" },
   { label: "BZD - Belize Dollar $", value: "BZD" },
+  { label: "CFA - Chad", value: "CFA" },
   { label: "CAD - Canadian Dollar $", value: "CAD" },
   { label: "CDF - Congolese Franc ₣", value: "CDF" },
   { label: "CHF - Swiss Franc CHF", value: "CHF" },
@@ -801,6 +803,7 @@ const CreateRfq = () => {
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const source = queryParams.get("source");
+  const isUpdateAuctionMode = queryParams.get("edit") === "true";
   //console.log("source value", source);
 
   //const [customFactory, setCustomFactory] = useState("");
@@ -1139,7 +1142,10 @@ const CreateRfq = () => {
           rfq_number: generatedRfqNumber,
           auction_number: abc,
           buyerId: userId,
-          form_type: submitSource.current,
+          form_type:
+            isUpdateAuctionMode === true
+              ? "reauction_submitted"
+              : submitSource.current,
           rfq_type: source || data.type,
           rfq_items:
             Array.isArray(data.rfq_items) &&
@@ -1229,7 +1235,8 @@ const CreateRfq = () => {
           shipment_details: parsedData.length > 0 ? parsedData : formDataBuilt,
         };
 
-        rfqJson.form_type = formType;
+        rfqJson.form_type =
+          isUpdateAuctionMode === true ? "reauction_submitted" : formType;
 
         // if (
         //   rfqJson.shipment_details[0]?.package_summary &&
@@ -1853,7 +1860,7 @@ const CreateRfq = () => {
                 />
               </div>
 
-              {source && (
+              {watch("subindustry") === "Ocean Freight" && source && (
                 <div className="field col-12 md:col-3">
                   <label>Select Auction Type</label>
                   <Controller
@@ -1897,7 +1904,7 @@ const CreateRfq = () => {
             style={{ border: "none", padding: 0, margin: 0 }}
           >
             <div className="grid mb-3">
-              {source && (
+              {watch("subindustry") === "Ocean Freight" && source && (
                 <div className="col-12 md:col-3">
                   <label className="mr-2">Same Bid Price Allowed</label>
                   <Controller
@@ -1924,7 +1931,7 @@ const CreateRfq = () => {
                   />
                 </div>
               )}
-              {source && (
+              {watch("subindustry") === "Ocean Freight" && source && (
                 <div className="col-12 md:col-3">
                   <label className="mr-2">Hide Current Bid Price</label>
                   <Controller
@@ -4335,9 +4342,10 @@ const CreateRfq = () => {
                   className="p-button-success"
                   onClick={handleSubmit(onSubmit("submitted"))}
                   disabled={
-                    rfqStatus === "auctioned" ||
-                    formType === "submitted" ||
-                    isReadOnly
+                    !isUpdateAuctionMode &&
+                    (rfqStatus === "auctioned" ||
+                      formType === "submitted" ||
+                      isReadOnly)
                   }
                 />
               </div>

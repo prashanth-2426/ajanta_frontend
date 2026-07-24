@@ -72,7 +72,7 @@ const PackageDimensionsForm = ({
             gross_weight: "",
             weight_unit: "kg",
           },
-        ]
+        ],
   );
 
   useEffect(() => {
@@ -146,7 +146,7 @@ const PackageDimensionsForm = ({
       let totalVolumetricWeightauto = packages
         .reduce(
           (sum, pkg) => sum + parseFloat(calculateVolumetricWeight(pkg)),
-          0
+          0,
         )
         .toFixed(2);
       setTotalVolumetricWeight(totalVolumetricWeightauto);
@@ -291,7 +291,7 @@ const PackageDimensionsForm = ({
         type:
           (row["Type"] &&
             packageTypes.find(
-              (opt) => opt.label.toLowerCase() === row["Type"].toLowerCase()
+              (opt) => opt.label.toLowerCase() === row["Type"].toLowerCase(),
             )?.value) ||
           "",
         length: parseFloat(row["Length"] || 0),
@@ -300,7 +300,8 @@ const PackageDimensionsForm = ({
         dim_unit:
           (row["Dim Unit"] &&
             unitOptions.find(
-              (opt) => opt.label.toLowerCase() === row["Dim Unit"].toLowerCase()
+              (opt) =>
+                opt.label.toLowerCase() === row["Dim Unit"].toLowerCase(),
             )?.value) ||
           "",
         gross_weight: parseFloat(row["Gross Weight"] || 0),
@@ -308,7 +309,7 @@ const PackageDimensionsForm = ({
           (row["Weight Unit"] &&
             weightUnits.find(
               (opt) =>
-                opt.label.toLowerCase() === row["Weight Unit"].toLowerCase()
+                opt.label.toLowerCase() === row["Weight Unit"].toLowerCase(),
             )?.value) ||
           "",
       }));
@@ -355,10 +356,26 @@ const PackageDimensionsForm = ({
       const fetchPreviousAuctions = async () => {
         try {
           const data = await getData(
-            `quotesummary/previous-auctions/${country}/${totalGrossWeight}`
+            `quotesummary/previous-auctions/${country}/${totalGrossWeight}`,
           );
           //console.log("Previous Auctions Data:", data);
-          setPreviousAuctions(data);
+
+          if (usert?.role !== "vendor") {
+            setPreviousAuctions(data);
+          } else {
+            const filteredData = data
+              .map((auction) => ({
+                ...auction,
+                vendors: (auction.vendors || []).filter(
+                  (vendor) =>
+                    vendor.company?.toLowerCase() ===
+                    usert?.company?.toLowerCase(),
+                ),
+              }))
+              .filter((auction) => auction.vendors.length > 0);
+
+            setPreviousAuctions(filteredData);
+          }
         } catch (error) {
           //console.error("Failed to fetch previous auctions data", error);
         }
@@ -853,8 +870,8 @@ const PackageDimensionsForm = ({
                           {quote.chargeable_weight}
                         </p>
                       </div>
-                    ))
-                  )
+                    )),
+                  ),
                 )}
               </div>
             ))}

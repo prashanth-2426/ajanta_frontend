@@ -774,7 +774,8 @@ const RfqManagement = () => {
       const prevTotal = parseFloat(row.total_charges) || 0;
       const prevdapdppTotal = parseFloat(row.totaldapdppcharge) || 0;
 
-      row.grandTotalValue = prevTotal + prevdapdppTotal;
+      //row.grandTotalValue = prevTotal + prevdapdppTotal;
+      row.grandTotalValue = prevTotal;
       prevData[rowIndex] = row;
       setAirlineData((prev) => ({
         ...prev,
@@ -906,7 +907,8 @@ const RfqManagement = () => {
     const prevTotal = parseFloat(row.total_charges) || 0;
     const prevdapdppTotal = parseFloat(row.totaldapdppcharge) || 0;
 
-    row.grandTotalValue = prevTotal + prevdapdppTotal;
+    //row.grandTotalValue = prevTotal + prevdapdppTotal;
+    row.grandTotalValue = prevTotal;
 
     prevData[rowIndex] = row;
     setAirlineData((prev) => ({
@@ -3192,7 +3194,7 @@ const RfqManagement = () => {
                         >
                           <VendorBiddingPanel
                             userId={userId}
-                            bidValue={row.grandTotalValue}
+                            bidValue={row.total_charges}
                             airlineName={row.airline_name}
                             auctionData={auctionData}
                             shipmentIndex={shipmentIndex}
@@ -3709,11 +3711,12 @@ const RfqManagement = () => {
             sortable
           />
           <Column
-            body={(rowData) =>
-              rowData.buyer.preshipmentnumber ||
-              rowData.buyer.postshipmentnumber
-            }
             header="Shipment Number"
+            body={(rowData) =>
+              rowData?.buyer?.postshipmentnumber ||
+              rowData?.buyer?.preshipmentnumber ||
+              "-"
+            }
           />
           <Column
             header="Title"
