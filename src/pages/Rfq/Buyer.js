@@ -924,7 +924,7 @@ export default function Buyer({
                   </div>
                 )} */}
 
-                {isAuctionEnded && winner && (
+                {/* {isAuctionEnded && winner && (
                   <div
                     style={{
                       background: "rgba(255,255,255,0.08)",
@@ -989,7 +989,7 @@ export default function Buyer({
                       </div>
                     </div>
                   </div>
-                )}
+                )} */}
               </div>
             </div>
           </Card>

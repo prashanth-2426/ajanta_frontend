@@ -1174,7 +1174,13 @@ const ViewQuote = () => {
             //   ? computedGrandTotal
             //   : Number(quote.grandTotalValue || 0);
 
-            const finalGrandTotal = Number(quote.grandTotalValue || 0);
+            const firstBidPriceVal =
+              quote.FirstBidPrice + exchangeRate * quote.dap_ddp_charges;
+
+            const lastBidPriceVal =
+              quote.grandTotalValue + exchangeRate * quote.dap_ddp_charges;
+
+            const finalGrandTotal = Number(lastBidPriceVal || 0);
 
             // const baseAmount = hasShipmentValue ? shipmentValue : invAmount;
 
@@ -1190,15 +1196,23 @@ const ViewQuote = () => {
             // ✅ Highest quote from current shipment
             const highestGrandTotal = Math.max(
               ...(shipment.quotes || []).map((q) =>
-                Number(q.grandTotalValue || 0),
+                Number(
+                  q.grandTotalValue + q.dap_ddp_charges * exchangeRate || 0,
+                ),
               ),
             );
 
             // ✅ Calculate savings for all quotes
             const savingsArray = (shipment.quotes || [])
               .map((q) => ({
-                grandTotalValue: Number(q.grandTotalValue || 0),
-                saving: highestGrandTotal - Number(q.grandTotalValue || 0),
+                grandTotalValue: Number(
+                  q.grandTotalValue + q.dap_ddp_charges * exchangeRate || 0,
+                ),
+                saving:
+                  highestGrandTotal -
+                  Number(
+                    q.grandTotalValue + q.dap_ddp_charges * exchangeRate || 0,
+                  ),
               }))
               .sort((a, b) => b.saving - a.saving); // highest saving => L1
 
@@ -1211,12 +1225,6 @@ const ViewQuote = () => {
             );
 
             const savingRank = `L${savingRankIndex + 1}`;
-
-            const firstBidPriceVal =
-              quote.FirstBidPrice + exchangeRate * quote.dap_ddp_charges;
-
-            const lastBidPriceVal =
-              quote.grandTotalValue + exchangeRate * quote.dap_ddp_charges;
 
             return {
               ...quote,
@@ -2762,26 +2770,28 @@ const ViewQuote = () => {
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
 
-        doc.text(`Total Saving : ${totalSavingValueCheck || 0}`, 20, y);
+        //doc.text(`Total Saving : ${totalSavingValueCheck || 0}`, 20, y);
         doc.text(
           `Exchange Rate (${selectedCurrency || ""}) : ${exchangeRate || "-"}`,
-          60,
+          20,
           y,
         );
 
+        y += 8;
+
         doc.text(
           `Shipment Value (${selectedCurrency || ""}) : ${shipmentValue || "-"}`,
-          120,
+          20,
           y,
         );
 
         doc.text(
           `Value of Shipment (${"INR"}):  ${exchangeRate * shipmentValue || "-"}`,
-          220,
+          120,
           y,
         );
 
-        y += 6;
+        y += 10;
 
         doc.autoTable({
           startY: y,
@@ -2805,6 +2815,24 @@ const ViewQuote = () => {
           margin: {
             left: 10,
             right: 10,
+          },
+          didParseCell: function (data) {
+            const savingRank = data.row.raw[data.row.raw.length - 1];
+            const totalSavingColumnIndex = 12;
+
+            // Winner row
+            if (data.section === "body" && savingRank === "L1") {
+              data.cell.styles.fillColor = [220, 252, 231]; // Light green
+              data.cell.styles.textColor = [120, 53, 15];
+              data.cell.styles.fontStyle = "bold";
+
+              // Winner's Total Saving cell - darker green
+              if (data.column.index === totalSavingColumnIndex) {
+                data.cell.styles.fillColor = [34, 197, 94]; // Strong green
+                data.cell.styles.textColor = [255, 255, 255];
+                data.cell.styles.fontStyle = "bold";
+              }
+            }
           },
         });
 
@@ -3962,6 +3990,9 @@ Shared On: ${
           value={allQuotesWithUniqueId}
           responsiveLayout="scroll"
           className="p-datatable-sm"
+          rowClassName={(rowData) =>
+            rowData.savingRank === "L1" ? "winner-row" : ""
+          }
           emptyMessage="No shipment quotes available"
           selection={selectedVendors}
           onSelectionChange={(e) => {
@@ -4007,7 +4038,7 @@ Shared On: ${
             style={{ width: "3rem" }}
           />
           <Column selectionMode="multiple" headerStyle={{ width: "3rem" }} />
-          <Column header="Vendor" body={(row) => row.vendor_name} />
+          <Column header="Vendor" body={(row) => row.company} />
           <Column
             field="airline_name"
             header="Airline"
@@ -4100,7 +4131,7 @@ Shared On: ${
             // }
             // footerStyle={{ textAlign: "right" }}
           />
-          <Column
+          {/* <Column
             header="Target Price"
             body={(row) => {
               if (
@@ -4124,7 +4155,7 @@ Shared On: ${
                 </strong>
               );
             }}
-          />
+          /> */}
           <Column
             header="Total Saving"
             body={(row) => {
@@ -4133,13 +4164,7 @@ Shared On: ${
                 parseFloat(row.FirstBidPrice).toFixed(2) -
                 parseFloat(finalBid).toFixed(2);
 
-              return (
-                <strong
-                  className={saving > 0 ? "text-green-600" : "text-red-500"}
-                >
-                  ₹ {row.total_savingtest.toFixed(2)}
-                </strong>
-              );
+              return <span>₹ {row.total_savingtest.toFixed(2)}</span>;
             }}
           />
 
@@ -4184,7 +4209,7 @@ Shared On: ${
                 row.hodAcceptRequestDetails?.requested_airline ===
                   row.airline_name;
 
-              if (isAccepted) {
+              if (isAccepted || row.savingRank === "L1") {
                 return (
                   <span
                     style={{
