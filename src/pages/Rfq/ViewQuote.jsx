@@ -329,8 +329,17 @@ const ViewQuote = () => {
               <strong style={{ color: "#0f5132", fontSize: "1.1rem" }}>
                 ₹{" "}
                 {invAmount
-                  ? invAmount.toFixed(2)
-                  : (exchangeRate * shipmentValue).toFixed(2)}
+                  ? parseFloat(invAmount).toLocaleString("en-US", {
+                      minimumFractionDigits: 2,
+                      maximumFractionDigits: 2,
+                    })
+                  : parseFloat(exchangeRate * shipmentValue).toLocaleString(
+                      "en-US",
+                      {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                      },
+                    )}
               </strong>
             ) : null
           }
@@ -2309,7 +2318,7 @@ const ViewQuote = () => {
             `Destuffing : ${rfq?.destuffing_location || "-"}`,
           ],
           [
-            `Total Weight : ${rfq?.totalGrossWeight} KG`,
+            `TotalGross Weight : ${rfq?.totalGrossWeight} KG`,
             `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
             `Chargable Weight : ${rfq?.chargeable_weight || "-"} KG`,
             `Value of Shipment : INR ${rfq?.value_of_shipment || "-"}`,
@@ -2317,6 +2326,7 @@ const ViewQuote = () => {
           [
             `Material : ${rfq?.material || "-"}`,
             `HS Code : ${rfq?.hs_code || "-"}`,
+            `Total Cartons / Pallets : ${rfq?.package_summary?.totalCartons || "-"}`,
           ],
           // [
           //   {
@@ -2689,17 +2699,39 @@ const ViewQuote = () => {
       currentY = addGeneralDetails(currentY);
       //currentY = quotedatalatestFinal(currentY);
 
-      const containerDatat =
-        rfq?.package_summary?.packages?.map((pkg) => ({
-          packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
-          dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${pkg.height || 0} ${pkg.dim_unit?.toUpperCase() || ""}`,
-          gross_weight: `${pkg.gross_weight || 0} ${pkg.weight_unit?.toUpperCase() || ""}`,
-          charges: "Air Freight",
-        })) || [];
+      // const containerDatat =
+      //   rfq?.package_summary?.packages?.map((pkg) => ({
+      //     packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
+      //     dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${pkg.height || 0} ${pkg.dim_unit?.toUpperCase() || ""}`,
+      //     gross_weight: `${pkg.gross_weight || 0} ${pkg.weight_unit?.toUpperCase() || ""}`,
+      //     charges: "Air Freight",
+      //   })) || [];
 
       // if (containerDatat.length) {
       //   currentY = addContainerAndCharges(currentY, containerDatat);
       // }
+
+      const packages = rfq?.package_summary?.packages || [];
+
+      const hasPackageData = packages.some(
+        (pkg) =>
+          Number(pkg.number) > 0 ||
+          Number(pkg.length) > 0 ||
+          Number(pkg.breadth) > 0 ||
+          Number(pkg.height) > 0 ||
+          Number(pkg.gross_weight) > 0,
+      );
+
+      if (hasPackageData) {
+        const containerDatat = packages.map((pkg) => ({
+          packages: `${pkg.number || 0} ${pkg.type || "Packages"}`,
+          dimension: `${pkg.length || 0} x ${pkg.breadth || 0} x ${pkg.height || 0} ${pkg.dim_unit?.toUpperCase() || ""}`,
+          gross_weight: `${pkg.gross_weight || 0} ${pkg.weight_unit?.toUpperCase() || ""}`,
+          charges: "Air Freight",
+        }));
+
+        currentY = addContainerAndCharges(currentY, containerDatat);
+      }
 
       const addVendorQuoteSummaryTable = (startY) => {
         let y = startY;
@@ -2734,16 +2766,53 @@ const ViewQuote = () => {
         const totalSavingValueCheck =
           allQuotes.find((item) => item.rank === "L1")?.total_savingtest || 0;
 
-        const tableRows = allQuotesWithUniqueId.map((row) => {
-          const matchedNegotiation =
-            Array.isArray(row.negotiation) &&
-            row.negotiation.find(
-              (n) =>
-                n.airline_name?.toLowerCase().trim() ===
-                row.airline_name?.toLowerCase().trim(),
-            );
+        // const tableRows = allQuotesWithUniqueId.map((row) => {
+        //   const matchedNegotiation =
+        //     Array.isArray(row.negotiation) &&
+        //     row.negotiation.find(
+        //       (n) =>
+        //         n.airline_name?.toLowerCase().trim() ===
+        //         row.airline_name?.toLowerCase().trim(),
+        //     );
 
-          return [
+        //   return [
+        //     row.company || "-",
+        //     row.airline_name || "-",
+        //     row.airport || "-",
+        //     row.chargeable_weight || "-",
+        //     row.base_rate || "-",
+        //     row.ams || "-",
+        //     row.pac || "-",
+        //     row.awb || "-",
+        //     row.dap_ddp_charges
+        //       ? `${row.dap_ddp_charges} (${row.currency})`
+        //       : "-",
+        //     row.other_charges || "-",
+        //     `Rs ${parseFloat(row.FirstBidPrice || 0).toLocaleString("en-US", {
+        //       minimumFractionDigits: 2,
+        //       maximumFractionDigits: 2,
+        //     })}`,
+        //     `Rs ${parseFloat(row.grandTotalValue || 0).toLocaleString("en-US", {
+        //       minimumFractionDigits: 2,
+        //       maximumFractionDigits: 2,
+        //     })}`,
+        //     // matchedNegotiation?.last_purchase_price
+        //     //   ? `Rs ${matchedNegotiation.last_purchase_price}`
+        //     //   : "-",
+        //     `Rs ${parseFloat(row.total_savingtest || 0).toLocaleString(
+        //       "en-US",
+        //       {
+        //         minimumFractionDigits: 2,
+        //         maximumFractionDigits: 2,
+        //       },
+        //     )}`,
+        //     `${row.percentage || 0}%`,
+        //     row.savingRank || "-",
+        //   ];
+        // });
+
+        const tableRows = allQuotesWithUniqueId.flatMap((row) => {
+          const quoteRow = [
             row.company || "-",
             row.airline_name || "-",
             row.airport || "-",
@@ -2756,15 +2825,83 @@ const ViewQuote = () => {
               ? `${row.dap_ddp_charges} (${row.currency})`
               : "-",
             row.other_charges || "-",
-            `Rs ${parseFloat(row.FirstBidPrice || 0).toFixed(2)}`,
-            `Rs ${parseFloat(row.grandTotalValue || 0).toFixed(2)}`,
-            // matchedNegotiation?.last_purchase_price
-            //   ? `Rs ${matchedNegotiation.last_purchase_price}`
-            //   : "-",
-            `Rs ${parseFloat(row.total_savingtest || 0).toFixed(2)}`,
+            `Rs ${parseFloat(row.FirstBidPrice || 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`,
+            `Rs ${parseFloat(row.grandTotalValue || 0).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}`,
+            `Rs ${parseFloat(row.total_savingtest || 0).toLocaleString(
+              "en-US",
+              {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              },
+            )}`,
             `${row.percentage || 0}%`,
             row.savingRank || "-",
           ];
+
+          // Route Details
+          const routes = [
+            {
+              route: row.route1,
+              schedule: row.flight_schedule1,
+            },
+            {
+              route: row.route2,
+              schedule: row.flight_schedule2,
+            },
+            {
+              route: row.route3,
+              schedule: row.flight_schedule3,
+            },
+          ].filter((r) => r.route || r.schedule);
+
+          if (!routes.length && !row.remarks) {
+            return [quoteRow];
+          }
+
+          const routeContent = [
+            "Flight Route Details",
+            "------------------------------------------------------------",
+            ...routes.map(
+              (r, i) =>
+                `Route ${i + 1} : ${r.route || "-"}      Flight : ${
+                  r.schedule
+                    ? new Date(r.schedule).toLocaleDateString("en-GB")
+                    : "-"
+                }`,
+            ),
+            row.remarks ? `Remarks : ${row.remarks}` : "",
+          ]
+            .filter(Boolean)
+            .join("\n");
+
+          const routeRow = [
+            {
+              content: routeContent,
+              colSpan: quoteRow.length,
+              styles: {
+                fillColor: [248, 250, 252],
+                textColor: [55, 65, 81],
+                fontSize: 8,
+                fontStyle: "normal",
+                cellPadding: {
+                  top: 3,
+                  right: 5,
+                  bottom: 3,
+                  left: 5,
+                },
+                halign: "left",
+                valign: "middle",
+              },
+            },
+          ];
+
+          return [quoteRow, routeRow];
         });
 
         doc.setFontSize(10);
@@ -2772,7 +2909,12 @@ const ViewQuote = () => {
 
         //doc.text(`Total Saving : ${totalSavingValueCheck || 0}`, 20, y);
         doc.text(
-          `Exchange Rate (${selectedCurrency || ""}) : ${exchangeRate || "-"}`,
+          `Exchange Rate (${selectedCurrency || ""}) : ${
+            parseFloat(exchangeRate).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "-"
+          }`,
           20,
           y,
         );
@@ -2780,13 +2922,23 @@ const ViewQuote = () => {
         y += 8;
 
         doc.text(
-          `Shipment Value (${selectedCurrency || ""}) : ${shipmentValue || "-"}`,
+          `Shipment Value (${selectedCurrency || ""}) : ${
+            parseFloat(shipmentValue).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "-"
+          }`,
           20,
           y,
         );
 
         doc.text(
-          `Value of Shipment (${"INR"}):  ${exchangeRate * shipmentValue || "-"}`,
+          `Value of Shipment (${"INR"}):  ${
+            parseFloat(exchangeRate * shipmentValue).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            }) || "-"
+          }`,
           120,
           y,
         );
@@ -2816,19 +2968,44 @@ const ViewQuote = () => {
             left: 10,
             right: 10,
           },
+          // didParseCell: function (data) {
+          //   const savingRank = data.row.raw[data.row.raw.length - 1];
+          //   const totalSavingColumnIndex = 12;
+
+          //   // Winner row
+          //   if (data.section === "body" && savingRank === "L1") {
+          //     data.cell.styles.fillColor = [220, 252, 231]; // Light green
+          //     data.cell.styles.textColor = [120, 53, 15];
+          //     data.cell.styles.fontStyle = "bold";
+
+          //     // Winner's Total Saving cell - darker green
+          //     if (data.column.index === totalSavingColumnIndex) {
+          //       data.cell.styles.fillColor = [34, 197, 94]; // Strong green
+          //       data.cell.styles.textColor = [255, 255, 255];
+          //       data.cell.styles.fontStyle = "bold";
+          //     }
+          //   }
+          // },
           didParseCell: function (data) {
+            // Skip styling for Route Details row
+            if (
+              data.row.raw.length === 1 &&
+              typeof data.row.raw[0] === "object" &&
+              data.row.raw[0].colSpan
+            ) {
+              return;
+            }
+
             const savingRank = data.row.raw[data.row.raw.length - 1];
             const totalSavingColumnIndex = 12;
 
-            // Winner row
             if (data.section === "body" && savingRank === "L1") {
-              data.cell.styles.fillColor = [220, 252, 231]; // Light green
+              data.cell.styles.fillColor = [220, 252, 231];
               data.cell.styles.textColor = [120, 53, 15];
               data.cell.styles.fontStyle = "bold";
 
-              // Winner's Total Saving cell - darker green
               if (data.column.index === totalSavingColumnIndex) {
-                data.cell.styles.fillColor = [34, 197, 94]; // Strong green
+                data.cell.styles.fillColor = [34, 197, 94];
                 data.cell.styles.textColor = [255, 255, 255];
                 data.cell.styles.fontStyle = "bold";
               }
@@ -4107,7 +4284,13 @@ Shared On: ${
           <Column
             header="First Bid Price"
             body={(row) => (
-              <strong>₹ {parseFloat(row.FirstBidPrice).toFixed(2)}</strong>
+              <strong>
+                ₹{" "}
+                {parseFloat(row.FirstBidPrice).toLocaleString("en-US", {
+                  minimumFractionDigits: 2,
+                  maximumFractionDigits: 2,
+                })}
+              </strong>
             )}
           />
           <Column
@@ -4164,7 +4347,15 @@ Shared On: ${
                 parseFloat(row.FirstBidPrice).toFixed(2) -
                 parseFloat(finalBid).toFixed(2);
 
-              return <span>₹ {row.total_savingtest.toFixed(2)}</span>;
+              return (
+                <span>
+                  ₹ {""}
+                  {parseFloat(row.total_savingtest).toLocaleString("en-US", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}
+                </span>
+              );
             }}
           />
 

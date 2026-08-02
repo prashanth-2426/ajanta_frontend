@@ -906,7 +906,7 @@ export default function Buyer({
                   </div>
                 )}
 
-                {/* {isAuctionEnded && (
+                {isAuctionEnded && (
                   <div
                     style={{
                       background: "rgba(255,255,255,0.08)",
@@ -917,12 +917,9 @@ export default function Buyer({
                       backdropFilter: "blur(10px)",
                     }}
                   >
-                    <p>
-                      Auction Ended and Below is the Winner detailsss{" "}
-                      {winner?.name}
-                    </p>
+                    <p>Auction Ended</p>
                   </div>
-                )} */}
+                )}
 
                 {/* {isAuctionEnded && winner && (
                   <div
