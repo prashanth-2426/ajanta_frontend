@@ -18,23 +18,40 @@ export const provideUserInfo = () => {
     : null;
 };
 
-export const formatDate = (dateString, includeT = false) => {
+export const formatDate = (dateString, includeT = false, friendly = false) => {
+  if (!dateString) return "-";
+
   const dateObject = new Date(dateString);
 
-  // Extract date components
+  if (Number.isNaN(dateObject.getTime())) return "-";
+
   const day = String(dateObject.getDate()).padStart(2, "0");
-  const month = String(dateObject.getMonth() + 1).padStart(2, "0"); // Month is zero-based
+  const monthNumber = String(dateObject.getMonth() + 1).padStart(2, "0");
   const year = dateObject.getFullYear();
+
   let hours = dateObject.getHours();
   const minutes = String(dateObject.getMinutes()).padStart(2, "0");
 
-  if (includeT) return `${year}-${month}-${day}T${hours}:${minutes}`;
+  if (includeT) {
+    return `${year}-${monthNumber}-${day}T${String(hours).padStart(
+      2,
+      "0",
+    )}:${minutes}`;
+  }
 
   const ampm = hours >= 12 ? "PM" : "AM";
-  // Convert to 12-hour format
-  hours = hours % 12;
-  hours = hours ? hours : 12; // 0 should be displayed as 12
-  // Format the date
 
-  return `${day}-${month}-${year} ${hours}:${minutes} ${ampm}`;
+  hours = hours % 12;
+  hours = hours || 12;
+
+  if (friendly) {
+    const month = dateObject.toLocaleString("en-US", {
+      month: "short",
+    });
+
+    return `${day} ${month} ${year} ${hours}:${minutes} ${ampm}`;
+  }
+
+  // Existing format remains unchanged
+  return `${day}-${monthNumber}-${year} ${hours}:${minutes} ${ampm}`;
 };

@@ -51,6 +51,7 @@ export default function Vendor({
   const [messages, setMessages] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const chatEndRef = useRef(null);
+  const auctionEndApiCalledRef = useRef(false);
 
   const [quoteRankingAfterAuction, setQuoteRankingAfterAuction] =
     useState(null);
@@ -425,6 +426,8 @@ export default function Vendor({
   useEffect(() => {
     if (!auctionData?.startTime || !auctionData?.endTime) return;
 
+    auctionEndApiCalledRef.current = false;
+
     const interval = setInterval(async () => {
       const now = Date.now();
       const start = new Date(auctionData.startTime).getTime();
@@ -452,9 +455,17 @@ export default function Vendor({
 
       // ❌ Ended
       else if (now >= end) {
+        clearInterval(interval);
         setCountdownLabel("✅ Auction Ended");
         setTimer("0h 0m 0s");
         setIsLive(false);
+
+        // Prevent API from being called more than once
+        if (auctionEndApiCalledRef.current) {
+          return;
+        }
+
+        auctionEndApiCalledRef.current = true;
 
         Object.keys(localStorage).forEach((key) => {
           if (
@@ -463,6 +474,16 @@ export default function Vendor({
             localStorage.removeItem(key);
           }
         });
+
+        try {
+          const res = await postData("rfqs/update-status", {
+            rfq_id: rowData.rfq_number,
+            status: "auction_ended",
+          });
+        } catch (err) {
+          console.error("Status update failed:", err);
+          alert("Failed to update status");
+        }
 
         return;
       }
@@ -516,8 +537,8 @@ export default function Vendor({
 
         if (winner) {
           console.log("Auction ended. Winner:", winner);
-          hasSentResult.current = true;
-          sendAuctionResultEmails(winner, nonWinners);
+          //hasSentResult.current = true;
+          //sendAuctionResultEmails(winner, nonWinners);
           clearInterval(interval);
         }
         Object.keys(localStorage).forEach((key) => {
@@ -604,7 +625,7 @@ export default function Vendor({
 
           <hr />
 
-          {isAuctionEnded && isWinner && (
+          {/* {isAuctionEnded && isWinner && (
             <Card
               title="🏆 Congratulations!"
               className="mb-3 border-round-xl shadow-3"
@@ -613,9 +634,9 @@ export default function Vendor({
                 🎉 You won the auction!
               </p>
             </Card>
-          )}
+          )} */}
 
-          {isAuctionEnded && !isWinner && myRank && (
+          {isAuctionEnded && myRank && (
             <Card
               title="📊 Auction Result"
               className="mb-3 border-round-xl shadow-2"
@@ -626,8 +647,37 @@ export default function Vendor({
               </p>
 
               <p className="text-sm text-600">
-                Thank you for participating in the auction.
+                The auction has ended. Your current ranking based on the bidding
+                results is shown here.
               </p>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "7px",
+                  background: "rgba(59, 130, 246, 0.08)",
+                  border: "1px solid rgba(59, 130, 246, 0.22)",
+                  borderRadius: "8px",
+                  padding: "7px 12px",
+                  marginTop: "8px",
+                  color: "#1e5a91",
+                  fontSize: "13px",
+                  fontWeight: "500",
+                }}
+              >
+                <i
+                  className="pi pi-info-circle"
+                  style={{
+                    color: "#3b82f6",
+                    fontSize: "13px",
+                  }}
+                />
+
+                <span>
+                  Final ranking is subject to review and confirmation by the
+                  Ajanta team.
+                </span>
+              </div>
             </Card>
           )}
         </Card>

@@ -288,7 +288,7 @@ const TopBar = forwardRef((props, ref) => {
                             marginTop: "2px",
                           }}
                         >
-                          Version: V2.0.1
+                          Version: V2.0.3
                         </span>
                       </div>
                     </div>

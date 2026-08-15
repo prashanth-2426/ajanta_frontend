@@ -14,6 +14,7 @@ import { toastError, toastSuccess } from "../../store/toastSlice";
 import { Dialog } from "primereact/dialog";
 import { Checkbox } from "primereact/checkbox";
 import { InputNumber } from "primereact/inputnumber";
+import { InputText } from "primereact/inputtext";
 import { InputTextarea } from "primereact/inputtextarea";
 import jsPDF from "jspdf";
 import "jspdf-autotable";
@@ -29,8 +30,10 @@ import { Row } from "primereact/row";
 import { BASE_URL, API_URL } from "../../constants";
 import { Accordion, AccordionTab } from "primereact/accordion";
 import { MultiSelect } from "primereact/multiselect";
+import { ProgressSpinner } from "primereact/progressspinner";
 import { set } from "react-hook-form";
 import { Tag } from "primereact/tag";
+import { ConfirmDialog, confirmDialog } from "primereact/confirmdialog";
 
 const ViewQuote = () => {
   const { postData, getData } = useApi();
@@ -94,13 +97,17 @@ const ViewQuote = () => {
   //console.log("hodUsers in View Quote:", hodUsers);
   const [selectedHod, setSelectedHod] = useState(null);
   const [marketingHead, setMarketingHead] = useState([]);
+  const [customMarketingEmail, setCustomMarketingEmail] = useState("");
 
   const [hodHead, setHODHead] = useState([]);
+  const [customHodEmail, setCustomHodEmail] = useState("");
 
   const [accountsTeam, setAccountsTeam] = useState([]);
   const [marketingRemarks, setMarketingRemarks] = useState("");
   const [accountsRemarks, setAccountsRemarks] = useState("");
   const [marketingReviewStatus, setMarketingReviewStatus] = useState(false);
+  const [isMarketingShareSubmitting, setIsMarketingShareSubmitting] =
+    useState(false);
 
   const [rolesckt, setRole] = useState(null);
   const [userId, setUserId] = useState(uuidv4().slice(0, 8));
@@ -109,6 +116,7 @@ const ViewQuote = () => {
   const [visibleRows, setVisibleRows] = useState([]);
 
   const [auctionData, setAuctionData] = useState(null);
+  const [hodApprovalStatusData, setHodApprovalStatusData] = useState([]);
 
   const [auctionPulse, setAuctionPulse] = useState(null);
   const [hodRejectedOn, setHodRejectedOn] = useState(null);
@@ -120,6 +128,62 @@ const ViewQuote = () => {
   const [hodStatusData, setHodStatusData] = useState([]);
 
   const navigate = useNavigate();
+
+  const normalizeHodApprovalStatusData = (data) => {
+    if (!data) return [];
+    if (Array.isArray(data)) return data;
+    if (typeof data === "object") return [data];
+    return [];
+  };
+
+  const renderSelectedEmailSummary = (emails) => {
+    const uniqueEmails = Array.from(new Set(emails || []));
+
+    if (!uniqueEmails.length) {
+      return null;
+    }
+
+    return (
+      <div className="mt-2 p-2 border-round surface-100">
+        <div className="text-sm text-600 mb-2">
+          Selected: {uniqueEmails.length} email
+          {uniqueEmails.length > 1 ? "s" : ""}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {uniqueEmails.map((email) => (
+            <Tag key={email} value={email} severity="info" />
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const addCustomEmail = (type) => {
+    const email = (
+      type === "marketing" ? customMarketingEmail : customHodEmail
+    )?.trim();
+
+    if (!email) {
+      dispatch(toastError({ detail: "Please enter an email address." }));
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      dispatch(toastError({ detail: "Please enter a valid email address." }));
+      return;
+    }
+
+    if (type === "marketing") {
+      setMarketingHead((prev) =>
+        prev.includes(email) ? prev : [...prev, email],
+      );
+      setCustomMarketingEmail("");
+    } else {
+      setHODHead((prev) => (prev.includes(email) ? prev : [...prev, email]));
+      setCustomHodEmail("");
+    }
+  };
 
   const currencyOptions = [
     { label: "None", value: "" },
@@ -438,6 +502,11 @@ const ViewQuote = () => {
     try {
       const response = await getData(`rfqs/${rfqNumber}`, {});
       setAuctionData(response?.rfqRecord?.data?.auction_data || null);
+      setHodApprovalStatusData(
+        normalizeHodApprovalStatusData(
+          response?.rfqRecord?.data?.hodAcceptRequestDetails,
+        ),
+      );
     } catch (error) {}
   };
 
@@ -516,6 +585,7 @@ const ViewQuote = () => {
         status: "rejected",
         reason: rejectReason,
         auction_id: auctionData?.id,
+        vendor_id: selectedInvoice.vendor_id,
       };
 
       console.log("Reject payload:", payload);
@@ -574,39 +644,56 @@ const ViewQuote = () => {
     }
   };
 
-  const handleInvoiceApproveSubmit = async () => {
-    try {
-      const payload = {
-        rfq_number: rfq.rfq_number,
-        action: "invoice_approved",
-        status: "approved",
-        reason: "",
-        auction_id: auctionData?.id,
-      };
+  const handleInvoiceApproveSubmit = () => {
+    confirmDialog({
+      message: "Are you sure you want to approve this invoice?",
+      header: "Confirm Invoice Approval",
+      icon: "pi pi-exclamation-triangle",
+      acceptLabel: "Yes, Approve",
+      rejectLabel: "Cancel",
+      acceptClassName: "p-button-success",
+      rejectClassName: "p-button-secondary",
 
-      console.log("Approve payload:", payload);
+      accept: async () => {
+        try {
+          const payload = {
+            rfq_number: rfq.rfq_number,
+            action: "invoice_approved",
+            status: "approved",
+            reason: "",
+            auction_id: auctionData?.id,
+            vendor_id: selectedInvoice.vendor_id,
+          };
 
-      const token = localStorage.getItem("USERTOKEN");
+          console.log("Approve payload:", payload);
 
-      await postData("quotesummary/update-rfq-status", payload, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
+          const token = localStorage.getItem("USERTOKEN");
 
-      dispatch(toastSuccess({ detail: `Invoice has been approved` }));
+          await postData("quotesummary/update-rfq-status", payload, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
 
-      fetchSummary();
-    } catch (error) {
-      console.error("Error approving:", error);
+          dispatch(
+            toastSuccess({
+              detail: "Invoice has been approved successfully.",
+            }),
+          );
 
-      dispatch(
-        toastError({
-          detail: error.response?.data?.msg || "Failed to approve",
-        }),
-      );
-    }
+          fetchSummary();
+        } catch (error) {
+          console.error("Error approving:", error);
+
+          dispatch(
+            toastError({
+              detail: error.response?.data?.msg || "Failed to approve invoice.",
+            }),
+          );
+        }
+      },
+    });
   };
 
   const isAuctionEnded = React.useMemo(() => {
@@ -2315,12 +2402,13 @@ const ViewQuote = () => {
           [
             `Destination Airport : ${rfq?.destination_airport || "-"}`,
             `Destination Address : ${rfq?.destination_address || "-"}`,
-            `Destuffing : ${rfq?.destuffing_location || "-"}`,
+            //`Destuffing : ${rfq?.destuffing_location || "-"}`,
+            `Temperature : ${rfq?.temperature || "-"}`,
           ],
           [
             `TotalGross Weight : ${rfq?.totalGrossWeight} KG`,
             `Total Volumetric : ${rfq?.totalVolumetricWeight} KG`,
-            `Chargable Weight : ${rfq?.chargeable_weight || "-"} KG`,
+            //`Chargable Weight : ${rfq?.chargeable_weight || "-"} KG`,
             `Value of Shipment : INR ${rfq?.value_of_shipment || "-"}`,
           ],
           [
@@ -3120,17 +3208,52 @@ const ViewQuote = () => {
 
     console.log("marketingTeamStatusQuotes", marketingTeamStatusQuotes);
 
-    const invoiceDetails = allQuotesWithUniqueId.filter(
-      (row, index, self) =>
-        row.invoiceDetails &&
-        Object.keys(row.invoiceDetails).length > 0 &&
-        index ===
-          self.findIndex(
-            (r) =>
-              r.vendor_id === row.vendor_id &&
-              r.invoiceDetails?.vendor_email ===
-                row.invoiceDetails?.vendor_email,
-          ),
+    const invoiceDetails = Object.values(
+      allQuotesWithUniqueId.reduce((acc, row) => {
+        const invoice = row.invoiceDetails;
+
+        if (!invoice || Object.keys(invoice).length === 0) {
+          return acc;
+        }
+
+        const key = `${row.vendor_id}-${invoice.vendor_email || ""}`;
+        const existing = acc[key];
+
+        const statusPriority = {
+          invoice_approved: 3,
+          invoice_rejected: 2,
+          invoice_received: 1,
+          received: 1,
+        };
+
+        const currentPriority =
+          statusPriority[invoice.status] || invoice.status ? 1 : 0;
+        const existingPriority =
+          statusPriority[existing?.invoiceDetails?.status] ||
+          (existing?.invoiceDetails?.status ? 1 : 0);
+
+        const existingSubmitted = existing?.invoiceDetails?.submitted_on
+          ? new Date(existing.invoiceDetails.submitted_on).getTime()
+          : 0;
+        const currentSubmitted = invoice.submitted_on
+          ? new Date(invoice.submitted_on).getTime()
+          : 0;
+
+        if (!existing) {
+          acc[key] = row;
+          return acc;
+        }
+
+        if (
+          currentPriority > existingPriority ||
+          (currentPriority === existingPriority &&
+            currentSubmitted > existingSubmitted)
+        ) {
+          acc[key] = row;
+        }
+
+        return acc;
+      }, {}),
     );
 
     console.log("invoiceDetails", invoiceDetails);
@@ -3422,7 +3545,7 @@ const ViewQuote = () => {
             )}
 
             {/* ================= HOD APPROVAL ================= */}
-            {hodApprovalQuotes?.length > 0 && (
+            {hodApprovalStatusData?.length > 0 && (
               <div
                 className="surface-card border-round shadow-2 p-3 min-w-20rem flex-1 border-1 border-indigo-300"
                 style={{
@@ -3431,7 +3554,7 @@ const ViewQuote = () => {
                   overflowY: "auto",
                 }}
               >
-                {hodApprovalQuotes.map((quote) => (
+                {hodApprovalStatusData.map((quote) => (
                   <div
                     key={quote.uniqueId}
                     className="border-round border-1 surface-border p-3 mb-3"
@@ -3444,58 +3567,62 @@ const ViewQuote = () => {
 
                       <Tag
                         className={`px-2 py-1 border-round text-sm ${
-                          quote.hodApprovalDataRejectedDate
-                            ? "bg-red-100 text-red-700"
-                            : "bg-green-100 text-green-700"
+                          quote.status === "requested_hod_approval"
+                            ? "bg-yellow-100 text-yellow-700"
+                            : quote.status === "hod_rejected"
+                              ? "bg-red-100 text-red-700"
+                              : "bg-green-100 text-green-700"
                         }`}
                       >
-                        {quote.hodApprovalDataRejectedDate
-                          ? "Rejected"
-                          : quote.hodApprovalDataMessage
-                            ? "Approved"
-                            : "Pending Approval"}
+                        {quote.status === "requested_hod_approval"
+                          ? "Pending Approval"
+                          : quote.status === "hod_rejected"
+                            ? "Rejected"
+                            : quote.status === "hod_approved"
+                              ? "Approved"
+                              : "Pending Approval"}
                       </Tag>
                     </div>
-                    {/* <div className="mb-3">
-                      <div>
-                        <strong>Vendor:</strong> {quote.vendor_name}
-                      </div>
-
-                      <div>
-                        <strong>Airline:</strong> {quote.requested_airline}
-                      </div>
-                    </div> */}
-
                     <div className="text-sm line-height-3">
                       <div>
-                        <strong>HOD Email:</strong>{" "}
-                        {quote.hodAcceptRequestDetails?.hod_email}
+                        <strong>HOD Email:</strong> {quote.hod_email}
                       </div>
 
                       <div>
-                        <strong>HOD Comment:</strong>{" "}
-                        {quote.hodApprovalDataMessage}
+                        <strong>HOD Comment:</strong> {quote.decisionRemarks}
                       </div>
 
                       <div>
-                        <strong>Buyer Comment:</strong>{" "}
-                        {quote.hodApprovalDataRemarks}
+                        <strong>Buyer Comment:</strong> {quote.remarks}
                       </div>
 
                       <div>
                         <strong>Requested Date:</strong>{" "}
-                        {formatDate(
-                          quote.hodApprovalDataRejectedDate ||
-                            quote.hodApprovalDataDate,
-                        )}
+                        {formatDate(quote.requestedAt)}
                       </div>
                       <div>
                         <strong>HOD Approved Date:</strong>{" "}
-                        {formatDate(quote.hodApprovedOnDate)}
+                        {formatDate(quote.decisionAt)}
                       </div>
                     </div>
 
-                    {quote.attachedFile?.length > 0 && (
+                    <div
+                      className="mt-3 p-2 border-round-lg"
+                      style={{
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      Vendor Details:
+                      <div>
+                        <strong>Vendor Name:</strong> {quote.vendor_name}
+                      </div>
+                      <div>
+                        <strong>Airline:</strong> {quote.airline_name}
+                      </div>
+                    </div>
+
+                    {quote.attached_file?.length > 0 && (
                       <div
                         className="mt-3 p-2 border-round-lg"
                         style={{
@@ -3521,7 +3648,7 @@ const ViewQuote = () => {
                             paddingRight: "4px",
                           }}
                         >
-                          {quote.attachedFile.map((file, i) => (
+                          {quote.attached_file.map((file, i) => (
                             <div key={i}>
                               <a
                                 href={`${BASE_URL}/uploads/rfq/${encodeURIComponent(
@@ -3690,36 +3817,47 @@ const ViewQuote = () => {
                         />
 
                         {/* SHARE */}
-                        <i
-                          className={`pi pi-share-alt text-lg ${
-                            sharedWithAccountsTeamDetails?.length > 0
-                              ? "text-gray-400 cursor-not-allowed"
-                              : "text-blue-600 cursor-pointer"
-                          }`}
-                          title={
-                            sharedWithAccountsTeamDetails?.length > 0
-                              ? `Shared with Accounts Team: ${
-                                  quote?.sharedtoAccountsTeamDetails
-                                    ?.accounts_team_details || "-"
-                                }
-Shared On: ${
-                                  quote?.sharedtoAccountsTeamDetails?.shared_on
-                                    ? new Date(
-                                        quote.sharedtoAccountsTeamDetails
-                                          .shared_on,
-                                      ).toLocaleString()
-                                    : "-"
-                                }`
-                              : "Share with Accounts Team"
-                          }
-                          onClick={() => {
-                            if (sharedWithAccountsTeamDetails?.length > 0)
-                              return;
+                        {(() => {
+                          const sharedAccountsInfo =
+                            quote?.invoiceDetails?.accountsTeamDetails || {};
+                          const hasSharedAccounts =
+                            Object.keys(sharedAccountsInfo).length > 0;
+                          const accountsTeamLabel = Array.isArray(
+                            sharedAccountsInfo.accounts_team_details,
+                          )
+                            ? sharedAccountsInfo.accounts_team_details.join(
+                                ", ",
+                              )
+                            : sharedAccountsInfo.accounts_team_details ||
+                              sharedAccountsInfo.accounts_team_detail ||
+                              "-";
+                          const sharedOnLabel = sharedAccountsInfo.shared_on
+                            ? new Date(
+                                sharedAccountsInfo.shared_on,
+                              ).toLocaleString()
+                            : "-";
 
-                            setSelectedInvoice(quote.invoiceDetails);
-                            setShowShareToAccountsTeamDialog(true);
-                          }}
-                        ></i>
+                          return (
+                            <i
+                              className={`pi pi-share-alt text-lg ${
+                                hasSharedAccounts
+                                  ? "text-gray-400 cursor-not-allowed"
+                                  : "text-blue-600 cursor-pointer"
+                              }`}
+                              title={
+                                hasSharedAccounts
+                                  ? `Shared with Accounts Team: ${accountsTeamLabel}\nShared On: ${sharedOnLabel}`
+                                  : "Share with Accounts Team"
+                              }
+                              onClick={() => {
+                                if (hasSharedAccounts) return;
+
+                                setSelectedInvoice(quote.invoiceDetails);
+                                setShowShareToAccountsTeamDialog(true);
+                              }}
+                            ></i>
+                          );
+                        })()}
 
                         {/* APPROVE */}
                         <i
@@ -4378,43 +4516,52 @@ Shared On: ${
           <Column
             header="Status"
             body={(row) => {
-              // Condition 1: Vendor Accepted by Buyer
+              const normalizedHodEntries = Array.isArray(hodApprovalStatusData)
+                ? hodApprovalStatusData
+                : hodApprovalStatusData
+                  ? [hodApprovalStatusData]
+                  : [];
+
+              const matchingHodEntry = normalizedHodEntries.find((item) => {
+                const requestedAirline =
+                  item?.requested_airline || item?.airline_name;
+                return (
+                  requestedAirline === row.airline_name ||
+                  item?.vendor_id === row.vendor_id ||
+                  item?.vendor_name === row.company
+                );
+              });
+
+              const hodStatus =
+                matchingHodEntry?.status || row.hodAcceptRequestDetails?.status;
+              const hodAirline =
+                matchingHodEntry?.requested_airline ||
+                matchingHodEntry?.airline_name ||
+                row.hodAcceptRequestDetails?.requested_airline;
+              const matchesHodAirline =
+                !hodAirline || hodAirline === row.airline_name;
+              const hasHodAttachment =
+                (row.attachedFile || []).length > 0 ||
+                (matchingHodEntry?.attached_file || []).length > 0;
               const isAccepted =
                 row.acceptedDetails?.accepted_at &&
                 row.acceptedDetails?.accepted_airline === row.airline_name;
 
-              // Condition 2: HOD Approval Pending
-              const isHodApprovalPending =
-                row.hodAcceptRequestDetails?.accepted_at &&
-                row.hodAcceptRequestDetails?.attached_file;
-
-              // Condition 3: HOD Approved
-              const isHodApproved =
-                row.hodAcceptRequestDetails?.hod_approved_on &&
-                row.hodAcceptRequestDetails?.requested_airline ===
-                  row.airline_name;
-
-              // Condition 4: HOD Approved
-              const isHodRejected =
-                row.hodAcceptRequestDetails?.hod_rejected_on &&
-                row.hodAcceptRequestDetails?.requested_airline ===
-                  row.airline_name;
-
-              if (isAccepted || row.savingRank === "L1") {
+              if (isAccepted) {
                 return (
                   <span
                     style={{
                       color: "green",
                       fontWeight: "bold",
-                      fontSize: "1.8rem",
+                      fontSize: "0.7rem",
                     }}
                   >
-                    🏆
+                    ✅ Accepted
                   </span>
                 );
               }
 
-              if (isHodApproved) {
+              if (hodStatus === "hod_approved" && matchesHodAirline) {
                 return (
                   <span
                     style={{
@@ -4424,10 +4571,6 @@ Shared On: ${
                       fontSize: "1.4rem",
                     }}
                   >
-                    {/* <span style={{ color: "green" }} title="HOD Approved">
-                      ✅
-                    </span> */}
-
                     <span
                       style={{
                         color: "green",
@@ -4465,7 +4608,7 @@ Shared On: ${
                 );
               }
 
-              if (isHodRejected) {
+              if (hodStatus === "hod_rejected" && matchesHodAirline) {
                 return (
                   <span
                     style={{
@@ -4480,7 +4623,7 @@ Shared On: ${
                 );
               }
 
-              if (attachedFileName && role === "hod") {
+              if (role === "hod" && hasHodAttachment) {
                 return (
                   <div className="flex gap-2 justify-center">
                     <Button
@@ -4525,6 +4668,20 @@ Shared On: ${
                       }
                     />
                   </div>
+                );
+              }
+
+              if (hodStatus === "requested_hod_approval" && matchesHodAirline) {
+                return (
+                  <span
+                    style={{
+                      color: "#d97706",
+                      fontWeight: "bold",
+                      fontSize: "0.7rem",
+                    }}
+                  >
+                    ⏳ Pending
+                  </span>
                 );
               }
 
@@ -4612,7 +4769,8 @@ Shared On: ${
 
       setShowHODDecisionDialog(false);
       setAcceptRemarks("");
-      fetchSummary();
+      //fetchSummary();
+      fetchAuctionData();
     }
   };
 
@@ -4624,6 +4782,19 @@ Shared On: ${
       form.append("remarks", acceptRemarks || "");
       form.append("hod_name", selectedHod?.name || "");
       form.append("hod_email", selectedHod?.email || "");
+
+      if (!selectedVendors?.length || !selectedVendors[0]?.vendor_id) {
+        return dispatch(
+          toastError({
+            detail: "Please select the vendor for hod approval request.",
+          }),
+        );
+      }
+
+      form.append("vendor_name", selectedVendors[0]?.vendor_name || "");
+      form.append("vendor_email", selectedVendors[0]?.vendor_email || "");
+      form.append("vendor_id", selectedVendors[0]?.vendor_id || "");
+      form.append("airline_name", selectedVendors[0]?.airline_name || "");
 
       if (attachment) {
         //form.append("attachment", attachment);
@@ -4648,7 +4819,8 @@ Shared On: ${
       setShowHodApprovalDialog(false);
       setAttachment([]);
       setAcceptRemarks("");
-      fetchSummary();
+      //fetchSummary();
+      fetchAuctionData();
     } catch (error) {
       console.error("HOD Approval Error:", error);
       dispatch(toastError({ detail: "Error sending approval request." }));
@@ -4695,6 +4867,10 @@ Shared On: ${
   };
 
   const handleShareToMarketingTeam = async () => {
+    if (isMarketingShareSubmitting) return;
+
+    setIsMarketingShareSubmitting(true);
+
     try {
       const form = new FormData();
       form.append("rfq_number", rfq.rfq_number);
@@ -4715,7 +4891,7 @@ Shared On: ${
 
       const token = localStorage.getItem("USERTOKEN");
 
-      const result = await postData("/quotesummary/update-rfq-status", form, {
+      await postData("/quotesummary/update-rfq-status", form, {
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "multipart/form-data",
@@ -4733,6 +4909,8 @@ Shared On: ${
     } catch (error) {
       console.error("Marketing Team Share Error:", error);
       dispatch(toastError({ detail: "Error sharing to marketing team." }));
+    } finally {
+      setIsMarketingShareSubmitting(false);
     }
   };
 
@@ -4744,6 +4922,7 @@ Shared On: ${
       form.append("remarks", accountsRemarks || "");
       form.append("accounts_team_details", accountsTeam || []);
       form.append("selected_invoice", JSON.stringify(selectedInvoice) || {});
+      form.append("vendor_id", selectedInvoice.vendor_id || "");
 
       const token = localStorage.getItem("USERTOKEN");
 
@@ -4899,10 +5078,20 @@ Shared On: ${
 
         {role !== "hod" && (
           <Button
-            label="Send For HOD Approval"
-            className="p-button-info p-button-sm"
-            onClick={() => setShowHodApprovalDialog(true)}
-            //disabled={selectedVendors.length === 0}
+            label="Request HOD Approval"
+            icon="pi pi-send"
+            onClick={() => {
+              if (!selectedVendors?.length || !selectedVendors[0]?.vendor_id) {
+                return dispatch(
+                  toastError({
+                    detail:
+                      "Please select the vendor for HOD approval request.",
+                  }),
+                );
+              }
+
+              setShowHodApprovalDialog(true);
+            }}
           />
         )}
         {/* )} */}
@@ -5189,11 +5378,37 @@ Shared On: ${
         onHide={() => setShowShareToMarketTeamDialog(false)}
         style={{ width: "35vw" }}
       >
-        <div className="mb-3">
-          <label>
-            <strong>Select Marketing Team</strong>
-          </label>
-          {/* <Dropdown
+        <div style={{ position: "relative" }}>
+          {isMarketingShareSubmitting && (
+            <div
+              style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(255,255,255,0.78)",
+                backdropFilter: "blur(3px)",
+                zIndex: 10,
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                borderRadius: "8px",
+              }}
+            >
+              <ProgressSpinner style={{ width: "40px", height: "40px" }} />
+              <div className="mt-2 text-sm">Sharing...</div>
+            </div>
+          )}
+
+          <div
+            style={{
+              pointerEvents: isMarketingShareSubmitting ? "none" : "auto",
+            }}
+            className="mb-3"
+          >
+            <label>
+              <strong>Select Marketing Team</strong>
+            </label>
+            {/* <Dropdown
             value={marketingHead}
             options={marketingUsers?.map((user) => ({
               label: `${user.name} (${user.email})`,
@@ -5205,90 +5420,128 @@ Shared On: ${
             optionLabel="label"
             filter
           /> */}
-          <MultiSelect
-            value={marketingHead}
-            options={marketingUsers?.map((user) => ({
-              label: `${user.name} (${user.email})`,
-              value: user.email, // ✅ store only email
-            }))}
-            onChange={(e) => setMarketingHead(e.value)}
-            placeholder="Select Marketing Team"
-            className="w-full"
-            filter
-            display="chip"
-          />
-          <label>
-            <strong>Select HOD</strong>
-          </label>
-          <MultiSelect
-            value={hodHead}
-            options={hodUsers?.map((user) => ({
-              label: `${user.name} (${user.email})`,
-              value: user.email, // ✅ store only email
-            }))}
-            onChange={(e) => setHODHead(e.value)}
-            placeholder="Select HOD"
-            className="w-full"
-            filter
-            display="chip"
-          />
-        </div>
-
-        <div className="mb-3">
-          <label>
-            <strong>Attach File</strong>
-          </label>
-          <input
-            type="file"
-            multiple
-            className="p-inputtext w-full"
-            onChange={(e) => {
-              const newFiles = Array.from(e.target.files);
-              setAttachment((prev) => [...prev, ...newFiles]);
-            }}
-          />
-          {attachment?.length > 0 && (
-            <div className="mt-2">
-              {attachment?.map((file, index) => (
-                <div key={index} className="flex justify-content-between mb-1">
-                  <span>{file.name}</span>
-                  <Button
-                    icon="pi pi-times"
-                    className="p-button-text p-button-sm"
-                    onClick={() =>
-                      setAttachment((prev) =>
-                        prev.filter((_, i) => i !== index),
-                      )
-                    }
-                  />
-                </div>
-              ))}
+            <MultiSelect
+              value={marketingHead}
+              options={marketingUsers?.map((user) => ({
+                label: `${user.name} (${user.email})`,
+                value: user.email,
+              }))}
+              onChange={(e) => setMarketingHead(e.value)}
+              placeholder="Select Marketing Team"
+              className="w-full"
+              filter
+              display="chip"
+              maxSelectedLabels={100}
+            />
+            {renderSelectedEmailSummary(marketingHead)}
+            <div className="flex gap-2 mt-2">
+              <InputText
+                value={customMarketingEmail}
+                onChange={(e) => setCustomMarketingEmail(e.target.value)}
+                placeholder="Add custom email"
+                className="w-full"
+              />
+              <Button
+                label="Add"
+                className="p-button-sm"
+                onClick={() => addCustomEmail("marketing")}
+              />
             </div>
-          )}
-        </div>
 
-        <div className="mb-3">
-          <label>Remarks</label>
-          <InputTextarea
-            rows={3}
-            value={marketingRemarks}
-            onChange={(e) => setMarketingRemarks(e.target.value)}
-            placeholder="Enter remarks..."
-            className="w-full"
-          />
-        </div>
+            <label className="mt-3">
+              <strong>Select HOD</strong>
+            </label>
+            <MultiSelect
+              value={hodHead}
+              options={hodUsers?.map((user) => ({
+                label: `${user.name} (${user.email})`,
+                value: user.email,
+              }))}
+              onChange={(e) => setHODHead(e.value)}
+              placeholder="Select HOD"
+              className="w-full"
+              filter
+              display="chip"
+              maxSelectedLabels={100}
+            />
+            {renderSelectedEmailSummary(hodHead)}
+            <div className="flex gap-2 mt-2">
+              <InputText
+                value={customHodEmail}
+                onChange={(e) => setCustomHodEmail(e.target.value)}
+                placeholder="Add custom email"
+                className="w-full"
+              />
+              <Button
+                label="Add"
+                className="p-button-sm"
+                onClick={() => addCustomEmail("hod")}
+              />
+            </div>
+          </div>
 
-        <div className="flex justify-content-end gap-2">
-          <Button
-            label="Share Now"
-            className="p-button-sm p-button-success"
-            onClick={handleShareToMarketingTeam}
-          />
-          <Button
-            label="Cancel"
-            className="p-button-secondary p-button-sm"
-            onClick={() => setShowShareToMarketTeamDialog(false)}
-          />
+          <div className="mb-3">
+            <label>
+              <strong>Attach File</strong>
+            </label>
+            <input
+              type="file"
+              multiple
+              className="p-inputtext w-full"
+              onChange={(e) => {
+                const newFiles = Array.from(e.target.files);
+                setAttachment((prev) => [...prev, ...newFiles]);
+              }}
+            />
+            {attachment?.length > 0 && (
+              <div className="mt-2">
+                {attachment?.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-content-between mb-1"
+                  >
+                    <span>{file.name}</span>
+                    <Button
+                      icon="pi pi-times"
+                      className="p-button-text p-button-sm"
+                      onClick={() =>
+                        setAttachment((prev) =>
+                          prev.filter((_, i) => i !== index),
+                        )
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="mb-3">
+            <label>Remarks</label>
+            <InputTextarea
+              rows={3}
+              value={marketingRemarks}
+              onChange={(e) => setMarketingRemarks(e.target.value)}
+              placeholder="Enter remarks..."
+              className="w-full"
+            />
+          </div>
+
+          <div className="flex justify-content-end gap-2">
+            <Button
+              label={isMarketingShareSubmitting ? "Sharing..." : "Share Now"}
+              className="p-button-sm p-button-success"
+              onClick={handleShareToMarketingTeam}
+              disabled={isMarketingShareSubmitting}
+              loading={isMarketingShareSubmitting}
+            />
+            <Button
+              label="Cancel"
+              className="p-button-secondary p-button-sm"
+              onClick={() => setShowShareToMarketTeamDialog(false)}
+              disabled={isMarketingShareSubmitting}
+            />
+          </div>
         </div>
       </Dialog>
 
@@ -5667,6 +5920,7 @@ Shared On: ${
           </div>
         </div>
       </Dialog>
+      {/* <ConfirmDialog /> */}
     </>
   );
 };

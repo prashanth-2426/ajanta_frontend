@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { Menu } from "primereact/menu";
 import { useSelector, useDispatch } from "react-redux";
 import { DataTable } from "primereact/datatable";
 import { Column } from "primereact/column";
@@ -18,12 +19,14 @@ import { getRates } from "../../utils/exchangeRates";
 import { set } from "react-hook-form";
 import VendorBiddingPanel from "./VendorBiddingPanel";
 import { Dialog } from "primereact/dialog";
+import { Tag } from "primereact/tag";
 import { v4 as uuidv4 } from "uuid";
 import { setAuctions } from "../../store/auctionSlice";
 import { BASE_URL, API_URL } from "../../constants";
 import VendorCostUpload from "./VendorCostUpload";
 
 const RfqManagement = () => {
+  const op = useRef(null);
   const { postData, getData } = useApi();
   const user = useSelector((state) => state.auth.user);
   //console.log("user info on lisitng", user);
@@ -33,12 +36,51 @@ const RfqManagement = () => {
   //console.log("isVendor value", isVendor);
   const [rfqs, setRfqs] = useState([]);
   const [globalFilter, setGlobalFilter] = useState("");
+  // const [filters, setFilters] = useState({
+  //   global: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  //   title: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  //   type: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  //   transport_mode: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  //   currency: { value: null, matchMode: FilterMatchMode.CONTAINS },
+  // });
+
   const [filters, setFilters] = useState({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    title: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    type: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    transport_mode: { value: null, matchMode: FilterMatchMode.CONTAINS },
-    currency: { value: null, matchMode: FilterMatchMode.CONTAINS },
+    rfq_number: {
+      value: null,
+      matchMode: FilterMatchMode.CONTAINS,
+    },
+    "buyer.preshipmentnumber": {
+      value: null,
+      matchMode: FilterMatchMode.CONTAINS,
+    },
+    title: {
+      value: null,
+      matchMode: FilterMatchMode.CONTAINS,
+    },
+    form_type: {
+      value: null,
+      matchMode: FilterMatchMode.CONTAINS,
+    },
+    status: {
+      value: null,
+      matchMode: FilterMatchMode.CONTAINS,
+    },
+    vendorsResponded: {
+      value: null,
+      matchMode: FilterMatchMode.CONTAINS,
+    },
+    createdAt: {
+      value: null,
+      matchMode: FilterMatchMode.DATE_IS,
+    },
+    open_date_time: {
+      value: null,
+      matchMode: FilterMatchMode.DATE_IS,
+    },
+    close_date_time: {
+      value: null,
+      matchMode: FilterMatchMode.DATE_IS,
+    },
   });
 
   const [expandedRows, setExpandedRows] = useState(null);
@@ -125,18 +167,18 @@ const RfqManagement = () => {
       }));
       let result = enriched;
 
-      if (role === "hod") {
-        result = enriched.filter(
-          (rfq) =>
-            rfq.status === "requested_hod_approval" ||
-            rfq.status === "hod_approved" ||
-            rfq.status === "hod_rejected" ||
-            rfq.status === "documents_submitted_by_exports",
-        );
-        setRfqs(result);
-      } else {
-        setRfqs(enriched);
-      }
+      // if (role === "hod") {
+      //   result = enriched.filter(
+      //     (rfq) =>
+      //       rfq.status === "requested_hod_approval" ||
+      //       rfq.status === "hod_approved" ||
+      //       rfq.status === "hod_rejected" ||
+      //       rfq.status === "documents_submitted_by_exports",
+      //   );
+      //   setRfqs(result);
+      // } else {
+      setRfqs(enriched);
+      //}
     } catch (error) {
       console.error("Error fetching RFQs:", error);
     }
@@ -549,37 +591,47 @@ const RfqManagement = () => {
         },
       ],
     };
-
-    //console.log("payload data", payload);
-
-    // try {
-    //   const token = localStorage.getItem("USERTOKEN");
-    //   const response = await fetch("/apis/quotes", {
-    //     method: "POST",
-    //     headers: {
-    //       Authorization: `Bearer ${token}`,
-    //       "Content-Type": "application/json",
-    //     },
-    //     body: JSON.stringify(payload),
-    //   });
-
-    //   const result = await response.json();
-    //   //console.log("Submit Quote  response", result);
-    //   dispatch(
-    //     toastSuccess({ detail: "Auction Quote Submitted Successfully.." })
-    //   );
-    // } catch (error) {
-    //   console.error("Error submitting auction quote:", error);
-    // }
     try {
-      const result = await postData("quotes", payload);
-      console.log("Submit Quote  response", result);
+      const token = localStorage.getItem("USERTOKEN");
 
+      const response = await fetch("/apis/quotes", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const result = await response.json();
+
+      console.log("Submit Quote response:", result);
+
+      // ❌ API returned an error
+      if (!response.ok || result?.isSuccess === false) {
+        dispatch(
+          toastError({
+            detail: result?.message || result?.msg || "Failed to submit quote.",
+          }),
+        );
+
+        return;
+      }
+
+      // ✅ API success
       dispatch(
-        toastSuccess({ detail: "Auction Quote Submitted Successfully.." }),
+        toastSuccess({
+          detail: "Quote Submitted Successfully.",
+        }),
       );
     } catch (error) {
-      console.error("Error submitting auction quote:", error);
+      console.error("Error submitting quote:", error);
+
+      dispatch(
+        toastError({
+          detail: "Failed to submit quote. Please try again.",
+        }),
+      );
     }
   };
 
@@ -3024,7 +3076,7 @@ const RfqManagement = () => {
 
                         <div className="grid">
                           {/* Buyer Documents Card */}
-                          {/* {row?.buyerDocumentsUploadedDetails &&
+                          {row?.buyerDocumentsUploadedDetails &&
                             row.airline_name ===
                               row.buyerDocumentsUploadedDetails
                                 .airline_name && (
@@ -3088,12 +3140,26 @@ const RfqManagement = () => {
                                     )}
                                   </div>
                                 </div>
+                                <Button
+                                  label="Upload Invoice"
+                                  icon="pi pi-upload"
+                                  className="p-button-sm p-button-success"
+                                  onClick={() => {
+                                    setSelectedRow({
+                                      user,
+                                      rfqNumberForQuoteSummary,
+                                      invoiceDetails: row.invoiceDetails || [],
+                                    });
+
+                                    setShowVendorUpload(true);
+                                  }}
+                                />
                               </div>
-                            )} */}
+                            )}
 
                           {/* Invoice Details Card */}
                           {row?.invoiceDetails?.status &&
-                            row.hodAcceptRequestDetails?.requested_airline ===
+                            row.buyerDocumentsUploadedDetails?.airline_name ===
                               row.airline_name && (
                               <div className="col-12 md:col-6">
                                 <div className="p-3 mt-3 border-round bg-green-50 border-green-300">
@@ -3502,6 +3568,134 @@ const RfqManagement = () => {
 
   const header = <h5 className="mb-2">RFQ List</h5>;
 
+  const getAuctionStateMeta = (rowData) => {
+    const now = new Date();
+    const startTime = rowData?.open_date_time
+      ? new Date(rowData.open_date_time)
+      : null;
+    const endTime = rowData?.close_date_time
+      ? new Date(rowData.close_date_time)
+      : null;
+    const normalizeStatusValue = (value) =>
+      String(value || "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s-]+/g, "_");
+
+    const normalizedStatus = normalizeStatusValue(rowData?.status);
+    const normalizedFormType = normalizeStatusValue(rowData?.form_type);
+    const reAuctionValues = [
+      "reauction_scheduled",
+      "reauction_submitted",
+      "re_auction_scheduled",
+      "re_auction_submitted",
+      "reaction_scheduled",
+      "reaction_submitted",
+    ];
+
+    if (normalizedStatus === "draft" || normalizedFormType === "draft") {
+      return { label: "Draft", severity: "secondary" };
+    }
+
+    const reAuctionMatch = [normalizedStatus, normalizedFormType].some(
+      (value) => {
+        if (!value) return false;
+        if (reAuctionValues.includes(value)) return true;
+        return (
+          value.includes("reauction") ||
+          value.includes("re_auction") ||
+          value.includes("reaction")
+        );
+      },
+    );
+
+    if (startTime && now < startTime) {
+      if (reAuctionMatch) {
+        return { label: "Re-Auction Scheduled", severity: "warning" };
+      }
+
+      if (rowData?.auction_number) {
+        return { label: "Scheduled", severity: "warning" };
+      }
+    }
+
+    if (endTime && now > endTime) {
+      return { label: "Ended", severity: "danger" };
+    }
+
+    if (rowData?.auction_number || reAuctionMatch || startTime || endTime) {
+      return { label: "Live", severity: "success" };
+    }
+
+    if (["accepted", "hod_approved", "approved"].includes(normalizedStatus)) {
+      return { label: "Approved", severity: "success" };
+    }
+
+    if (
+      ["evaluated", "negotiation", "requested_hod_approval"].includes(
+        normalizedStatus,
+      )
+    ) {
+      return { label: "In Review", severity: "info" };
+    }
+
+    if (["rejected"].includes(normalizedStatus)) {
+      return { label: "Rejected", severity: "danger" };
+    }
+
+    const fallback = rowData?.status
+      ? getVendorStatusFromBuyerStatus(rowData.status)
+      : getVendorStatusFromBuyerStatus(rowData?.form_type);
+
+    if (fallback && fallback.toUpperCase() !== "PENDING") {
+      return { label: fallback.toUpperCase(), severity: "info" };
+    }
+
+    return { label: "Open", severity: "secondary" };
+  };
+
+  const renderStatusBadge = (rowData) => {
+    const { label, severity } = getAuctionStateMeta(rowData);
+    return (
+      <Tag
+        value={label}
+        severity={severity}
+        className="px-3 py-2 text-xs font-semibold border-round-md"
+        style={{ minWidth: "7.5rem", textAlign: "center" }}
+      />
+    );
+  };
+
+  const getRowStateStyle = (rowData) => {
+    const { severity } = getAuctionStateMeta(rowData);
+
+    const palette = {
+      warning: {
+        backgroundColor: "#fff7e6",
+        borderLeft: "4px solid #f59e0b",
+      },
+      danger: {
+        backgroundColor: "#fef2f2",
+        borderLeft: "4px solid #ef4444",
+      },
+      success: {
+        backgroundColor: "#eafff3",
+        borderLeft: "5px solid #16a34a",
+        boxShadow: "inset 0 0 0 1px rgba(22, 163, 74, 0.18)",
+      },
+      info: {
+        backgroundColor: "#eff6ff",
+        borderLeft: "4px solid #3b82f6",
+      },
+      secondary: {
+        backgroundColor: "#f8fafc",
+        borderLeft: "4px solid #94a3b8",
+      },
+    };
+
+    return palette[severity] || { backgroundColor: "#ffffff" };
+  };
+
   const actionBodyTemplate = (rowData) => (
     <div className="flex gap-2">
       <Button
@@ -3583,6 +3777,7 @@ const RfqManagement = () => {
 
     try {
       const token = localStorage.getItem("USERTOKEN");
+
       const response = await fetch("/apis/quotes", {
         method: "POST",
         headers: {
@@ -3593,10 +3788,34 @@ const RfqManagement = () => {
       });
 
       const result = await response.json();
-      //console.log("Submit Quote  response", result);
-      dispatch(toastSuccess({ detail: "Quote Submitted Successfully.." }));
+
+      console.log("Submit Quote response:", result);
+
+      // ❌ API returned an error
+      if (!response.ok || result?.isSuccess === false) {
+        dispatch(
+          toastError({
+            detail: result?.message || result?.msg || "Failed to submit quote.",
+          }),
+        );
+
+        return;
+      }
+
+      // ✅ API success
+      dispatch(
+        toastSuccess({
+          detail: "Quote Submitted Successfully.",
+        }),
+      );
     } catch (error) {
-      //console.error("Error submitting quote:", error);
+      console.error("Error submitting quote:", error);
+
+      dispatch(
+        toastError({
+          detail: "Failed to submit quote. Please try again.",
+        }),
+      );
     }
   };
 
@@ -3668,6 +3887,91 @@ const RfqManagement = () => {
     <div className="p-4">
       <h3>RFQ - Auction Management</h3>
 
+      <div className="flex flex-wrap gap-2 align-items-center mb-3">
+        <span
+          className="inline-flex align-items-center gap-2 px-2 py-1 border-round-md"
+          style={{
+            background: "#fff7e6",
+            border: "1px solid #facc15",
+            color: "#9a6700",
+            fontWeight: 600,
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#f59e0b",
+              display: "inline-block",
+            }}
+          />
+          Scheduled
+        </span>
+        <span
+          className="inline-flex align-items-center gap-2 px-2 py-1 border-round-md"
+          style={{
+            background: "#fff1f2",
+            border: "1px solid #f9a8d4",
+            color: "#9d174d",
+            fontWeight: 600,
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#ec4899",
+              display: "inline-block",
+            }}
+          />
+          Re-Auction Scheduled
+        </span>
+        <span
+          className="inline-flex align-items-center gap-2 px-2 py-1 border-round-md"
+          style={{
+            background: "#dcfce7",
+            border: "2px solid #16a34a",
+            color: "#166534",
+            fontWeight: 700,
+            boxShadow: "0 0 0 1px rgba(22, 163, 74, 0.15)",
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#16a34a",
+              display: "inline-block",
+              boxShadow: "0 0 0 3px rgba(34, 197, 94, 0.2)",
+            }}
+          />
+          Live
+        </span>
+        <span
+          className="inline-flex align-items-center gap-2 px-2 py-1 border-round-md"
+          style={{
+            background: "#fef2f2",
+            border: "1px solid #f87171",
+            color: "#991b1b",
+            fontWeight: 600,
+          }}
+        >
+          <span
+            style={{
+              width: "10px",
+              height: "10px",
+              borderRadius: "50%",
+              background: "#ef4444",
+              display: "inline-block",
+            }}
+          />
+          Ended
+        </span>
+      </div>
+
       <div className="flex justify-content-end mb-3">
         <span className="p-input-icon-left w-full md:w-30rem">
           <i className="pi pi-search" />
@@ -3685,13 +3989,14 @@ const RfqManagement = () => {
           rows={10}
           responsiveLayout="scroll"
           sortMode="multiple"
+          removableSort
           globalFilter={globalFilter}
           filters={filters}
           filterDisplay="menu"
-          onFilter={(e) => setFilters(e.filters)} // ✅ keep filters in sync
+          onFilter={(e) => setFilters(e.filters)}
           globalFilterFields={[
             "title",
-            "type",
+            "form_type",
             "transport_mode",
             "currency",
             "rfq_number",
@@ -3699,65 +4004,75 @@ const RfqManagement = () => {
             "buyer.preshipmentnumber",
             "buyer.postshipmentnumber",
           ]}
-          removableSort
           className="p-datatable-sm"
+          rowStyle={getRowStateStyle}
         >
           <Column
             field="buyer.preshipmentnumber"
-            filter
+            //filter
+            filterField="rfq_number"
             filterPlaceholder="Search..."
             body={(rowData) => rowData.auction_number || rowData.rfq_number}
             header="RFQ / Auction #"
             sortable
           />
           <Column
+            field="buyer.postshipmentnumber"
+            //filter
+            filterField="postshipmentnumber"
+            filterPlaceholder="Search..."
             header="Shipment Number"
             body={(rowData) =>
               rowData?.buyer?.postshipmentnumber ||
               rowData?.buyer?.preshipmentnumber ||
               "-"
             }
+            sortable
           />
           <Column
+            field="title"
             header="Title"
             sortable
-            filter
+            //filter
             filterPlaceholder="Search..."
             body={(rowData) => rowData.title?.toUpperCase()}
           />
           <Column
-            body={(rowData) =>
-              rowData.status
-                ? rowData.status?.toUpperCase()
-                : rowData.form_type?.toUpperCase()
-            }
+            field="form_type"
+            body={renderStatusBadge}
             header="Status"
             sortable
-            filter
             filterPlaceholder="Search..."
           />
           <Column
             header="Vendors Responded"
             sortable
-            filter
+            //filter
             filterPlaceholder="Search..."
             body={(rowData) =>
               rowData.quote_count ? `${rowData.quote_count}` : "No Quotes"
             }
           />
           <Column
+            field="createdAt"
+            header="Created Date"
+            sortable
+            //filter
+            body={(rowData) => formatDate(rowData.createdAt, false, true)}
+          />
+          <Column
             field="open_date_time"
             header="Open Date"
             sortable
-            filter
-            body={(rowData) => formatDate(rowData.open_date_time)}
+            //filter
+            body={(rowData) => formatDate(rowData.open_date_time, false, true)}
           />
           <Column
             field="close_date_time"
             header="End Date"
             sortable
-            filter
-            body={(rowData) => formatDate(rowData.close_date_time)}
+            //filter
+            body={(rowData) => formatDate(rowData.close_date_time, false, true)}
           />
           <Column
             header="Actions"
@@ -3781,6 +4096,7 @@ const RfqManagement = () => {
           paginator
           rows={5}
           header={header}
+          rowStyle={getRowStateStyle}
         >
           <Column expander style={{ width: "3rem" }} />
           <Column
@@ -3812,20 +4128,7 @@ const RfqManagement = () => {
             header="Submission Deadline"
           />
           {/* <Column field="rfq_items.length" header="Items Count" /> */}
-          <Column
-            body={(rowData) =>
-              rowData.status
-                ? getVendorStatusFromBuyerStatus(rowData.status).toUpperCase()
-                : getVendorStatusFromBuyerStatus(
-                      rowData.form_type,
-                    )?.toUpperCase()
-                  ? getVendorStatusFromBuyerStatus(
-                      rowData.form_type,
-                    ).toUpperCase()
-                  : ""
-            }
-            header="Status"
-          />
+          <Column body={renderStatusBadge} header="Status" />
           <Column
             header="Actions"
             body={(rowData) => (

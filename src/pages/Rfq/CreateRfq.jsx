@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useContext } from "react";
+import React, { useState, useEffect, useRef, useContext, useMemo } from "react";
 import { useLocation } from "react-router-dom";
 import { useSelector, useDispatch } from "react-redux";
 import { useWatch } from "react-hook-form";
@@ -23,7 +23,7 @@ import DataStepperForm from "./DataStepperForm";
 import PackageDimensionsForm from "./PackageDimensionsForm";
 import TransportAuctionForm from "./TransportAuctionForm";
 import QuotingChargesBlock from "./QuotingChargesBlock";
-import { toastError, toastSuccess } from "../../store/toastSlice";
+import { toastError, toastSuccess, toastInfo } from "../../store/toastSlice";
 import { useParams, useNavigate } from "react-router-dom";
 import { useApi } from "../../utils/requests";
 import { LayoutContext } from "../../store/layoutContext";
@@ -115,6 +115,7 @@ const countryCurrencyMap = {
   Chile: "CLP",
   China: "CNY",
   Colombia: "COP",
+  Congo: "COG",
   "Costa Rica": "CRC",
   Croatia: "HRK",
   Cuba: "CUP",
@@ -794,6 +795,15 @@ const CreateRfq = () => {
   //console.log("Current User:", usert);
   const { rfqNumber } = useParams();
   const [isEditMode, setIsEditMode] = useState(false);
+  const [auctionDuration, setAuctionDuration] = useState(30);
+
+  const durationOptions = [
+    { label: "15 Minutes", value: 15 },
+    { label: "30 Minutes", value: 30 },
+    { label: "1 Hour", value: 60 },
+    { label: "2 Hours", value: 120 },
+  ];
+  const now = new Date();
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [activeIndex, setActiveIndex] = useState(0);
@@ -840,6 +850,7 @@ const CreateRfq = () => {
   const seaSectionRef = useRef(null);
   const submitSource = useRef("submit");
   const [formType, setFormType] = useState("draft");
+  const [closeDate, setCloseDate] = useState(null);
   const [packageDimensions, setPackageDimensions] = useState([]);
   const [auctionType, setAuctionType] = useState("");
   const [type, setType] = useState("");
@@ -854,6 +865,33 @@ const CreateRfq = () => {
 
   const role = usert.role;
   const isReadOnly = role === "vendor";
+
+  console.log("update auction mode", isUpdateAuctionMode);
+
+  // const isReadOnly = useMemo(() => {
+  //   // Update auction mode always allows editing
+  //   if (isUpdateAuctionMode) {
+  //     return false;
+  //   }
+
+  //   // Draft RFQs are editable
+  //   if (
+  //     formType === "draft" ||
+  //     formType === "submitted" ||
+  //     rfqStatus === "draft" ||
+  //     rfqStatus === "submitted"
+  //   ) {
+  //     return false;
+  //   }
+
+  //   // Vendor restriction
+  //   if (role === "vendor") {
+  //     return true;
+  //   }
+
+  //   // All other statuses are readonly
+  //   return true;
+  // }, [role, formType, rfqStatus, isUpdateAuctionMode]);
 
   const [selectedCharges, setSelectedCharges] = useState([]);
   const [selectedAdditionalBidCharges, setSelectedAdditionalBidCharges] =
@@ -963,7 +1001,6 @@ const CreateRfq = () => {
   useEffect(() => {
     const fetchRFQData = async () => {
       if (rfqNumber) {
-        setIsEditMode(true);
         const rfqs = await getData("rfqs");
         const matched =
           rfqs.find(
@@ -992,6 +1029,9 @@ const CreateRfq = () => {
         }
         if (matched?.form_type) {
           setFormType(matched.form_type);
+        }
+        if (matched?.close_date_time) {
+          setCloseDate(new Date(matched?.auction_data?.endTime));
         }
         if (matched?.type) {
           setAuctionType(matched.type);
@@ -1024,6 +1064,8 @@ const CreateRfq = () => {
             location: matched.buyer.location || "",
             preshipmentnumber: matched.buyer.preshipmentnumber || "",
             postshipmentnumber: matched.buyer.postshipmentnumber || "",
+            lastPurchasePrice: matched.buyer.lastPurchasePrice || "",
+            remark: matched.buyer.remark || "",
           });
         }
       }
@@ -1045,6 +1087,9 @@ const CreateRfq = () => {
   };
 
   const openDate = useWatch({ control, name: "open_date_time" });
+  const closeDateValue = useWatch({ control, name: "close_date_time" });
+  const isCloseDateInvalid =
+    closeDateValue && new Date(closeDateValue).getTime() < Date.now();
 
   const selectedIndustry = useWatch({ control, name: "industry" });
 
@@ -1061,13 +1106,13 @@ const CreateRfq = () => {
   //   }
   // }, [selectedCountry, setValue]);
 
-  useEffect(() => {
-    if (openDate) {
-      const open = new Date(openDate);
-      const close = new Date(open.getTime() + 30 * 60 * 1000);
-      setValue("close_date_time", close, { shouldValidate: true });
-    }
-  }, [openDate, setValue]);
+  // useEffect(() => {
+  //   if (openDate) {
+  //     const open = new Date(openDate);
+  //     const close = new Date(open.getTime() + 30 * 60 * 1000);
+  //     setValue("close_date_time", close, { shouldValidate: true });
+  //   }
+  // }, [openDate, setValue]);
 
   useEffect(() => {
     if (source === "forward" || source === "reverse") {
@@ -1270,7 +1315,13 @@ const CreateRfq = () => {
             const result = await postData("rfqs", formData);
 
             if (!result?.isSuccess && result?.msg) {
-              return dispatch(toastError({ detail: result.msg }));
+              return dispatch(
+                toastInfo({
+                  sticky: true,
+                  life: 10000,
+                  detail: result.msg,
+                }),
+              );
             }
 
             dispatch(toastSuccess({ detail: "Created Successfully.." }));
@@ -1829,15 +1880,36 @@ const CreateRfq = () => {
 
               <div className="col-12 md:col-3">
                 <label>Open Date</label>
+
                 <Controller
                   control={control}
                   name="open_date_time"
                   render={({ field }) => (
                     <Calendar
                       {...field}
+                      value={field.value}
+                      onChange={(e) => {
+                        const openDate = e.value;
+
+                        // Update Open Date
+                        field.onChange(openDate);
+
+                        // Automatically set Close Date = Open Date + 30 minutes
+                        if (openDate) {
+                          const closeDate = new Date(openDate);
+                          closeDate.setMinutes(closeDate.getMinutes() + 30);
+
+                          setValue("close_date_time", closeDate, {
+                            shouldValidate: true,
+                            shouldDirty: true,
+                          });
+                        }
+                      }}
                       className="w-full"
                       showTime
                       showIcon
+                      stepMinute={5}
+                      minDate={now}
                       dateFormat="dd/mm/yy"
                     />
                   )}
@@ -1852,6 +1924,8 @@ const CreateRfq = () => {
                     <Calendar
                       {...field}
                       className="w-full"
+                      stepMinute={5}
+                      minDate={now}
                       showTime
                       showIcon
                       dateFormat="dd/mm/yy"
@@ -4293,6 +4367,71 @@ const CreateRfq = () => {
                     }
                   />
                 </div>
+
+                {isUpdateAuctionMode && (
+                  <div
+                    className="col-12 mt-2 mb-3"
+                    style={{
+                      background: "#fff8e1",
+                      border: "1px solid #f59e0b",
+                      borderRadius: "10px",
+                      padding: "16px",
+                    }}
+                  >
+                    <div
+                      className="flex align-items-center gap-2 mb-3"
+                      style={{
+                        color: "#92400e",
+                        fontWeight: "700",
+                        fontSize: "15px",
+                      }}
+                    >
+                      <i className="pi pi-info-circle" />
+                      <span>Previous Auction Details</span>
+                    </div>
+
+                    <div className="grid">
+                      {/* Last Purchase Price */}
+                      <div className="field col-12 md:col-6 mb-0">
+                        <label
+                          htmlFor="lastPurchasePrice"
+                          style={{ fontWeight: "600" }}
+                        >
+                          Last Purchase Price
+                        </label>
+
+                        <InputText
+                          id="lastPurchasePrice"
+                          value={buyer.lastPurchasePrice || ""}
+                          keyfilter="num"
+                          onChange={(e) =>
+                            updateField("lastPurchasePrice", e.target.value)
+                          }
+                          placeholder="Enter last purchase price"
+                          className="w-full"
+                        />
+                      </div>
+
+                      {/* Remark */}
+                      <div className="field col-12 md:col-6 mb-0">
+                        <label htmlFor="remark" style={{ fontWeight: "600" }}>
+                          Remark
+                        </label>
+
+                        <InputTextarea
+                          id="remark"
+                          value={buyer.remark || ""}
+                          onChange={(e) =>
+                            updateField("remark", e.target.value)
+                          }
+                          rows={2}
+                          placeholder="Enter remark"
+                          className="w-full"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
           </form>
@@ -4327,27 +4466,41 @@ const CreateRfq = () => {
 
             {activeIndex === steps.length - 1 && (
               <div className="flex gap-2">
-                {formType !== "submitted" && (
-                  <Button
-                    type="submit"
-                    label="Save as Draft"
-                    disabled={isReadOnly}
-                    className="p-button-secondary"
-                    onClick={handleSubmit(onSubmit("draft"))}
-                  />
-                )}
                 <Button
                   type="submit"
-                  label={source ? "Create Auction" : "Submit RFQ"}
-                  className="p-button-success"
-                  onClick={handleSubmit(onSubmit("submitted"))}
-                  disabled={
-                    !isUpdateAuctionMode &&
-                    (rfqStatus === "auctioned" ||
-                      formType === "submitted" ||
-                      isReadOnly)
+                  label={
+                    !formType || formType === "draft" ? "Save as Draft" : "Save"
                   }
+                  disabled={isReadOnly}
+                  className="p-button-secondary"
+                  onClick={handleSubmit(
+                    onSubmit(
+                      !formType || formType === "draft" ? "draft" : "save",
+                    ),
+                  )}
                 />
+                {(!closeDateValue ||
+                  new Date(closeDateValue) >= new Date()) && (
+                  <Button
+                    type="submit"
+                    label={
+                      source && !isUpdateAuctionMode
+                        ? "Create Auction"
+                        : source && isUpdateAuctionMode
+                          ? "Create Re - Auction"
+                          : "Submit RFQ"
+                    }
+                    className="p-button-success"
+                    onClick={handleSubmit(onSubmit("submitted"))}
+                    disabled={
+                      isCloseDateInvalid ||
+                      (!isUpdateAuctionMode &&
+                        (rfqStatus === "auctioned" ||
+                          formType === "submitted" ||
+                          isReadOnly))
+                    }
+                  />
+                )}
               </div>
             )}
           </div>
