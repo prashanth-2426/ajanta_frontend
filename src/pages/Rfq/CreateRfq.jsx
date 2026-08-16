@@ -864,34 +864,9 @@ const CreateRfq = () => {
   const [isOpen, setIsOpen] = useState(true);
 
   const role = usert.role;
-  const isReadOnly = role === "vendor";
+  //const isReadOnly = role === "vendor";
 
   console.log("update auction mode", isUpdateAuctionMode);
-
-  // const isReadOnly = useMemo(() => {
-  //   // Update auction mode always allows editing
-  //   if (isUpdateAuctionMode) {
-  //     return false;
-  //   }
-
-  //   // Draft RFQs are editable
-  //   if (
-  //     formType === "draft" ||
-  //     formType === "submitted" ||
-  //     rfqStatus === "draft" ||
-  //     rfqStatus === "submitted"
-  //   ) {
-  //     return false;
-  //   }
-
-  //   // Vendor restriction
-  //   if (role === "vendor") {
-  //     return true;
-  //   }
-
-  //   // All other statuses are readonly
-  //   return true;
-  // }, [role, formType, rfqStatus, isUpdateAuctionMode]);
 
   const [selectedCharges, setSelectedCharges] = useState([]);
   const [selectedAdditionalBidCharges, setSelectedAdditionalBidCharges] =
@@ -932,6 +907,9 @@ const CreateRfq = () => {
     location: "",
   });
 
+  const [preShipmentNumber, setPreShipmentNumber] = useState("");
+  const [postShipmentNumber, setPostShipmentNumber] = useState("");
+
   useEffect(() => {
     if (useMyDetails && usert && !buyer.name) {
       setBuyer({
@@ -945,6 +923,47 @@ const CreateRfq = () => {
 
   const updateField = (field, value) => {
     setBuyer((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handleUpdatePSNumber = async () => {
+    const psNumber = (buyer.postshipmentnumber || "").trim();
+
+    if (!rfqNumber) {
+      alert("RFQ number is not available to update the Post Shipment Number.");
+      return;
+    }
+
+    if (!psNumber) {
+      alert("⚠️ Post Shipment Number is required!");
+      return;
+    }
+
+    try {
+      const res = await postData("rfqs/update-status", {
+        rfq_id: rfqNumber,
+        psnumber: psNumber,
+      });
+
+      if (res?.isSuccess || res?.success) {
+        dispatch(
+          toastSuccess({
+            detail:
+              res?.message || "Post Shipment Number updated successfully.",
+          }),
+        );
+      } else {
+        dispatch(
+          toastError({
+            detail: res?.message || "Failed to update Post Shipment Number.",
+          }),
+        );
+      }
+    } catch (err) {
+      console.error("Failed to update Post Shipment Number:", err);
+      dispatch(
+        toastError({ detail: "Failed to update Post Shipment Number." }),
+      );
+    }
   };
 
   const [form, setForm] = useState({
@@ -1067,6 +1086,9 @@ const CreateRfq = () => {
             lastPurchasePrice: matched.buyer.lastPurchasePrice || "",
             remark: matched.buyer.remark || "",
           });
+
+          setPreShipmentNumber(matched.buyer.preshipmentnumber || "");
+          setPostShipmentNumber(matched.buyer.postshipmentnumber || "");
         }
       }
     };
@@ -1090,6 +1112,37 @@ const CreateRfq = () => {
   const closeDateValue = useWatch({ control, name: "close_date_time" });
   const isCloseDateInvalid =
     closeDateValue && new Date(closeDateValue).getTime() < Date.now();
+
+  const isAuctionLive = openDate && new Date(openDate).getTime() < Date.now();
+
+  const isReadOnly = useMemo(() => {
+    // Update auction mode always allows editing
+
+    // Vendor restriction
+    if (role === "vendor") {
+      return true;
+    }
+
+    if (!isUpdateAuctionMode && isCloseDateInvalid && isAuctionLive) {
+      return true;
+    }
+
+    if (
+      formType === "draft" ||
+      rfqStatus === "draft" ||
+      rfqStatus === "submitted" ||
+      formType === "submitted"
+    ) {
+      return false;
+    }
+
+    if (isUpdateAuctionMode) {
+      return false;
+    }
+
+    // All other statuses are readonly
+    return true;
+  }, [role, formType, rfqStatus, isUpdateAuctionMode]);
 
   const selectedIndustry = useWatch({ control, name: "industry" });
 
@@ -1187,6 +1240,10 @@ const CreateRfq = () => {
           rfq_number: generatedRfqNumber,
           auction_number: abc,
           buyerId: userId,
+          isEditedData:
+            preShipmentNumber !== null && preShipmentNumber !== ""
+              ? true
+              : false,
           form_type:
             isUpdateAuctionMode === true
               ? "reauction_submitted"
@@ -1688,6 +1745,20 @@ const CreateRfq = () => {
 
   return (
     <div className="p-4">
+      <div className="flex align-items-center gap-2 mb-3">
+        <Button
+          icon="pi pi-arrow-left"
+          rounded
+          text
+          severity="secondary"
+          aria-label="Back"
+          tooltip="Back"
+          tooltipOptions={{ position: "right" }}
+          onClick={() => navigate(-1)}
+        />
+
+        <h2 className="m-0 text-xl font-semibold">RFQ / Auction Details</h2>
+      </div>
       <Steps
         model={steps}
         activeIndex={activeIndex}
@@ -4181,7 +4252,7 @@ const CreateRfq = () => {
         </fieldset>
       )}
 
-      {activeIndex === 3 && !isReadOnly && (
+      {activeIndex === 3 && role !== "vendor" && (
         <fieldset
           disabled={isReadOnly}
           style={{ border: "none", padding: 0, margin: 0 }}
@@ -4352,6 +4423,12 @@ const CreateRfq = () => {
                     onChange={(e) =>
                       updateField("preshipmentnumber", e.target.value)
                     }
+                    readOnly={
+                      preShipmentNumber !== null && preShipmentNumber !== ""
+                    }
+                    disabled={
+                      preShipmentNumber !== null && preShipmentNumber !== ""
+                    }
                   />
                 </div>
 
@@ -4359,13 +4436,28 @@ const CreateRfq = () => {
                   <label htmlFor="postshipmentnumber">
                     Post Shipment Number
                   </label>
-                  <InputText
-                    id="postshipmentnumber"
-                    value={buyer.postshipmentnumber}
-                    onChange={(e) =>
-                      updateField("postshipmentnumber", e.target.value)
-                    }
-                  />
+                  <div className="p-inputgroup" style={{ width: "100%" }}>
+                    <InputText
+                      id="postshipmentnumber"
+                      value={buyer.postshipmentnumber}
+                      onChange={(e) =>
+                        updateField("postshipmentnumber", e.target.value)
+                      }
+                      style={{ flex: 1 }}
+                    />
+                    <Button
+                      type="button"
+                      label="Update PSNumber"
+                      onClick={handleUpdatePSNumber}
+                      style={{
+                        background: "#3cb7d0",
+                        borderColor: "#3cb7d0",
+                        minWidth: "180px",
+                        fontWeight: "600",
+                        height: "42px",
+                      }}
+                    />
+                  </div>
                 </div>
 
                 {isUpdateAuctionMode && (
@@ -4466,41 +4558,38 @@ const CreateRfq = () => {
 
             {activeIndex === steps.length - 1 && (
               <div className="flex gap-2">
-                <Button
-                  type="submit"
-                  label={
-                    !formType || formType === "draft" ? "Save as Draft" : "Save"
-                  }
-                  disabled={isReadOnly}
-                  className="p-button-secondary"
-                  onClick={handleSubmit(
-                    onSubmit(
-                      !formType || formType === "draft" ? "draft" : "save",
-                    ),
-                  )}
-                />
-                {(!closeDateValue ||
-                  new Date(closeDateValue) >= new Date()) && (
+                {(!formType || formType === "draft") && (
                   <Button
                     type="submit"
-                    label={
-                      source && !isUpdateAuctionMode
-                        ? "Create Auction"
-                        : source && isUpdateAuctionMode
-                          ? "Create Re - Auction"
-                          : "Submit RFQ"
-                    }
-                    className="p-button-success"
-                    onClick={handleSubmit(onSubmit("submitted"))}
-                    disabled={
-                      isCloseDateInvalid ||
-                      (!isUpdateAuctionMode &&
-                        (rfqStatus === "auctioned" ||
-                          formType === "submitted" ||
-                          isReadOnly))
-                    }
+                    label="Save as Draft"
+                    disabled={isReadOnly}
+                    className="p-button-secondary"
+                    onClick={handleSubmit(onSubmit("draft"))}
                   />
                 )}
+                {(!closeDateValue || new Date(closeDateValue) >= new Date()) &&
+                  !isAuctionLive &&
+                  role !== "vendor" && (
+                    <Button
+                      type="submit"
+                      label={
+                        source && !isUpdateAuctionMode
+                          ? "Create Auction"
+                          : source && isUpdateAuctionMode
+                            ? "Create Re - Auction"
+                            : "Submit RFQ"
+                      }
+                      className="p-button-success"
+                      onClick={handleSubmit(onSubmit("submitted"))}
+                      // disabled={
+                      //   isCloseDateInvalid ||
+                      //   (!isUpdateAuctionMode &&
+                      //     (rfqStatus === "auctioned" ||
+                      //       formType === "submitted" ||
+                      //       isReadOnly))
+                      // }
+                    />
+                  )}
               </div>
             )}
           </div>

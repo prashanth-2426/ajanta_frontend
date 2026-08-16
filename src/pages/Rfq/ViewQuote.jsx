@@ -3357,6 +3357,20 @@ const ViewQuote = () => {
 
     return (
       <div className="mt-4">
+        <div className="flex align-items-center gap-2 mb-3">
+          <Button
+            icon="pi pi-arrow-left"
+            rounded
+            text
+            severity="secondary"
+            aria-label="Back"
+            tooltip="Back"
+            tooltipOptions={{ position: "right" }}
+            onClick={() => navigate(-1)}
+          />
+
+          <h2 className="m-0 text-xl font-semibold">RFQ / Auction Details</h2>
+        </div>
         {auctionPulse && (
           <div className="auction-pulse">
             <span className="emoji">{auctionPulse.emoji}</span>
@@ -5052,7 +5066,7 @@ const ViewQuote = () => {
             )} */}
 
           <div style={{ display: "flex", gap: "10px" }}>
-            {role === "user" && (
+            {role === "user" && isAuctionEnded && (
               <>
                 {/* <Button
                   label={auctionData ? "✏️ Re-Auction" : "🏆 Conduct Auction"}
@@ -5069,7 +5083,6 @@ const ViewQuote = () => {
                       `/rfq/view/${rfq?.rfq_number}?source=auction&edit=true`,
                     )
                   }
-                  disabled={!auctionData && selectedVendors.length === 0}
                 />
               </>
             )}
